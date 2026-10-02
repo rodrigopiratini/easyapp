@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EasyAPP Financial</title>
+<meta name="description" content="O app de finanças que lança sozinho, mostra para onde vai o seu dinheiro, já vem com plano de aposentadoria — e que você muda do jeito que quiser, só conversando.">
+<meta property="og:title" content="EasyAPP Financial — o app de finanças que é seu de verdade">
+<meta property="og:description" content="Lança sozinho, controla o cartão por categoria, já vem com plano de aposentadoria e você muda o app inteiro só conversando.">
+<meta property="og:image" content="img/icone.png">
+<meta name="theme-color" content="#0b0f19">
+<link rel="icon" href="img/icone-192.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ======================================================================
+   CONFIGURAÇÃO — o que muda sem mexer no resto
+   (os valores ficam no <script> do fim: APK_URL e WHATSAPP)
+   ====================================================================== */
+:root{
+  --bg:#0b0f19; --bg2:#0f1420; --card:#161d2d; --card2:#1c2436; --line:#263049;
+  --tx:#e8edf7; --tx2:#9aa6bf; --tx3:#6b7790;
+  --azul:#3b82f6; --verde:#22c55e; --verm:#ef4444; --amar:#f59e0b; --roxo:#a855f7; --ciano:#06b6d4; --rosa:#ec4899;
+  --grad:linear-gradient(120deg,#3b82f6 0%,#22c55e 100%);
+  --r:22px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--tx);font-family:Inter,system-ui,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+h1,h2,h3{font-family:Sora,Inter,sans-serif;line-height:1.12;letter-spacing:-.02em}
+.wrap{max-width:1140px;margin:0 auto;padding:0 20px}
+.grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.eyebrow{display:inline-flex;gap:8px;align-items:center;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tx2)}
+.eyebrow i{width:8px;height:8px;border-radius:50%;background:var(--verde);box-shadow:0 0 12px var(--verde)}
+.btn{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:16px;padding:16px 26px;border-radius:14px;transition:transform .15s, box-shadow .2s;cursor:pointer;border:0}
+.btn:hover{transform:translateY(-2px)}
+.btn-p{background:var(--grad);color:#06110a;box-shadow:0 10px 40px -10px rgba(34,197,94,.6)}
+.btn-s{background:var(--card2);color:var(--tx);border:1px solid var(--line)}
+.btn svg{width:20px;height:20px}
+section{padding:110px 0}
+.sec-h{max-width:720px;margin-bottom:56px}
+.sec-h h2{font-size:clamp(32px,5vw,52px);margin:14px 0 18px}
+.sec-h p{font-size:19px;color:var(--tx2)}
+
+/* ---------- topo ---------- */
+nav{position:fixed;inset:0 0 auto 0;z-index:50;background:rgba(11,15,25,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(38,48,73,.6)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
+.logo img{width:30px;height:30px;border-radius:8px}
+.logo b{color:var(--azul)}
+nav .links{display:flex;gap:28px;font-size:14px;color:var(--tx2);font-weight:500}
+nav .links a:hover{color:var(--tx)}
+nav .btn{padding:10px 18px;font-size:14px;border-radius:10px}
+@media(max-width:820px){nav .links{display:none}}
+@media(max-width:400px){.logo b{display:none}nav .btn{padding:9px 14px}.btn{padding:15px 20px}}
+
+/* ---------- hero ---------- */
+.hero{padding:140px 0 80px;position:relative;overflow:hidden}
+.hero:before{content:"";position:absolute;width:900px;height:900px;left:50%;top:-300px;transform:translateX(-20%);background:radial-gradient(circle,rgba(59,130,246,.22),transparent 60%);pointer-events:none}
+.hero:after{content:"";position:absolute;width:700px;height:700px;left:-200px;bottom:-300px;background:radial-gradient(circle,rgba(34,197,94,.14),transparent 60%);pointer-events:none}
+.hero .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;position:relative;z-index:1}
+.hero h1{font-size:clamp(40px,6.4vw,74px);margin:20px 0 24px}
+.hero p.lead{font-size:20px;color:var(--tx2);max-width:560px}
+.hero .ctas{display:flex;gap:14px;flex-wrap:wrap;margin:36px 0 22px}
+.hero small{color:var(--tx3);font-size:14px}
+.hero .phones{position:relative;height:640px}
+.hero .phones .phone{position:absolute}
+.hero .phones .p1{left:50%;top:0;transform:translateX(-62%) rotate(-4deg);z-index:2}
+.hero .phones .p2{left:50%;top:70px;transform:translateX(-5%) rotate(5deg) scale(.88);opacity:.9;z-index:1}
+@media(max-width:900px){.hero .wrap{grid-template-columns:1fr}.hero .phones{height:600px;margin-top:20px}}
+@media(max-width:520px){.hero .phones{height:560px}.hero .phones .p2{display:none}.hero .phones .p1{transform:translateX(-50%)}}
+
+/* ---------- celular de mentira (as telas são HTML, não prints) ---------- */
+.phone{width:300px;height:612px;border-radius:44px;background:#05070c;padding:11px;box-shadow:0 0 0 1.5px #2a3347,0 40px 80px -20px rgba(0,0,0,.8),0 0 120px -40px rgba(59,130,246,.45)}
+.screen{width:100%;height:100%;border-radius:34px;background:var(--bg2);overflow:hidden;position:relative;display:flex;flex-direction:column;font-size:11px}
+.screen .notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:84px;height:22px;background:#05070c;border-radius:20px;z-index:5}
+.sbar{height:34px;flex:none}
+.ahead{display:flex;align-items:center;justify-content:space-between;padding:6px 14px 10px;border-bottom:1px solid #1e2638;flex:none}
+.ahead .t{font-weight:800;font-size:13px}.ahead .t b{color:var(--azul)}
+.ahead .pill{display:flex;background:#121a2a;border:1px solid #263049;border-radius:8px;font-size:9px;font-weight:700;overflow:hidden}
+.ahead .pill span{padding:4px 7px;color:var(--tx2)}.ahead .pill span:first-child{background:#1f2a40;color:#fff}
+.months{display:flex;gap:5px;padding:8px 12px 2px;flex:none}
+.months span{font-size:9px;font-weight:700;padding:4px 7px;border:1px solid #263049;border-radius:7px;color:var(--tx2)}
+.months span.on{background:var(--azul);border-color:var(--azul);color:#fff}
+.months span.off{opacity:.35}
+.body{flex:1;overflow:hidden;padding:10px 12px;display:flex;flex-direction:column;gap:9px}
+.c{background:var(--card);border:1px solid #232c40;border-radius:14px;padding:11px 12px}
+.c.bl{border-left:3px solid var(--verde)}.c.bb{border-left:3px solid var(--azul)}.c.br{border-left:3px solid var(--verm)}
+.lbl{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tx2);font-weight:600}
+.row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #222b3e}
+.row:last-child{border:0}
+.big{font-family:Sora,Inter;font-weight:800;font-size:24px;letter-spacing:-.02em;margin:2px 0}
+.g{color:var(--verde)}.r{color:var(--verm)}.y{color:var(--amar)}.b{color:var(--azul)}.mut{color:var(--tx2)}
+.bar{height:6px;background:#0c111c;border-radius:6px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;border-radius:6px}
+.tabbar{flex:none;display:flex;justify-content:space-around;border-top:1px solid #1e2638;padding:7px 4px 14px;background:#0d1320}
+.tabbar span{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:8px;color:var(--tx3)}
+.tabbar span:before{content:"";width:13px;height:13px;border-radius:4px;background:#3b465e}
+.tabbar span.on{color:var(--azul)}.tabbar span.on:before{background:var(--azul)}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.sub{font-size:8.5px;color:var(--tx3)}
+.seg{display:flex;background:#0d1320;border:1px solid #263049;border-radius:9px;font-size:9.5px;font-weight:600;overflow:hidden;flex:none}
+.seg span{flex:1;text-align:center;padding:6px 0;color:var(--tx2)}.seg span.on{background:#1f2a40;color:#fff}
+
+/* ---------- faixa de números ---------- */
+.strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0d1220,#0b0f19)}
+.strip .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+.strip div.it{padding:34px 18px;border-right:1px solid var(--line)}
+.strip div.it:last-child{border:0}
+.strip b{display:block;font-family:Sora;font-size:30px;margin-bottom:4px}
+.strip span{color:var(--tx2);font-size:14.5px}
+@media(max-width:820px){.strip .wrap{grid-template-columns:1fr 1fr}.strip div.it:nth-child(2){border-right:0}.strip div.it{border-bottom:1px solid var(--line)}}
+
+/* ---------- blocos de funcionalidade ---------- */
+.feat{display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:center;margin-bottom:130px}
+.feat:last-child{margin-bottom:0}
+.feat.inv .txt{order:2}
+.feat .txt h3{font-size:clamp(28px,3.6vw,40px);margin:14px 0 18px}
+.feat .txt p{color:var(--tx2);font-size:18px;margin-bottom:22px}
+.feat .vis{display:flex;justify-content:center;position:relative}
+.feat .vis:before{content:"";position:absolute;inset:10% 5%;background:radial-gradient(circle,rgba(59,130,246,.18),transparent 65%);z-index:0}
+.feat .vis .phone{position:relative;z-index:1}
+.ticks{list-style:none;display:grid;gap:12px}
+.ticks li{display:flex;gap:12px;align-items:flex-start;font-size:16px}
+.ticks li:before{content:"";flex:none;width:22px;height:22px;margin-top:1px;border-radius:7px;background:rgba(34,197,94,.14) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2322c55e' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E") center/14px no-repeat}
+@media(max-width:900px){.feat{grid-template-columns:1fr;gap:44px;margin-bottom:100px}.feat.inv .txt{order:0}}
+
+/* notificação que vira lançamento */
+.notif{position:absolute;top:44px;left:10px;right:10px;z-index:6;background:rgba(36,44,62,.96);backdrop-filter:blur(10px);border-radius:16px;padding:10px 12px;display:flex;gap:9px;box-shadow:0 10px 30px rgba(0,0,0,.5);transform:translateY(-140%);opacity:0;transition:all .6s cubic-bezier(.2,.9,.3,1.2)}
+.notif.show{transform:none;opacity:1}
+.notif .ic{flex:none;width:26px;height:26px;border-radius:7px;background:#e11d48;display:grid;place-items:center;color:#fff;font-weight:800;font-size:12px}
+.notif b{font-size:10px;display:block}.notif span{font-size:10px;color:#c7cfdf}
+.lanc{transition:all .6s ease}
+.lanc.novo{animation:entra 1s ease}
+@keyframes entra{0%{background:rgba(34,197,94,.35);transform:scale(1.04)}100%{background:transparent;transform:none}}
+.tag{font-size:8px;font-weight:700;padding:2px 5px;border-radius:5px;background:rgba(34,197,94,.15);color:var(--verde)}
+
+/* ---------- customização (o grande apelo) ---------- */
+.custom{background:radial-gradient(1200px 600px at 80% 0%,rgba(168,85,247,.16),transparent 60%),radial-gradient(900px 500px at 0% 100%,rgba(59,130,246,.16),transparent 60%),#0a0d16;border-top:1px solid var(--line);border-bottom:1px solid var(--line);position:relative;overflow:hidden}
+.custom .sec-h{max-width:860px}
+.custom h2{font-size:clamp(38px,6vw,68px)!important}
+.custom .grid{display:grid;grid-template-columns:.95fr 1.05fr;gap:60px;align-items:center}
+@media(max-width:900px){.custom .grid{grid-template-columns:1fr}}
+.chat .body{gap:8px;padding-top:12px}
+.msg{max-width:84%;padding:8px 10px;border-radius:13px;font-size:10.5px;line-height:1.4;opacity:0;transform:translateY(8px);transition:all .45s ease}
+.msg.on{opacity:1;transform:none}
+.msg.eu{align-self:flex-end;background:var(--azul);color:#fff;border-bottom-right-radius:4px}
+.msg.ia{align-self:flex-start;background:var(--card2);border:1px solid #2a3450;border-bottom-left-radius:4px}
+.msg.ia .mod{margin-top:7px;background:#0f1522;border:1px solid #2a3450;border-radius:9px;padding:7px 8px}
+.msg.ia .acts{display:flex;gap:5px;margin-top:7px}
+.msg.ia .acts span{font-size:9px;font-weight:700;padding:4px 8px;border-radius:7px;background:#253049}
+.msg.ia .acts span.ok{background:var(--verde);color:#062010}
+.typing{display:flex;gap:3px;padding:10px}.typing i{width:5px;height:5px;border-radius:50%;background:var(--tx2);animation:pul 1s infinite}.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes pul{0%,100%{opacity:.3}50%{opacity:1}}
+.inp{flex:none;margin:0 10px 8px;display:flex;gap:6px;align-items:center;background:#0d1320;border:1px solid #263049;border-radius:12px;padding:7px 8px 7px 11px;font-size:10px;color:var(--tx3)}
+.inp i{margin-left:auto;width:22px;height:22px;border-radius:7px;background:var(--roxo);display:grid;place-items:center;color:#fff;font-style:normal;font-size:11px}
+.pedidos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ped{background:rgba(22,29,45,.75);border:1px solid var(--line);border-radius:16px;padding:16px 16px 14px;transition:border-color .2s, transform .2s}
+.ped:hover{border-color:#3d4a6b;transform:translateY(-2px)}
+.ped q{display:block;font-size:15.5px;font-weight:600;quotes:"“" "”";margin-bottom:6px}
+.ped span{font-size:13px;color:var(--tx2)}
+.ped em{font-style:normal;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:block;margin-bottom:8px}
+@media(max-width:520px){.pedidos{grid-template-columns:1fr}}
+.tres{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:70px}
+.tres div{background:rgba(22,29,45,.6);border:1px solid var(--line);border-radius:var(--r);padding:26px}
+.tres h4{font-family:Sora;font-size:20px;margin:12px 0 8px}
+.tres p{color:var(--tx2);font-size:15px}
+.tres .ico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px}
+@media(max-width:820px){.tres{grid-template-columns:1fr}}
+.manifesto{margin-top:70px;text-align:center;font-family:Sora;font-weight:700;font-size:clamp(24px,3.4vw,36px);line-height:1.3;max-width:900px;margin-left:auto;margin-right:auto}
+.manifesto span{color:var(--tx3)}
+
+/* ---------- aposentadoria ---------- */
+.apos .knob{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 26px}
+.apos .knob button{font:inherit;font-size:14px;font-weight:600;padding:9px 14px;border-radius:11px;background:var(--card2);border:1px solid var(--line);color:var(--tx2);cursor:pointer}
+.apos .knob button.on{background:rgba(34,197,94,.14);border-color:var(--verde);color:var(--verde)}
+.curva{width:100%;height:84px;margin-top:4px}
+
+/* ---------- galeria ---------- */
+.galeria{display:flex;gap:28px;overflow-x:auto;padding:10px 20px 40px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.galeria::-webkit-scrollbar{display:none}
+.galeria figure{flex:none;scroll-snap-align:center;text-align:center}
+.galeria figcaption{margin-top:16px;font-weight:600;color:var(--tx2);font-size:15px}
+.galeria .phone{width:260px;height:530px}
+.galeria .screen{font-size:10px}
+
+/* ---------- como testar ---------- */
+.passos{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;counter-reset:p}
+.passo{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:28px;position:relative}
+.passo:before{counter-increment:p;content:counter(p);font-family:Sora;font-weight:800;font-size:15px;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:var(--grad);color:#06110a;margin-bottom:18px}
+.passo h4{font-family:Sora;font-size:20px;margin-bottom:8px}
+.passo p{color:var(--tx2);font-size:15px}
+@media(max-width:820px){.passos{grid-template-columns:1fr}}
+.cta-final{margin-top:60px;border-radius:28px;padding:60px 40px;text-align:center;background:radial-gradient(600px 300px at 50% 0%,rgba(34,197,94,.25),transparent 70%),var(--card);border:1px solid var(--line)}
+.cta-final h2{font-size:clamp(30px,4.6vw,48px);margin-bottom:14px}
+.cta-final p{color:var(--tx2);font-size:18px;margin-bottom:30px}
+.cta-final .ctas{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+
+/* ---------- perguntas ---------- */
+.faq{max-width:820px}
+.faq details{border-bottom:1px solid var(--line);padding:22px 0}
+.faq summary{cursor:pointer;font-weight:600;font-size:18px;list-style:none;display:flex;justify-content:space-between;gap:20px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary:after{content:"+";font-size:24px;color:var(--tx2);line-height:1;transition:transform .2s}
+.faq details[open] summary:after{transform:rotate(45deg)}
+.faq details p{color:var(--tx2);margin-top:12px;font-size:16px}
+
+footer{border-top:1px solid var(--line);padding:40px 0 60px;color:var(--tx3);font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+
+.rv{opacity:0;transform:translateY(26px);transition:opacity .8s ease,transform .8s ease}
+.rv.on{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none}html{scroll-behavior:auto}}
+@media(max-width:520px){section{padding:80px 0}.phone{width:280px;height:572px}.galeria .phone{width:250px;height:510px}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a href="#" class="logo"><img src="img/icone-192.png" alt="">EasyAPP <b>Financial</b></a>
+    <div class="links">
+      <a href="#funciona">Como funciona</a>
+      <a href="#seu-jeito">Do seu jeito</a>
+      <a href="#aposentadoria">Aposentadoria</a>
+      <a href="#testar">Testar</a>
+    </div>
+    <a class="btn btn-p js-apk" href="#testar">Baixar</a>
+  </div>
+</nav>
+
+<!-- ============================== HERO ============================== -->
+<header class="hero">
+  <div class="wrap">
+    <div class="rv">
+      <span class="eyebrow"><i></i>Versão de teste · convite para amigos</span>
+      <h1>O app de finanças que é <span class="grad">seu de verdade.</span></h1>
+      <p class="lead">Ele lança sozinho, mostra para onde o dinheiro foi, já nasce com um plano para a sua aposentadoria — e você muda <b>qualquer coisa</b> nele só conversando. Sem planilha. Sem programador.</p>
+      <div class="ctas">
+        <a class="btn btn-p js-apk" href="#testar">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18a.38.38 0 10-.66-.38l-1.86 3.22a11.4 11.4 0 00-9.84 0L5.22 5.92a.38.38 0 10-.66.38L6.4 9.48A10.8 10.8 0 001 18h22a10.8 10.8 0 00-5.4-8.52zM7 15.25a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5zm10 0a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5z"/></svg>
+          Baixar para Android
+        </a>
+        <a class="btn btn-s" href="#seu-jeito">Ver o que ele faz</a>
+      </div>
+      <small>Grátis durante o teste · iPhone em breve</small>
+    </div>
+
+    <div class="phones rv">
+      <!-- tela MÊS (valores fictícios) -->
+      <div class="phone p1"><div class="screen"><div class="notch"></div><div class="sbar"></div>
+        <div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>
+        <div class="months"><span>JUL</span><span>AGO</span><span>SET</span><span class="on">OUT</span><span class="off">NOV</span><span class="off">DEZ</span></div>
+        <div class="body">
+          <div class="c bl">
+            <div class="lbl">Caixa — o que bate com o banco</div>
+            <div class="row" style="margin-top:4px"><span>Saldo em conta hoje</span><b>R$ 4.218,40</b></div>
+            <div class="row"><span>Ainda entra no mês</span><b class="g">R$ 2.500,00</b></div>
+            <div class="row"><span>Ainda sai (sem cartão)</span><b class="r">R$ 1.932,15</b></div>
+            <div class="lbl" style="margin-top:8px">Saldo projetado no fim do mês</div>
+            <div class="big g">R$ 4.786,25</div>
+          </div>
+          <div class="c">
+            <div style="display:flex;justify-content:space-between"><div><div class="lbl">Entrou</div><div class="g" style="font-weight:800;font-size:15px">R$ 12.400</div></div><div style="text-align:right"><div class="lbl">Saiu</div><div class="r" style="font-weight:800;font-size:15px">R$ 9.870</div></div></div>
+            <div class="bar"><i style="width:80%;background:var(--verde)"></i></div>
+            <div class="sub" style="margin-top:5px">gastou 80% do que entrou · sobrou R$ 2.530</div>
+          </div>
+          <div class="c">
+            <div class="lbl">Despesas (24)</div>
+            <div class="row"><span><i class="dot" style="background:var(--azul)"></i>Moradia · Aluguel</span><b>R$ 2.100,00</b></div>
+            <div class="row"><span><i class="dot" style="background:var(--azul)"></i>Moradia · Energia</span><b>R$ 186,30</b></div>
+            <div class="row"><span><i class="dot" style="background:var(--roxo)"></i>Mercado</span><b>R$ 1.240,55</b></div>
+            <div class="row"><span><i class="dot" style="background:var(--amar)"></i>Combustível</span><b>R$ 420,00</b></div>
+          </div>
+        </div>
+        <div class="tabbar"><span class="on">Mês</span><span>Cartão</span><span>Extrato</span><span>Análise</span><span>Config</span></div>
+      </div></div>
+
+      <!-- tela CARTÃO (valores fictícios) -->
+      <div class="phone p2"><div class="screen"><div class="notch"></div><div class="sbar"></div>
+        <div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>
+        <div class="body">
+          <div class="c"><div class="lbl">Fatura em aberto</div><div class="big">R$ 3.142,80</div><div class="sub">87 compras · fecha dia 28</div></div>
+          <div class="c">
+            <div class="lbl r">Estourou a verba</div>
+            <div class="row"><span>Restaurantes<br><span class="sub">verba R$ 600 · R$ 19/dia</span></span><b class="r">+R$ 142</b></div>
+            <div class="bar"><i style="width:100%;background:var(--verm)"></i></div>
+            <div class="lbl g" style="margin-top:10px">Ainda tem saldo</div>
+            <div class="row"><span>Mercado<br><span class="sub">verba R$ 1.500</span></span><b class="g">R$ 12/dia</b></div>
+            <div class="bar"><i style="width:72%;background:var(--verde)"></i></div>
+            <div class="row" style="margin-top:6px"><span>Farmácia<br><span class="sub">verba R$ 250</span></span><b class="g">R$ 4/dia</b></div>
+            <div class="bar"><i style="width:55%;background:var(--verde)"></i></div>
+            <div class="row" style="margin-top:6px"><span>Streaming<br><span class="sub">verba R$ 90</span></span><b class="g">R$ 0,80/dia</b></div>
+            <div class="bar"><i style="width:74%;background:var(--verde)"></i></div>
+          </div>
+        </div>
+        <div class="tabbar"><span>Mês</span><span class="on">Cartão</span><span>Extrato</span><span>Análise</span><span>Config</span></div>
+      </div></div>
+    </div>
+  </div>
+</header>
+
+<div class="strip">
+  <div class="wrap">
+    <div class="it rv"><b class="grad">0</b><span>lançamentos digitados à mão — o aviso do banco já vira lançamento</span></div>
+    <div class="it rv"><b class="grad">1 toque</b><span>para classificar uma loja nova. Da próxima vez, ele já sabe</span></div>
+    <div class="it rv"><b class="grad">PF + PJ</b><span>pessoal e empresa no mesmo app, separados por um botão</span></div>
+    <div class="it rv"><b class="grad">100%</b><span>personalizável: telas, cores, contas e regras — conversando</span></div>
+  </div>
+</div>
+
+<!-- ============================== COMO FUNCIONA ============================== -->
+<section id="funciona">
+  <div class="wrap">
+    <div class="sec-h rv">
+      <span class="eyebrow"><i></i>Como funciona</span>
+      <h2>Você vive. <span class="grad">Ele anota.</span></h2>
+      <p>Esquece a planilha que você abandona em março. O EasyAPP escuta o seu banco, organiza tudo por categoria e te diz, todo dia, quanto ainda pode gastar.</p>
+    </div>
+
+    <!-- 1. lança sozinho -->
+    <div class="feat">
+      <div class="txt rv">
+        <span class="eyebrow"><i></i>Lança sozinho</span>
+        <h3>Passou o cartão? Já está no app.</h3>
+        <p>O aviso que o banco manda no seu celular vira lançamento na hora — com valor, loja, cartão e categoria. E o Open Finance confere tudo depois, direto da fonte.</p>
+        <ul class="ticks">
+          <li>Compra no débito, crédito ou Pix entra sozinha</li>
+          <li>Loja nova? Você classifica uma vez e ele aprende para sempre</li>
+          <li>Parcelado vira parcela no mês certo, sem você calcular nada</li>
+        </ul>
+      </div>
+      <div class="vis rv">
+        <div class="phone"><div class="screen"><div class="notch"></div><div class="sbar"></div>
+          <div class="notif" id="notif"><div class="ic">B</div><div><b>Seu Banco · agora</b><span>Compra aprovada de R$ 38,90 em PADARIA CENTRAL no cartão final 0000.</span></div></div>
+          <div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>
+          <div class="body">
+            <div class="seg"><span>Conta corrente</span><span class="on">Cartão</span></div>
+            <div class="c"><div style="display:flex;justify-content:space-between;align-items:end"><div><div class="lbl">Fatura de outubro</div><div class="big" id="fat">R$ 3.103,90</div></div><div style="text-align:right"><div class="lbl">Compras</div><b id="nc" style="font-size:15px">86</b></div></div></div>
+            <div class="c" id="lista" style="padding:4px 12px">
+              <div class="row lanc" id="novo" style="display:none"><span><b>PADARIA CENTRAL</b> <span class="tag">novo</span><br><span class="sub">Padaria e café · Cartão PF</span></span><b>R$ 38,90</b></div>
+              <div class="row"><span><b>SUPERMERCADO BOM PREÇO</b><br><span class="sub">Mercado · Cartão PF</span></span><b>R$ 214,37</b></div>
+              <div class="row"><span><b>POSTO AVENIDA</b><br><span class="sub">Combustível · Cartão PF</span></span><b>R$ 180,00</b></div>
+              <div class="row"><span><b>FARMÁCIA SAÚDE</b><br><span class="sub">Farmácia · Cartão PF</span></span><b>R$ 47,80</b></div>
+              <div class="row"><span><b>CINEMA DO CENTRO</b><br><span class="sub">Lazer · Cartão PF</span></span><b>R$ 62,00</b></div>
+              <div class="row"><span><b>LOJA DE ROUPAS</b> <span class="tag" style="background:rgba(59,130,246,.15);color:var(--azul)">02/05</span><br><span class="sub">Vestuário · Cartão PF</span></span><b>R$ 89,90</b></div>
+              <div class="row"><span><b>APP DE TRANSPORTE</b><br><span class="sub">Transporte · Cartão PF</span></span><b>R$ 23,45</b></div>
+            </div>
+          </div>
+          <div class="tabbar"><span>Mês</span><span>Cartão</span><span class="on">Extrato</span><span>Análise</span><span>Config</span></div>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- 2. cartão por verba -->
+    <div class="feat inv">
+      <div class="txt rv">
+        <span class="eyebrow"><i></i>Cartão sob controle</span>
+        <h3>O cartão deixa de ser um buraco negro.</h3>
+        <p>Cada compra vai para a categoria real — mercado, restaurante, combustível — e não para um balde chamado “cartão”. Cada categoria tem uma verba, e o app te diz quanto ainda dá para gastar <b>por dia</b> até o fim do mês.</p>
+        <ul class="ticks">
+          <li>Vê na hora qual categoria estourou e quanto</li>
+          <li>Sabe quanto a fatura vai dar antes dela fechar</li>
+          <li>Vários cartões, pessoa física e empresa, tudo junto</li>
+        </ul>
+      </div>
+      <div class="vis rv">
+        <div class="phone"><div class="screen"><div class="notch"></div><div class="sbar"></div>
+          <div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>
+          <div class="months"><span>AGO</span><span>SET</span><span class="on">OUT</span><span class="off">NOV</span><span class="off">DEZ</span></div>
+          <div class="body">
+            <div class="c"><div class="lbl">Por tipo de gasto</div><div class="sub" style="margin-top:2px">gasto no mês · quanto ainda posso gastar por dia</div></div>
+            <div class="c">
+              <div class="lbl r">Estourou — R$ 212,40 acima no total</div>
+              <div class="row"><span><i class="dot" style="background:var(--roxo)"></i>Restaurantes<br><span class="sub">&nbsp;&nbsp;&nbsp;verba R$ 600 · gastou R$ 742</span></span><b class="r">+R$ 142,00</b></div>
+              <div class="bar"><i style="width:100%;background:var(--verm)"></i></div>
+              <div class="row" style="margin-top:4px"><span><i class="dot" style="background:var(--amar)"></i>Combustível<br><span class="sub">&nbsp;&nbsp;&nbsp;verba R$ 450 · gastou R$ 520</span></span><b class="r">+R$ 70,40</b></div>
+              <div class="bar"><i style="width:100%;background:var(--verm)"></i></div>
+            </div>
+            <div class="c">
+              <div class="lbl g">Ainda tem saldo</div>
+              <div class="row"><span><i class="dot" style="background:var(--roxo)"></i>Mercado<br><span class="sub">&nbsp;&nbsp;&nbsp;verba R$ 1.500</span></span><span style="text-align:right"><b class="g">R$ 12,40</b><br><span class="sub">por dia</span></span></div>
+              <div class="bar"><i style="width:72%;background:var(--verde)"></i></div>
+              <div class="row" style="margin-top:4px"><span><i class="dot" style="background:var(--verde)"></i>Farmácia<br><span class="sub">&nbsp;&nbsp;&nbsp;verba R$ 250</span></span><span style="text-align:right"><b class="g">R$ 4,10</b><br><span class="sub">por dia</span></span></div>
+              <div class="bar"><i style="width:55%;background:var(--verde)"></i></div>
+              <div class="row" style="margin-top:4px"><span><i class="dot" style="background:var(--rosa)"></i>Lazer<br><span class="sub">&nbsp;&nbsp;&nbsp;verba R$ 400</span></span><span style="text-align:right"><b class="g">R$ 8,60</b><br><span class="sub">por dia</span></span></div>
+              <div class="bar"><i style="width:40%;background:var(--verde)"></i></div>
+            </div>
+          </div>
+          <div class="tabbar"><span>Mês</span><span class="on">Cartão</span><span>Extrato</span><span>Análise</span><span>Config</span></div>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- 3. metas -->
+    <div class="feat">
+      <div class="txt rv">
+        <span class="eyebrow"><i></i>Metas que avisam antes</span>
+        <h3>Ele te avisa que o mês vai fechar no vermelho <em>antes</em> de fechar.</h3>
+        <p>O app projeta o mês inteiro: o que já entrou, o que ainda vai sair, a fatura em formação. Se não vai sobrar o que você queria guardar, ele mostra exatamente <b>onde dá para frear</b>.</p>
+        <ul class="ticks">
+          <li>Meta do mês e meta do ano, sempre com um número só</li>
+          <li>Mês que ficou para trás é reprogramado nos próximos — sem drama</li>
+          <li>Diagnóstico do ano: para onde foi o dinheiro, em linguagem de gente</li>
+        </ul>
+      </div>
+      <div class="vis rv">
+        <div class="phone"><div class="screen"><div class="notch"></div><div class="sbar"></div>
+          <div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>
+          <div class="body">
+            <div class="seg"><span>Painel</span><span>Plano</span><span class="on">Metas</span><span>Patrimônio</span></div>
+            <div class="c bb"><div style="display:flex;justify-content:space-between"><div class="lbl">Meta deste mês</div><span class="sub">dia 18 de 31</span></div><div class="big">R$ 1.500,00</div></div>
+            <div class="c br">
+              <div class="lbl">Do jeito que está indo, vai sobrar</div>
+              <div class="big r">R$ 980,00</div>
+              <div class="bar"><i style="width:65%;background:var(--verm)"></i></div>
+              <div class="row" style="margin-top:4px"><span>Entra no mês</span><b class="g">R$ 12.400</b></div>
+              <div class="row"><span>Sai no mês</span><b class="r">R$ 11.420</b></div>
+            </div>
+            <div class="lbl" style="padding-left:2px">Onde dá para frear</div>
+            <div class="c" style="padding:4px 12px">
+              <div class="row"><span><i class="dot" style="background:var(--roxo)"></i>Restaurantes<br><span class="sub">&nbsp;&nbsp;&nbsp;estourou a verba</span></span><b class="r">R$ 142,00</b></div>
+              <div class="row"><span><i class="dot" style="background:var(--rosa)"></i>Compras online<br><span class="sub">&nbsp;&nbsp;&nbsp;sem verba</span></span><b class="r">R$ 310,00</b></div>
+              <div class="row"><span><i class="dot" style="background:var(--amar)"></i>Combustível<br><span class="sub">&nbsp;&nbsp;&nbsp;estourou a verba</span></span><b class="r">R$ 70,40</b></div>
+              <div class="row"><span class="sub">cortar R$ 520 nestas contas fecha a meta do mês</span></div>
+            </div>
+          </div>
+          <div class="tabbar"><span>Mês</span><span>Cartão</span><span>Extrato</span><span class="on">Análise</span><span>Config</span></div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== APOSENTADORIA ============================== -->
+<section id="aposentadoria" class="apos" style="padding-top:0">
+  <div class="wrap">
+    <div class="feat inv" style="margin-bottom:0">
+      <div class="txt rv">
+        <span class="eyebrow"><i></i>Aposentadoria nativa</span>
+        <h3>Já vem de fábrica te empurrando para a aposentadoria.</h3>
+        <p>Desde o primeiro dia o app faz a conta que ninguém faz: quanto guardar por mês, com quanto você chega lá, e quanto isso rende por mês sem encostar no principal. <b>Mas o plano é seu</b> — mude a idade, o alvo, o ritmo. Ou desligue.</p>
+        <div class="knob" id="knob">
+          <button data-i="55">Parar aos 55</button>
+          <button data-i="60" class="on">Parar aos 60</button>
+          <button data-i="65">Parar aos 65</button>
+        </div>
+        <ul class="ticks">
+          <li>Simulação mês a mês, com inflação e reajustes</li>
+          <li>Conta imóvel, carro e financiamentos no patrimônio</li>
+          <li>Se num mês você não guardar, ele recalcula a rota</li>
+        </ul>
+      </div>
+      <div class="vis rv">
+        <div class="phone"><div class="screen"><div class="notch"></div><div class="sbar"></div>
+          <div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>
+          <div class="body">
+            <div class="seg"><span>Painel</span><span class="on">Plano</span><span>Metas</span><span>Patrimônio</span></div>
+            <div class="c bl">
+              <div style="display:flex;justify-content:space-between"><div class="lbl">Guardar por mês</div><span class="tag">Confortável</span></div>
+              <div class="big g" id="apGuardar">R$ 1.500,00</div>
+              <div class="sub">cabe: a projeção diz que sobram R$ 2.300 por mês</div>
+            </div>
+            <div class="c bb">
+              <div class="lbl" id="apQuando">Aos 60 anos</div>
+              <div class="big g" id="apTotal">R$ 1.240.000</div>
+              <div class="sub">renda de <b style="color:var(--tx)" id="apRenda">R$ 4.130</b> por mês, sem encostar no principal</div>
+              <svg class="curva" viewBox="0 0 260 84" preserveAspectRatio="none"><defs><linearGradient id="gc" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#22c55e" stop-opacity=".45"/><stop offset="1" stop-color="#22c55e" stop-opacity="0"/></linearGradient></defs><path id="apArea" fill="url(#gc)"/><path id="apLinha" fill="none" stroke="#22c55e" stroke-width="2.5"/></svg>
+            </div>
+            <div class="c" style="padding:4px 12px">
+              <div class="row"><span class="mut">hoje</span><b>R$ 85 mil</b></div>
+              <div class="row"><span class="mut">em 5 anos</span><b id="ap5">R$ 210 mil</b></div>
+              <div class="row"><span class="mut">em 10 anos</span><b id="ap10">R$ 395 mil</b></div>
+            </div>
+          </div>
+          <div class="tabbar"><span>Mês</span><span>Cartão</span><span>Extrato</span><span class="on">Análise</span><span>Config</span></div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== DO SEU JEITO ============================== -->
+<section id="seu-jeito" class="custom">
+  <div class="wrap">
+    <div class="sec-h rv">
+      <span class="eyebrow"><i style="background:var(--roxo);box-shadow:0 0 12px var(--roxo)"></i>O que nenhum outro app deixa você fazer</span>
+      <h2>Você não se adapta ao app.<br><span class="grad">O app se adapta a você.</span></h2>
+      <p>Todo app de finanças te entrega as telas que <i>alguém</i> achou que você precisava. Aqui tem um assistente de IA dentro do app: você pede, ele constrói. Uma tela nova, uma cor, uma conta, uma regra. Na hora. Você vira o programador do seu próprio app — sem escrever uma linha de código.</p>
+    </div>
+
+    <div class="grid">
+      <div class="rv" style="display:flex;justify-content:center">
+        <div class="phone chat"><div class="screen"><div class="notch"></div><div class="sbar"></div>
+          <div class="ahead"><div class="t">✦ Assistente</div><span class="sub">R$ 0,60 este mês</span></div>
+          <div class="body" id="chat"></div>
+          <div class="inp">Peça qualquer mudança…<i>↑</i></div>
+        </div></div>
+      </div>
+
+      <div class="rv">
+        <div class="pedidos">
+          <div class="ped"><em class="b">Telas novas</em><q>Cria uma tela para eu acompanhar meus investimentos.</q><span>Ele monta o módulo e coloca no menu.</span></div>
+          <div class="ped"><em style="color:var(--roxo)">Aparência</em><q>Deixa o app com cara de roxo e letra maior.</q><span>Cores, fontes, nomes do menu — tudo seu.</span></div>
+          <div class="ped"><em class="g">Contas</em><q>Cria a conta Academia, R$ 120 por mês, com reajuste em janeiro.</q><span>Ele lança os 12 meses de previsão sozinho.</span></div>
+          <div class="ped"><em class="y">Regras</em><q>Tudo que for do posto Avenida é combustível do carro da empresa.</q><span>Daqui para frente, ele classifica assim.</span></div>
+          <div class="ped"><em style="color:var(--ciano)">Controles</em><q>Quero um contador de quanto falta para a viagem de dezembro.</q><span>Vira um cartãozinho na tela do mês.</span></div>
+          <div class="ped"><em class="r">Tirar o que não usa</em><q>Some com a aba de empresa, eu não tenho CNPJ.</q><span>Menos tela, menos ruído.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tres">
+      <div class="rv"><div class="ico" style="background:rgba(168,85,247,.15)">✦</div><h4>Pede em português</h4><p>Do jeito que você falaria com um amigo que entende de planilha. Nada de menu escondido ou configuração em 14 passos.</p></div>
+      <div class="rv"><div class="ico" style="background:rgba(34,197,94,.15)">↺</div><h4>Tudo tem desfazer</h4><p>Toda mudança nasce como rascunho para você ver antes. Não gostou? Um toque e volta exatamente como estava — até as contas.</p></div>
+      <div class="rv"><div class="ico" style="background:rgba(59,130,246,.15)">🔒</div><h4>Liberdade sem brecha</h4><p>Você muda o <i>seu</i> app, com os <i>seus</i> dados. Senha, banco e segurança ficam fora do alcance — de você e de qualquer um. Trava com digital ou rosto.</p></div>
+    </div>
+
+    <p class="manifesto rv">Seu dinheiro não é igual ao de ninguém.<br><span>Por que o seu app seria?</span></p>
+  </div>
+</section>
+
+<!-- ============================== GALERIA ============================== -->
+<section id="telas" style="padding-bottom:60px">
+  <div class="wrap">
+    <div class="sec-h rv">
+      <span class="eyebrow"><i></i>Por dentro</span>
+      <h2>Números grandes. <span class="grad">Texto pequeno.</span></h2>
+      <p>Feito para ler de relance, no celular, na fila do mercado. Um número por conceito — o mesmo em todas as telas.</p>
+    </div>
+  </div>
+  <div class="galeria" id="galeria"></div>
+  <p class="wrap" style="color:var(--tx3);font-size:13px">Telas ilustrativas com dados fictícios.</p>
+</section>
+
+<!-- ============================== COMO TESTAR ============================== -->
+<section id="testar" style="padding-top:60px">
+  <div class="wrap">
+    <div class="sec-h rv">
+      <span class="eyebrow"><i></i>Convite para testar</span>
+      <h2>Me ajuda a deixar ele <span class="grad">pronto para o mundo?</span></h2>
+      <p>Você está entre os primeiros a usar. Instala, usa uns dias e me conta o que achou — principalmente o que te irritou.</p>
+    </div>
+    <div class="passos">
+      <div class="passo rv"><h4>Baixe o app</h4><p>Toque em <b>Baixar para Android</b> aqui embaixo, no próprio celular. É um arquivo de uns 4 MB.</p></div>
+      <div class="passo rv"><h4>Permita a instalação</h4><p>Como ainda não está na Play Store, o Android pergunta se pode instalar “de fonte desconhecida”. Toque em <b>Configurações → Permitir</b> e depois em <b>Instalar</b>.</p></div>
+      <div class="passo rv"><h4>Peça seu acesso</h4><p>Me chama que eu crio seu login. Na primeira vez, o app já te pergunta se quer entrar com digital ou rosto.</p></div>
+    </div>
+
+    <div class="cta-final rv">
+      <h2>Bora testar?</h2>
+      <p>Grátis durante o teste. Sem cartão, sem pegadinha.</p>
+      <div class="ctas">
+        <a class="btn btn-p js-apk" href="#">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18a.38.38 0 10-.66-.38l-1.86 3.22a11.4 11.4 0 00-9.84 0L5.22 5.92a.38.38 0 10-.66.38L6.4 9.48A10.8 10.8 0 001 18h22a10.8 10.8 0 00-5.4-8.52zM7 15.25a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5zm10 0a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5z"/></svg>
+          Baixar para Android
+        </a>
+        <a class="btn btn-s js-zap" href="#">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.3-.3.6-.3.8-.3h.6c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.4.6-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.1 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l2 1c.3.1.5.2.5.3.1.2.1.7-.1 1.2z"/></svg>
+          Pedir meu acesso
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== PERGUNTAS ============================== -->
+<section style="padding-top:20px">
+  <div class="wrap">
+    <div class="sec-h rv"><h2>Perguntas</h2></div>
+    <div class="faq">
+      <details><summary>Tem para iPhone?</summary><p>Ainda não. A versão para iPhone está a caminho — por enquanto o teste é só no Android.</p></details>
+      <details><summary>Por que o Android avisa que o app é de “fonte desconhecida”?</summary><p>Porque ele ainda não está na Play Store — você está instalando direto, como teste. O aviso é padrão para qualquer app fora da loja. Depois de instalado, você pode desligar a permissão de novo.</p></details>
+      <details><summary>Quanto custa?</summary><p>Durante o teste, nada. O assistente de IA tem um limite mensal de uso, e o app mostra o contador para você nunca ser pego de surpresa.</p></details>
+      <details><summary>Meus dados ficam seguros?</summary><p>Cada pessoa só enxerga os próprios dados — a trava é no banco de dados, não só na tela. O app abre com digital ou rosto. E o assistente não tem acesso a senha, a login nem ao funcionamento interno do sistema: ele mexe só no que é seu.</p></details>
+      <details><summary>Preciso dar a senha do meu banco?</summary><p>Não. O app nunca pede senha de banco. A conexão com o banco é feita pelo Open Finance, o sistema oficial do Banco Central, em que você autoriza direto no app do seu banco — e pode revogar quando quiser.</p></details>
+      <details><summary>E se eu estragar alguma coisa pedindo mudança?</summary><p>Não estraga. Toda mudança tem desfazer, e dá para voltar a aparência ao padrão de fábrica com um toque.</p></details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span class="logo" style="font-size:15px"><img src="img/icone-192.png" alt="" style="width:24px;height:24px">EasyAPP <b>Financial</b></span>
+    <span>Versão de teste · 2026 · telas com dados fictícios</span>
+  </div>
+</footer>
+
+<script>
+/* ====== CONFIGURAÇÃO ======
+   APK_URL: onde o botão "Baixar" aponta.
+   WHATSAPP: só números, com DDI e DDD (ex.: 5551999999999). Vazio = o botão some.
+   APK_URL vazio = o download ainda não está liberado: o botão vira "em breve". */
+var APK_URL  = 'https://github.com/rodrigopiratini/easyapp/releases/latest/download/EasyAPP-Financial.apk';
+var WHATSAPP = '';
+
+document.querySelectorAll('.js-apk').forEach(function (a) {
+  if (a.closest('nav') || a.closest('.hero')) { a.href = '#testar'; return; }
+  if (APK_URL) { a.href = APK_URL; return; }
+  a.removeAttribute('href'); a.style.opacity = '.55'; a.style.cursor = 'default';
+  a.lastChild.textContent = ' Android: em breve';
+});
+if (!APK_URL) document.querySelectorAll('.passo h4').forEach(function (h) {
+  if (h.textContent === 'Baixe o app') h.nextElementSibling.innerHTML = 'O botão de download aparece aqui nesta página nos próximos dias. Guarda o link!';
+});
+document.querySelectorAll('.js-zap').forEach(function (a) {
+  if (!WHATSAPP) { a.style.display = 'none'; return; }
+  a.href = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent('Oi! Baixei o EasyAPP e quero meu acesso para testar.');
+  a.target = '_blank'; a.rel = 'noopener';
+});
+if (!WHATSAPP) document.querySelectorAll('.passo h4').forEach(function (h) {
+  if (h.textContent === 'Peça seu acesso') h.nextElementSibling.innerHTML = 'Me manda uma mensagem que eu crio seu login. Na primeira vez, o app já te pergunta se quer entrar com digital ou rosto.';
+});
+
+/* aparece ao rolar */
+var io = new IntersectionObserver(function (es) {
+  es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); } });
+}, { threshold: .12 });
+document.querySelectorAll('.rv').forEach(function (el) { io.observe(el); });
+
+/* aviso do banco -> lançamento */
+(function () {
+  var notif = document.getElementById('notif'), novo = document.getElementById('novo'),
+      fat = document.getElementById('fat'), nc = document.getElementById('nc'), rodando = false;
+  function ciclo() {
+    novo.style.display = 'none'; fat.textContent = 'R$ 3.103,90'; nc.textContent = '86';
+    setTimeout(function () { notif.classList.add('show'); }, 600);
+    setTimeout(function () { notif.classList.remove('show'); }, 3400);
+    setTimeout(function () {
+      novo.style.display = ''; novo.classList.remove('novo'); void novo.offsetWidth; novo.classList.add('novo');
+      fat.textContent = 'R$ 3.142,80'; nc.textContent = '87';
+    }, 3900);
+  }
+  new IntersectionObserver(function (es) {
+    if (es[0].isIntersecting && !rodando) { rodando = true; ciclo(); setInterval(ciclo, 8000); }
+  }, { threshold: .4 }).observe(notif.parentNode);
+})();
+
+/* aposentadoria: os botões mudam o plano (números ilustrativos) */
+(function () {
+  var cen = {
+    55: { g: 'R$ 2.400,00', t: 'R$ 890.000', r: 'R$ 2.970', a5: 'R$ 260 mil', a10: 'R$ 480 mil', k: 0.75 },
+    60: { g: 'R$ 1.500,00', t: 'R$ 1.240.000', r: 'R$ 4.130', a5: 'R$ 210 mil', a10: 'R$ 395 mil', k: 1 },
+    65: { g: 'R$ 900,00', t: 'R$ 1.610.000', r: 'R$ 5.370', a5: 'R$ 175 mil', a10: 'R$ 330 mil', k: 1.25 }
+  };
+  function curva(k) {
+    var pts = [], i;
+    for (i = 0; i <= 20; i++) { var x = i / 20 * 260, y = 80 - Math.pow(i / 20, 1.7) * 70 * Math.min(k, 1.05); pts.push(x.toFixed(1) + ',' + y.toFixed(1)); }
+    document.getElementById('apLinha').setAttribute('d', 'M' + pts.join(' L'));
+    document.getElementById('apArea').setAttribute('d', 'M' + pts.join(' L') + ' L260,84 L0,84 Z');
+  }
+  function por(i) {
+    var c = cen[i];
+    document.getElementById('apGuardar').textContent = c.g;
+    document.getElementById('apQuando').textContent = 'Aos ' + i + ' anos';
+    document.getElementById('apTotal').textContent = c.t;
+    document.getElementById('apRenda').textContent = c.r;
+    document.getElementById('ap5').textContent = c.a5;
+    document.getElementById('ap10').textContent = c.a10;
+    curva(c.k);
+    document.querySelectorAll('#knob button').forEach(function (b) { b.classList.toggle('on', b.dataset.i == i); });
+  }
+  document.querySelectorAll('#knob button').forEach(function (b) { b.onclick = function () { por(b.dataset.i); }; });
+  por(60);
+})();
+
+/* conversa com o assistente */
+(function () {
+  var chat = document.getElementById('chat'), rodando = false;
+  var roteiro = [
+    ['eu', 'Cria uma tela para eu acompanhar meus investimentos'],
+    ['ia', 'Pronto! Fiz a tela <b>Investimentos</b>, com o total aplicado e quanto rendeu no mês.' +
+      '<div class="mod"><div class="lbl">Investimentos</div><div style="font-family:Sora;font-weight:800;font-size:17px" class="g">R$ 85.420</div><div class="sub">+R$ 712 no mês · 0,84%</div></div>' +
+      '<div class="acts"><span class="ok">Aplicar</span><span>Ajustar</span><span>Descartar</span></div>'],
+    ['eu', 'Coloca no menu e deixa o app roxo'],
+    ['ia', 'Feito ✦ A tela já está no menu de baixo e o app ficou roxo. Se não gostar, é só tocar em <b>desfazer</b>.' +
+      '<div class="acts"><span>↺ Desfazer</span></div>']
+  ];
+  function add(q, html) {
+    var d = document.createElement('div'); d.className = 'msg ' + q; d.innerHTML = html; chat.appendChild(d);
+    requestAnimationFrame(function () { requestAnimationFrame(function () { d.classList.add('on'); }); });
+    return d;
+  }
+  function roda() {
+    chat.innerHTML = ''; chat.closest('.screen').style.removeProperty('--azul');
+    var t = 400;
+    roteiro.forEach(function (m) {
+      if (m[0] === 'ia') {
+        var dig; setTimeout(function () { dig = add('ia', '<div class="typing"><i></i><i></i><i></i></div>'); }, t);
+        t += 1600;
+        setTimeout(function () { dig.remove(); add('ia', m[1]); }, t);
+        if (m[1].indexOf('roxo') > -1) setTimeout(function () { chat.closest('.screen').style.setProperty('--azul', '#a855f7'); }, t);
+        t += 2200;
+      } else { setTimeout(function () { add('eu', m[1]); }, t); t += 1200; }
+    });
+    setTimeout(roda, t + 4000);
+  }
+  new IntersectionObserver(function (es) {
+    if (es[0].isIntersecting && !rodando) { rodando = true; roda(); }
+  }, { threshold: .4 }).observe(chat);
+})();
+
+/* galeria: reaproveita as telas acima + duas extras */
+(function () {
+  var g = document.getElementById('galeria');
+  function clona(sel, nome) {
+    var p = document.querySelector(sel); if (!p) return;
+    var f = document.createElement('figure'), c = p.cloneNode(true);
+    c.className = 'phone'; c.removeAttribute('style');
+    c.querySelectorAll('[id]').forEach(function (e) { e.removeAttribute('id'); });
+    var n = c.querySelector('.notif'); if (n) n.remove();
+    var nv = c.querySelector('.lanc'); if (nv) nv.remove();
+    f.appendChild(c); var cap = document.createElement('figcaption'); cap.textContent = nome; f.appendChild(cap); g.appendChild(f);
+  }
+  clona('.hero .p1', 'Mês: o caixa que bate com o banco');
+  clona('#funciona .feat:nth-child(3) .phone', 'Cartão: verba por categoria');
+  clona('#funciona .feat:nth-child(4) .phone', 'Metas: onde dá para frear');
+  clona('#aposentadoria .phone', 'Plano: aposentadoria');
+  clona('#funciona .feat:nth-child(2) .phone', 'Extrato: tudo lançado sozinho');
+  var extra = document.createElement('figure');
+  extra.innerHTML = '<div class="phone"><div class="screen"><div class="notch"></div><div class="sbar"></div>' +
+    '<div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>' +
+    '<div class="body"><div class="seg"><span class="on">Painel</span><span>Plano</span><span>Metas</span><span>Patrimônio</span></div>' +
+    '<div class="c"><div class="lbl">Receita x despesa por mês</div><svg viewBox="0 0 220 110" style="width:100%;margin-top:8px">' +
+    [[60,52],[58,66],[62,55],[61,58],[64,50],[60,63],[66,54],[63,49]].map(function (v, i) {
+      var x = 6 + i * 27; return '<rect x="' + x + '" y="' + (100 - v[0]) + '" width="9" height="' + v[0] + '" rx="2" fill="#22c55e"/>' +
+        '<rect x="' + (x + 11) + '" y="' + (100 - v[1]) + '" width="9" height="' + v[1] + '" rx="2" fill="' + (v[1] > v[0] ? '#ef4444' : '#64748b') + '"/>';
+    }).join('') + '</svg><div class="sub">entrou · saiu · saiu mais que entrou</div></div>' +
+    '<div class="c"><div class="lbl">Para onde foi o dinheiro no ano</div>' +
+    [['Moradia', 32, 'var(--azul)'], ['Mercado', 18, 'var(--roxo)'], ['Transporte', 12, 'var(--amar)'], ['Lazer', 9, 'var(--rosa)'], ['Saúde', 7, 'var(--verde)']].map(function (r) {
+      return '<div class="row" style="border:0;padding-bottom:0"><span>' + r[0] + '</span><b>' + r[1] + '%</b></div><div class="bar" style="margin-top:3px"><i style="width:' + (r[1] * 3) + '%;background:' + r[2] + '"></i></div>';
+    }).join('') + '</div>' +
+    '<div class="c br"><b>O cartão come 28% da sua renda</b><div class="sub" style="margin-top:3px">Abaixo de 30% está saudável — mas Restaurantes subiu 3 meses seguidos.</div></div>' +
+    '</div><div class="tabbar"><span>Mês</span><span>Cartão</span><span>Extrato</span><span class="on">Análise</span><span>Config</span></div></div></div>' +
+    '<figcaption>Painel: o diagnóstico do ano</figcaption>';
+  g.insertBefore(extra, g.children[3]);
+})();
+</script>
+</body>
+</html>
