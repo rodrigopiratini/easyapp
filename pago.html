@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex"><title>EasyAPP · Pagamento</title><link rel="icon" href="img/icone-192.png">
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f1420;color:#e8edf7;
+font:16px -apple-system,system-ui,sans-serif;padding:24px 16px;text-align:center}.cx{max-width:380px}h1{font-size:24px}p{color:#8b99b5;line-height:1.5}
+.ok{font-size:46px}</style></head>
+<body><div class="cx" id="cx"></div>
+<script>
+/* O Mercado Pago devolve a pessoa para cá depois de pagar. Quem libera o
+   plano é o aviso do Mercado Pago ao servidor - esta página só orienta. */
+var q = new URLSearchParams(location.search), st = q.get('status') || q.get('collection_status') || '';
+var cx = document.getElementById('cx');
+if (/approved|authorized/.test(st) || q.get('preapproval_id')) {
+  cx.innerHTML = '<div class="ok">✓</div><h1>Pagamento recebido</h1><p>Volte ao app: o plano libera sozinho em instantes.</p>';
+} else if (/pending|in_process/.test(st)) {
+  cx.innerHTML = '<h1>Pagamento em análise</h1><p>Pix e boleto podem levar alguns minutos (boleto, até 2 dias úteis). Assim que confirmar, o app libera sozinho.</p>';
+} else {
+  cx.innerHTML = '<h1>O pagamento não foi concluído</h1><p>Nada foi cobrado. Volte ao app e tente de novo, se quiser.</p>';
+}
+history.replaceState(null, '', location.pathname);
+</script></body></html>
