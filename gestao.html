@@ -86,6 +86,23 @@
   .tag.conta,.tag.acesso{border-color:var(--azul);color:var(--azul)}.tag.pagamento,.tag.credito{border-color:var(--verde);color:var(--verde)}
   .tag.voucher,.tag.gestao{border-color:var(--amb);color:var(--amb)}.tag.banco{border-color:#a78bfa;color:#a78bfa}
   @media(max-width:600px){.ev{flex-wrap:wrap}.ev time{width:auto}.ev span.t{flex-basis:100%}}
+  /* janela de dar cortesia / créditos */
+  .janela.peq{max-width:440px;margin-top:8vh}
+  .janela .quem{color:var(--tx2);font-size:13px;margin:4px 0 14px}
+  .janela .rot{font-size:12px;color:var(--tx2);margin:14px 0 6px}
+  .opcs{display:grid;gap:8px}
+  .opc{display:block;text-align:left;width:100%;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 12px;color:var(--tx);cursor:pointer;font:inherit}
+  .opc b{display:block;font-size:14.5px}.opc small{display:block;color:var(--tx2);font-size:12.5px;margin-top:2px}
+  .opc.on{border-color:var(--amb);box-shadow:0 0 0 1px var(--amb)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .chip{background:var(--bg);border:1px solid var(--line);color:var(--tx);border-radius:20px;padding:7px 13px;font-size:13.5px;cursor:pointer}
+  .chip.on{background:var(--azul);border-color:var(--azul);color:#fff}
+  .chips input{width:110px;padding:7px 10px;border-radius:20px;border:1px solid var(--line);background:var(--bg);color:var(--tx);font-size:13.5px}
+  .bts{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+  .bts button{padding:10px 16px;border-radius:10px;border:0;font-weight:700;cursor:pointer;font-size:14px}
+  .bts .sim{background:var(--azul);color:#fff}.bts .nao{background:var(--bg);border:1px solid var(--line);color:var(--tx)}
+  .bts button:disabled{opacity:.6;cursor:default}
+  .janela .resumo{font-size:13px;color:var(--tx2);margin-top:12px;min-height:18px}
   /* login */
   .login{max-width:360px;margin:12vh auto 0}
   .login p{color:var(--tx2);font-size:14px;margin:6px 0 20px}
@@ -174,24 +191,110 @@ function acao(o) {
     carregar(); return d;
   });
 }
-function darCreditos(id, nome) {
-  var v = prompt('Quantos R$ de créditos do assistente para ' + nome + '?', '20');
-  if (!v) return;
-  acao({ acao: 'dar_creditos', user_id: id, valor: Number(String(v).replace(/\./g, '').replace(',', '.')) });
+// janela pequena para dar créditos ou cortesia (no lugar do prompt do navegador)
+function janelaPeq(html) {
+  fecharPeq();
+  var f = document.createElement('div'); f.className = 'fundo'; f.id = 'fundoPeq';
+  f.onclick = function (e) { if (e.target === f) fecharPeq(); };
+  f.innerHTML = '<div class="janela peq">' + html + '</div>';
+  document.body.appendChild(f);
+  return f;
 }
+function fecharPeq() { var f = document.getElementById('fundoPeq'); if (f) f.remove(); }
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') fecharPeq(); });
+function pessoa(id) { return ((DADOS && DADOS.pessoas) || []).filter(function (p) { return p.id === id; })[0] || {}; }
+function nomePlano(p) {
+  return !p.plano ? 'sem plano' : { cortesia: 'cortesia completa', cortesia_app: 'cortesia só do app', teste: 'teste grátis',
+    mensal: 'mensal', anual: 'anual' }[p.plano] + (p.status === 'vencida' ? ' (vencido)' : p.valido_ate ? ' até ' + dt(p.valido_ate) : '');
+}
+function chips(lista, atual, extra) {
+  return '<div class="chips">' + lista.map(function (c) {
+    return '<button type="button" class="chip' + (String(c[0]) === String(atual) ? ' on' : '') + '" data-v="' + c[0] + '">' + c[1] + '</button>';
+  }).join('') + extra + '</div>';
+}
+function ligarChips(f, nome, aoMudar) {
+  var bx = f.querySelector('[data-grupo="' + nome + '"]');
+  bx.querySelectorAll('.chip').forEach(function (b) {
+    b.onclick = function () {
+      bx.querySelectorAll('.chip').forEach(function (x) { x.classList.toggle('on', x === b); });
+      var i = bx.querySelector('input'); if (i) i.value = '';
+      aoMudar(b.dataset.v);
+    };
+  });
+  var i = bx.querySelector('input');
+  if (i) i.oninput = function () {
+    bx.querySelectorAll('.chip').forEach(function (x) { x.classList.remove('on'); });
+    aoMudar(i.value.trim());
+  };
+}
+function enviarPeq(f, corpo, ok) {
+  var b = f.querySelector('.sim'); b.disabled = true; b.textContent = 'Salvando…';
+  acao(corpo).then(function (d) {
+    if (d && d.ok) { fecharPeq(); if (ok) setTimeout(function () { alert(ok); }, 50); }
+    else { b.disabled = false; b.textContent = 'Tentar de novo'; }
+  }).catch(function (e) { alert(e.message); b.disabled = false; b.textContent = 'Tentar de novo'; });
+}
+
+function darCreditos(id, nome) {
+  var valor = '20';
+  var f = janelaPeq('<div class="topo"><h3>Dar créditos do assistente</h3><button class="lk" onclick="fecharPeq()">fechar</button></div>' +
+    '<div class="quem">' + esc(nome) + ' · ' + esc(nomePlano(pessoa(id))) + '</div>' +
+    '<div class="rot">Quanto</div>' +
+    '<div data-grupo="valor">' + chips([['10', 'R$ 10'], ['20', 'R$ 20'], ['50', 'R$ 50'], ['100', 'R$ 100']], valor,
+      '<input inputmode="decimal" placeholder="outro valor">') + '</div>' +
+    '<div class="resumo" id="pqRes"></div>' +
+    '<div class="bts"><button class="nao" onclick="fecharPeq()">Cancelar</button><button class="sim">Dar créditos</button></div>');
+  var num = function () { return Number(String(valor).replace(/\./g, '').replace(',', '.')); };
+  var res = function () {
+    var v = num();
+    f.querySelector('#pqRes').textContent = v > 0 ? 'Vai somar ' + brl(v) + ' aos créditos que a pessoa já tem.' : 'Escolha um valor.';
+    f.querySelector('.sim').disabled = !(v > 0);
+  };
+  ligarChips(f, 'valor', function (v) { valor = v; res(); });
+  res();
+  f.querySelector('.sim').onclick = function () { enviarPeq(f, { acao: 'dar_creditos', user_id: id, valor: num() }); };
+}
+
 function darCortesia(id, nome) {
-  var t = prompt('Qual cortesia para ' + nome + '?\n1 = completa (app liberado e assistente sem franquia)\n2 = só do app (assistente só com créditos comprados)', '1');
-  if (t === null) return;
-  t = t.trim();
-  if (t !== '1' && t !== '2') { alert('Digite 1 ou 2'); return; }
-  var v = prompt('Por quantos dias? (vazio = sem prazo)', '');
-  if (v === null) return;
-  acao({ acao: 'dar_cortesia', user_id: id, tipo: t === '2' ? 'cortesia_app' : 'cortesia', dias: v.trim() ? parseInt(v, 10) : null });
+  var p = pessoa(id);
+  var tipo = p.plano === 'cortesia_app' ? 'cortesia_app' : 'cortesia', dias = '';
+  var f = janelaPeq('<div class="topo"><h3>Dar cortesia</h3><button class="lk" onclick="fecharPeq()">fechar</button></div>' +
+    '<div class="quem">' + esc(nome) + ' · hoje: ' + esc(nomePlano(p)) + '</div>' +
+    '<div class="rot">Tipo</div><div class="opcs">' +
+      '<button type="button" class="opc" data-t="cortesia"><b>⭐ Completa</b><small>App liberado e assistente sem cobrança (até o teto de segurança de R$ 300/mês).</small></button>' +
+      '<button type="button" class="opc" data-t="cortesia_app"><b>📱 Só do app</b><small>App liberado. O assistente só funciona com créditos comprados.</small></button>' +
+    '</div>' +
+    '<div class="rot">Por quanto tempo</div>' +
+    '<div data-grupo="dias">' + chips([['', 'Sem prazo'], ['7', '7 dias'], ['30', '30 dias'], ['90', '90 dias'], ['365', '1 ano']], dias,
+      '<input inputmode="numeric" placeholder="outro (dias)">') + '</div>' +
+    '<div class="resumo" id="pqRes"></div>' +
+    '<div class="bts"><button class="nao" onclick="fecharPeq()">Cancelar</button><button class="sim">Dar cortesia</button></div>');
+  var res = function () {
+    f.querySelectorAll('.opc').forEach(function (b) { b.classList.toggle('on', b.dataset.t === tipo); });
+    var n = parseInt(dias, 10), okDias = dias === '' || (n >= 1 && n <= 3650);
+    var ate = n >= 1 ? new Date(Date.now() + n * 864e5).toLocaleDateString('pt-BR') : '';
+    f.querySelector('#pqRes').textContent = !okDias ? 'Dias: de 1 a 3650 (ou sem prazo).'
+      : (tipo === 'cortesia' ? 'Cortesia completa' : 'Cortesia só do app') + (ate ? ' até ' + ate + '.' : ', sem prazo.') +
+        (p.plano && p.plano !== 'teste' && p.status !== 'vencida' ? ' Substitui o plano atual.' : '');
+    f.querySelector('.sim').disabled = !okDias;
+  };
+  f.querySelectorAll('.opc').forEach(function (b) { b.onclick = function () { tipo = b.dataset.t; res(); }; });
+  ligarChips(f, 'dias', function (v) { dias = v; res(); });
+  res();
+  f.querySelector('.sim').onclick = function () {
+    enviarPeq(f, { acao: 'dar_cortesia', user_id: id, tipo: tipo, dias: dias ? parseInt(dias, 10) : null });
+  };
+}
+
+// código do voucher: maiúsculas, sem acento, espaço vira hífen ("free - angelica" -> "FREE-ANGELICA")
+function limparCodigo(c) {
+  return String(c || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase()
+    .replace(/[^A-Z0-9-]+/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '');
 }
 function criarVoucher() {
   var g = function (id) { return document.getElementById(id).value.trim(); };
   var tipo = g('vTipo');
-  acao({ acao: 'voucher_criar', tipo: tipo, codigo: g('vCod'), valor: Number(g('vValor').replace(/\./g, '').replace(',', '.')),
+  acao({ acao: 'voucher_criar', tipo: tipo, codigo: limparCodigo(g('vCod')), valor: Number(g('vValor').replace(/\./g, '').replace(',', '.')),
          dias: g('vDias'), usos_max: g('vUsos'), validade: g('vVal'), nota: g('vNota') })
     .then(function (d) { if (d && d.ok) setTimeout(function () { var m = document.getElementById('vMsg'); if (m) m.textContent = 'Criado: ' + d.codigo; }, 1200); });
 }
@@ -230,7 +333,7 @@ function formVoucher() {
     '<div><label>Resgatar até (opcional)</label><input id="vVal" type="date" value="' + (e ? diaInput(e.validade) : '') + '"></div>' +
     (e ? '<div><label>Situação</label><select id="vAtivo"><option value="sim"' + (e.ativo ? ' selected' : '') + '>Ligado</option>' +
            '<option value="nao"' + (e.ativo ? '' : ' selected') + '>Desligado</option></select></div>'
-       : '<div><label>Código (vazio = automático)</label><input id="vCod" placeholder="EX.: AMIGOS30" style="text-transform:uppercase"></div>') +
+       : '<div><label>Código (vazio = automático)</label><input id="vCod" placeholder="EX.: AMIGOS30" style="text-transform:uppercase" onblur="this.value=limparCodigo(this.value)"></div>') +
     '<div><label>Nota</label><input id="vNota" placeholder="para quem / por quê" value="' + esc(e ? e.nota || '' : '') + '"></div>' +
     (e ? '<div><button onclick="salvarVoucher()">Salvar alterações</button></div><div><button class="sec" onclick="cancelarEdicao()">Cancelar</button></div>'
        : '<div><button onclick="criarVoucher()">Criar voucher</button></div>') +
