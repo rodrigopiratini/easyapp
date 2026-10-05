@@ -70,6 +70,21 @@
   .barra30 .tr i{display:block;height:100%}.barra30 .vl{width:230px;flex:none;text-align:right;color:var(--tx2);font-size:12px;white-space:nowrap}
   @media(max-width:600px){.barra30{flex-wrap:wrap}.barra30 .vl{width:100%;text-align:left}}
   .ok-msg{color:var(--verde);font-size:13px;margin-top:8px;min-height:18px}
+  .form.ed{border-color:var(--amb)}
+  .form button.sec{background:var(--bg);border:1px solid var(--line);color:var(--tx)}
+  /* log da pessoa */
+  .fundo{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;justify-content:center;align-items:flex-start;
+         padding:calc(20px + env(safe-area-inset-top)) 12px 20px;z-index:10;overflow-y:auto}
+  .janela{background:var(--card);border:1px solid var(--line);border-radius:16px;width:100%;max-width:720px;padding:16px}
+  .janela .topo h3{margin:0;font-size:17px}
+  .ev{display:flex;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line);font-size:13.5px;align-items:baseline}
+  .ev:last-child{border-bottom:0}
+  .ev time{flex:none;width:118px;color:var(--tx2);font-size:12px;font-variant-numeric:tabular-nums}
+  .ev .tag{flex:none;width:86px;text-align:center}
+  .ev span.t{flex:1;min-width:0;overflow-wrap:anywhere}
+  .tag.conta,.tag.acesso{border-color:var(--azul);color:var(--azul)}.tag.pagamento,.tag.credito{border-color:var(--verde);color:var(--verde)}
+  .tag.voucher,.tag.gestao{border-color:var(--amb);color:var(--amb)}.tag.banco{border-color:#a78bfa;color:#a78bfa}
+  @media(max-width:600px){.ev{flex-wrap:wrap}.ev time{width:auto}.ev span.t{flex-basis:100%}}
   /* login */
   .login{max-width:360px;margin:12vh auto 0}
   .login p{color:var(--tx2);font-size:14px;margin:6px 0 20px}
@@ -88,6 +103,8 @@ var URL_SB = 'https://nhngqhgxmrnqbcnklrwc.supabase.co';
 var CHAVE = 'sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN';
 var cx = document.getElementById('cx');
 var DADOS = null, SERIE = 'cadastros', FILTRO = 'todos', BUSCA = '';
+var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
+var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 var VERSAO = '';   // a do APK publicado no site (versao.json, copiado pelo publicar-site --apk)
 fetch('versao.json', { cache: 'no-store' }).then(function (r) { return r.json(); })
   .then(function (v) { VERSAO = v.maior + '.' + v.menor + '.' + v.build; if (DADOS) desenhar(); }).catch(function () {});
@@ -173,6 +190,91 @@ function criarVoucher() {
          dias: g('vDias'), usos_max: g('vUsos'), validade: g('vVal'), nota: g('vNota') })
     .then(function (d) { if (d && d.ok) setTimeout(function () { var m = document.getElementById('vMsg'); if (m) m.textContent = 'Criado: ' + d.codigo; }, 1200); });
 }
+function editarVoucher(codigo) {
+  EDITANDO = (DADOS.vouchers || []).filter(function (v) { return v.codigo === codigo; })[0] || null;
+  desenhar();
+  var f = document.getElementById('vForm'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function cancelarEdicao() { EDITANDO = null; desenhar(); }
+function salvarVoucher() {
+  var g = function (id) { return document.getElementById(id).value.trim(); };
+  var codigo = EDITANDO.codigo;
+  acao({ acao: 'voucher_editar', codigo: codigo, tipo: g('vTipo'), valor: Number(g('vValor').replace(/\./g, '').replace(',', '.')),
+         dias: g('vDias'), usos_max: g('vUsos'), validade: g('vVal'), nota: g('vNota'), ativo: g('vAtivo') === 'sim' })
+    .then(function (d) {
+      if (!d || !d.ok) return;
+      EDITANDO = null;
+      setTimeout(function () { var m = document.getElementById('vMsg'); if (m) m.textContent = 'Salvo: ' + codigo; }, 1200);
+    });
+}
+// data (ISO) -> aaaa-mm-dd no fuso de Brasília, para o <input type="date">
+function diaInput(s) { return s ? new Date(s).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }) : ''; }
+function formVoucher() {
+  var e = EDITANDO, tipo = e ? e.tipo : 'creditos';
+  return '<div class="form' + (e ? ' ed' : '') + '" id="vForm">' +
+    (e ? '<div style="grid-column:1/-1" class="sub">Editando <b style="color:var(--tx)">' + esc(e.codigo) + '</b> · usado ' + e.usos + ' de ' + e.usos_max +
+      (e.usos ? ' (o tipo não muda depois de usado)' : '') + '. O código não muda: os resgates ficam ligados a ele.</div>' : '') +
+    '<div><label>Tipo</label><select id="vTipo"' + (e && e.usos ? ' disabled' : '') + ' onchange="document.getElementById(\'vValorBx\').hidden=this.value!==\'creditos\';document.getElementById(\'vDiasBx\').hidden=this.value!==\'cortesia\'">' +
+      '<option value="creditos"' + (tipo === 'creditos' ? ' selected' : '') + '>Créditos do assistente</option>' +
+      '<option value="cortesia"' + (tipo === 'cortesia' ? ' selected' : '') + '>Cortesia (app liberado)</option></select></div>' +
+    '<div id="vValorBx"' + (tipo === 'creditos' ? '' : ' hidden') + '><label>Valor (R$)</label><input id="vValor" inputmode="decimal" placeholder="20,00" value="' +
+      (e && e.valor != null ? Number(e.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '') + '"></div>' +
+    '<div id="vDiasBx"' + (tipo === 'cortesia' ? '' : ' hidden') + '><label>Dias (vazio = sem prazo)</label><input id="vDias" inputmode="numeric" placeholder="30" value="' + (e && e.dias ? e.dias : '') + '"></div>' +
+    '<div><label>Quantas pessoas podem usar</label><input id="vUsos" inputmode="numeric" value="' + (e ? e.usos_max : 1) + '"></div>' +
+    '<div><label>Resgatar até (opcional)</label><input id="vVal" type="date" value="' + (e ? diaInput(e.validade) : '') + '"></div>' +
+    (e ? '<div><label>Situação</label><select id="vAtivo"><option value="sim"' + (e.ativo ? ' selected' : '') + '>Ligado</option>' +
+           '<option value="nao"' + (e.ativo ? '' : ' selected') + '>Desligado</option></select></div>'
+       : '<div><label>Código (vazio = automático)</label><input id="vCod" placeholder="EX.: AMIGOS30" style="text-transform:uppercase"></div>') +
+    '<div><label>Nota</label><input id="vNota" placeholder="para quem / por quê" value="' + esc(e ? e.nota || '' : '') + '"></div>' +
+    (e ? '<div><button onclick="salvarVoucher()">Salvar alterações</button></div><div><button class="sec" onclick="cancelarEdicao()">Cancelar</button></div>'
+       : '<div><button onclick="criarVoucher()">Criar voucher</button></div>') +
+    '</div><div class="ok-msg" id="vMsg"></div>';
+}
+
+// ------------------------------------------------------------------ log da pessoa
+var LOG_TIPOS = [['todos', 'Tudo'], ['acesso', 'Acessos'], ['pagamento', 'Pagamentos'], ['credito', 'Créditos'], ['voucher', 'Vouchers'],
+                 ['ia', 'Assistente'], ['banco', 'Bancos'], ['gestao', 'Painel'], ['conta', 'Conta'], ['assinatura', 'Plano']];
+function abrirLog(id) {
+  LOG = { carregando: true }; LOG_FILTRO = 'todos'; desenharLog();
+  token().then(function (t) {
+    return fetch(URL_SB + '/functions/v1/gestao', { method: 'POST',
+      headers: { apikey: CHAVE, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acao: 'log_usuario', user_id: id }) });
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (!LOG) return;   // fechou antes de chegar
+    LOG = d.erro ? { erro: d.erro } : d; desenharLog();
+  }).catch(function (x) { if (LOG) { LOG = { erro: x.message || 'falhou' }; desenharLog(); } });
+}
+function fecharLog() { LOG = null; var f = document.getElementById('fundoLog'); if (f) f.remove(); }
+function desenharLog() {
+  var f = document.getElementById('fundoLog');
+  if (!f) {
+    f = document.createElement('div'); f.className = 'fundo'; f.id = 'fundoLog';
+    f.onclick = function (ev) { if (ev.target === f) fecharLog(); };
+    document.body.appendChild(f);
+  }
+  var L = LOG, h;
+  if (L.carregando) h = '<p class="sub">carregando o log...</p>';
+  else if (L.erro) h = '<p class="msg">' + esc(L.erro) + '</p>';
+  else {
+    var cont = {}; L.eventos.forEach(function (e) { cont[e.tipo] = (cont[e.tipo] || 0) + 1; });
+    var evs = L.eventos.filter(function (e) { return LOG_FILTRO === 'todos' || e.tipo === LOG_FILTRO; });
+    h = '<div class="sub">' + esc(L.pessoa.email) + (L.pessoa.whatsapp ? ' · ' + esc(L.pessoa.whatsapp) : '') + ' · ' + L.eventos.length + ' registros</div>' +
+      '<div class="filtro" style="margin-top:10px">' + LOG_TIPOS.filter(function (o) { return o[0] === 'todos' || cont[o[0]]; }).map(function (o) {
+        return '<button data-lf="' + o[0] + '"' + (LOG_FILTRO === o[0] ? ' class="on"' : '') + '>' + o[1] + (o[0] === 'todos' ? '' : ' ' + cont[o[0]]) + '</button>';
+      }).join('') + '</div>' +
+      (L.auditoria_auth ? '' : '<div class="sub" style="margin-bottom:8px">Sem histórico de entradas: rode o backend/023-gestao-log.sql (ou o log de auditoria do Supabase Auth está desligado). Por enquanto, só o último acesso.</div>') +
+      (evs.length ? evs.map(function (e) {
+        return '<div class="ev"><time>' + new Date(e.quando).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) + '</time>' +
+          '<span class="tag ' + esc(e.tipo) + '">' + esc((LOG_TIPOS.filter(function (o) { return o[0] === e.tipo; })[0] || [0, e.tipo])[1]) + '</span>' +
+          '<span class="t">' + esc(e.texto) + '</span></div>';
+      }).join('') : '<p class="sub">nada aqui</p>');
+  }
+  f.innerHTML = '<div class="janela"><div class="topo"><h3>Log · ' + esc(L.pessoa ? L.pessoa.nome || L.pessoa.email : '') + '</h3>' +
+    '<button class="lk" onclick="fecharLog()">Fechar ✕</button></div>' + h + '</div>';
+  Array.prototype.forEach.call(f.querySelectorAll('[data-lf]'), function (b) { b.onclick = function () { LOG_FILTRO = b.dataset.lf; desenharLog(); }; });
+}
+document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && LOG) fecharLog(); });
 function usdTxt(n) { return 'US$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function blocoApi(a) {
   var link = '<a class="zap" style="color:var(--azul)" target="_blank" rel="noopener" href="https://console.anthropic.com/settings/billing">comprar créditos ↗</a>';
@@ -271,22 +373,14 @@ function desenhar() {
       return '<button data-s="' + o[0] + '"' + (SERIE === o[0] ? ' class="on"' : '') + '>' + o[1] + '</button>';
     }).join('') + '</div><div class="barras">' + barras() + '</div></div>' +
 
-    '<h2>Vouchers</h2><div class="form">' +
-      '<div><label>Tipo</label><select id="vTipo" onchange="document.getElementById(\'vValorBx\').hidden=this.value!==\'creditos\';document.getElementById(\'vDiasBx\').hidden=this.value!==\'cortesia\'">' +
-        '<option value="creditos">Créditos do assistente</option><option value="cortesia">Cortesia (app liberado)</option></select></div>' +
-      '<div id="vValorBx"><label>Valor (R$)</label><input id="vValor" inputmode="decimal" placeholder="20,00"></div>' +
-      '<div id="vDiasBx" hidden><label>Dias (vazio = sem prazo)</label><input id="vDias" inputmode="numeric" placeholder="30"></div>' +
-      '<div><label>Quantas pessoas podem usar</label><input id="vUsos" inputmode="numeric" value="1"></div>' +
-      '<div><label>Resgatar até (opcional)</label><input id="vVal" type="date"></div>' +
-      '<div><label>Código (vazio = automático)</label><input id="vCod" placeholder="EX.: AMIGOS30" style="text-transform:uppercase"></div>' +
-      '<div><label>Nota</label><input id="vNota" placeholder="para quem / por quê"></div>' +
-      '<div><button onclick="criarVoucher()">Criar voucher</button></div></div><div class="ok-msg" id="vMsg"></div>' +
+    '<h2>Vouchers</h2>' + formVoucher() +
       (d.vouchers && d.vouchers.length ? '<div class="tab" style="margin-top:10px"><table><thead><tr><th>Código</th><th>Dá</th><th>Usos</th><th>Até</th><th>Nota</th><th></th></tr></thead><tbody>' +
         d.vouchers.map(function (v) {
           return '<tr style="' + (v.ativo ? '' : 'opacity:.45') + '"><td><b>' + esc(v.codigo) + '</b> <button class="mini" onclick="copiar(\'' + esc(v.codigo) + '\')">copiar</button></td>' +
             '<td>' + (v.tipo === 'creditos' ? brl(v.valor) + ' em créditos' : 'cortesia' + (v.dias ? ' ' + v.dias + ' dias' : ' sem prazo')) + '</td>' +
             '<td class="n">' + v.usos + ' / ' + v.usos_max + '</td><td>' + (v.validade ? dt(v.validade) : '—') + '</td><td>' + esc(v.nota || '') + '</td>' +
-            '<td>' + (v.ativo ? '<button class="mini" onclick="if(confirm(\'Desligar ' + esc(v.codigo) + '?\'))acao({acao:\'voucher_desligar\',codigo:\'' + esc(v.codigo) + '\'})">desligar</button>' : 'desligado') + '</td></tr>';
+            '<td><button class="mini" onclick="editarVoucher(\'' + esc(v.codigo) + '\')">editar</button>' +
+            (v.ativo ? '<button class="mini" onclick="if(confirm(\'Desligar ' + esc(v.codigo) + '?\'))acao({acao:\'voucher_desligar\',codigo:\'' + esc(v.codigo) + '\'})">desligar</button>' : ' desligado') + '</td></tr>';
         }).join('') + '</tbody></table></div>' : '') +
 
     '<h2>Pessoas</h2><div class="filtro"><input id="busca" placeholder="buscar nome, e-mail ou WhatsApp" value="' + esc(BUSCA) + '">' +
@@ -325,7 +419,7 @@ function tabela() {
   });
   if (!ps.length) return '<p class="sub" style="padding:14px">ninguém aqui</p>';
   return '<table><thead><tr><th>Nome</th><th>E-mail</th><th>WhatsApp</th><th>Cadastro</th><th>Último acesso</th>' +
-    '<th>Plano</th><th>Vale até</th><th class="n">Créditos</th><th class="n">IA no mês</th><th class="n">Bancos</th><th>Dar</th></tr></thead><tbody>' +
+    '<th>Plano</th><th>Vale até</th><th class="n">Créditos</th><th class="n">IA no mês</th><th class="n">Bancos</th><th>Dar</th><th></th></tr></thead><tbody>' +
     ps.map(function (p) {
       var st = p.status === 'vencida' || p.status === 'pendente' ? p.status : p.plano;
       return '<tr><td>' + esc(p.nome || '—') + (p.primeiro_acesso ? '' : ' <span class="tag pendente" title="não terminou o primeiro acesso">novo</span>') + '</td>' +
@@ -338,7 +432,8 @@ function tabela() {
         '<td class="n">' + (p.ia_pedidos_mes ? p.ia_pedidos_mes + ' · ' + brl(p.ia_cobrado_mes) : '—') + '</td>' +
         '<td class="n">' + (p.bancos || '—') + '</td>' +
         '<td><button class="mini" onclick="darCreditos(\'' + p.id + '\',\'' + esc((p.nome || p.email).replace(/'/g, '')) + '\')">+ créditos</button>' +
-        '<button class="mini" onclick="darCortesia(\'' + p.id + '\',\'' + esc((p.nome || p.email).replace(/'/g, '')) + '\')">⭐ cortesia</button></td></tr>';
+        '<button class="mini" onclick="darCortesia(\'' + p.id + '\',\'' + esc((p.nome || p.email).replace(/'/g, '')) + '\')">⭐ cortesia</button></td>' +
+        '<td><button class="mini" onclick="abrirLog(\'' + p.id + '\')">📋 log</button></td></tr>';
     }).join('') + '</tbody></table>';
 }
 
