@@ -30,16 +30,8 @@
   .k span{font-size:12px;color:var(--tx2)}
   .k small{display:block;font-size:11.5px;color:var(--tx2);margin-top:2px}
   .k.v b{color:var(--verde)}.k.a b{color:var(--amb)}.k.r b{color:var(--verm)}
-  .meses{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;overflow-x:auto}
-  .sel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
-  .sel button,.filtro button{background:var(--bg);border:1px solid var(--line);color:var(--tx2);border-radius:20px;padding:6px 12px;font-size:13px;cursor:pointer}
-  .sel button.on,.filtro button.on{background:var(--azul);border-color:var(--azul);color:#fff}
-  .barras{display:flex;align-items:flex-end;gap:6px;height:160px;min-width:520px}
-  .barras div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:11px;color:var(--tx2)}
-  .barras i{display:block;width:100%;max-width:38px;background:var(--azul);border-radius:5px 5px 0 0;min-height:2px}
-  .barras div.at i{background:var(--verde)}
-  .barras em{font-style:normal;color:var(--tx);font-size:11px;margin-bottom:3px;white-space:nowrap}
-  .barras u{text-decoration:none;margin-top:5px}
+  .filtro button{background:var(--bg);border:1px solid var(--line);color:var(--tx2);border-radius:20px;padding:6px 12px;font-size:13px;cursor:pointer}
+  .filtro button.on{background:var(--azul);border-color:var(--azul);color:#fff}
   .filtro{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
   .filtro input{flex:1;min-width:180px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--tx);font-size:14px}
   .tab{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow-x:auto}
@@ -57,18 +49,27 @@
   .form label{font-size:12px;color:var(--tx2);display:block;margin-bottom:4px}
   .form input,.form select{width:100%;padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--tx);font-size:14px}
   .form button{padding:10px;border:0;border-radius:9px;background:var(--azul);color:#fff;font-weight:700;cursor:pointer}
-  .mot{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:10px}
-  .mot .leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--tx2);margin-bottom:10px}
-  .mot .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
-  .pilha{display:flex;align-items:flex-end;gap:6px;height:140px;min-width:420px}
-  .pilha>div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:11px;color:var(--tx2)}
-  .pilha .col{width:100%;max-width:38px;display:flex;flex-direction:column-reverse;border-radius:5px 5px 0 0;overflow:hidden}
-  .pilha em{font-style:normal;color:var(--tx);font-size:10.5px;margin-bottom:3px;white-space:nowrap}
-  .pilha u{text-decoration:none;margin-top:5px}
-  .barra30{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13px}
-  .barra30 .nm{width:130px;flex:none}.barra30 .tr{flex:1;height:12px;background:var(--bg);border-radius:6px;overflow:hidden}
-  .barra30 .tr i{display:block;height:100%}.barra30 .vl{width:230px;flex:none;text-align:right;color:var(--tx2);font-size:12px;white-space:nowrap}
-  @media(max-width:600px){.barra30{flex-wrap:wrap}.barra30 .vl{width:100%;text-align:left}}
+  /* gráficos: um por assunto */
+  .graficos{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+  .gr{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px 10px;min-width:0}
+  .grt{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .grt h3{margin:0;font-size:13px;font-weight:600;color:var(--tx2)}
+  .grt b{font-size:18px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .grn{font-size:11.5px;color:var(--tx2);margin-top:2px}
+  .cols{display:flex;gap:2px;height:110px;margin-top:10px;position:relative;border-bottom:1px solid var(--line)}
+  .cols .c{flex:1;min-width:0;display:flex;flex-direction:column;cursor:pointer;position:relative;z-index:1}
+  .cols .c:hover{background:rgba(255,255,255,.04)}
+  .cols .p{display:flex;align-items:flex-end;justify-content:center}
+  .cols .n{display:flex;align-items:flex-start;justify-content:center}
+  .cols i{display:block;width:100%;max-width:26px;min-height:1px;opacity:.75}
+  .cols .p i{border-radius:4px 4px 0 0}.cols .n i{border-radius:0 0 4px 4px}
+  .cols .c.at i{opacity:1}
+  .cols.linha svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .xs{display:flex;gap:2px;margin-top:4px}
+  .xs span{flex:1;min-width:0;text-align:center;font-size:10px;color:var(--tx2);white-space:nowrap;overflow:visible}
+  #dica{position:fixed;display:none;z-index:20;pointer-events:none;background:#0b0f18;border:1px solid var(--line);color:var(--tx);
+        font-size:12.5px;padding:6px 9px;border-radius:8px;white-space:nowrap;font-variant-numeric:tabular-nums;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+  @media(max-width:600px){.graficos{grid-template-columns:1fr}}
   .ok-msg{color:var(--verde);font-size:13px;margin-top:8px;min-height:18px}
   .form.ed{border-color:var(--amb)}
   .form button.sec{background:var(--bg);border:1px solid var(--line);color:var(--tx)}
@@ -102,7 +103,7 @@
 var URL_SB = 'https://nhngqhgxmrnqbcnklrwc.supabase.co';
 var CHAVE = 'sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN';
 var cx = document.getElementById('cx');
-var DADOS = null, SERIE = 'cadastros', FILTRO = 'todos', BUSCA = '';
+var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 var VERSAO = '';   // a do APK publicado no site (versao.json, copiado pelo publicar-site --apk)
@@ -276,19 +277,86 @@ function desenharLog() {
 }
 document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && LOG) fecharLog(); });
 function usdTxt(n) { return 'US$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+// dólar com o valor em reais ao lado, no câmbio do dia
+function cambioV() { return DADOS && DADOS.cambio ? DADOS.cambio.usd_brl : 5.6; }
+function emReais(usdV) { return brl(usdV * cambioV()); }
+function usdBrl(v) { return usdTxt(v) + ' · ' + emReais(v); }
+function nomeMes(m) { return new Date(m + '-15').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''); }
+function nomeDia(d) { return d.slice(8, 10) + '/' + d.slice(5, 7); }
+
+// ------------------------------------------------------------------ gráficos
+// Barras: um gráfico por assunto. pts = [{rot, v, dica}]; negativos descem da linha do zero, em vermelho.
+function grafico(o) {
+  var pts = o.pts, max = Math.max.apply(null, pts.map(function (p) { return p.v; }).concat([0])),
+      min = Math.min.apply(null, pts.map(function (p) { return p.v; }).concat([0]));
+  var tot = (max - min) || 1, pos = max / tot * 100, cada = o.cada || 1;
+  return '<div class="gr"><div class="grt"><h3>' + esc(o.titulo) + '</h3>' + (o.destaque != null ? '<b>' + o.destaque + '</b>' : '') + '</div>' +
+    (o.nota ? '<div class="grn">' + o.nota + '</div>' : '') +
+    '<div class="cols">' + pts.map(function (p, i) {
+      var h = Math.abs(p.v) / tot * 100, neg = p.v < 0;
+      return '<div class="c' + (i === pts.length - 1 ? ' at' : '') + '" data-dica="' + esc(p.dica) + '">' +
+        '<div class="p" style="height:' + pos + '%">' + (neg ? '' : '<i style="height:' + (h / pos * 100 || 0) + '%;background:' + (o.cor || 'var(--azul)') + '"></i>') + '</div>' +
+        '<div class="n" style="height:' + (100 - pos) + '%">' + (neg ? '<i style="height:' + (h / (100 - pos) * 100) + '%;background:var(--verm)"></i>' : '') + '</div></div>';
+    }).join('') + '</div>' +
+    '<div class="xs">' + pts.map(function (p, i) {
+      return '<span>' + ((pts.length - 1 - i) % cada === 0 ? esc(p.rot) : '') + '</span>'; }).join('') + '</div></div>';
+}
+// Linha (para o saldo, que sobe e desce): SVG esticado + colunas invisíveis para a dica
+function graficoLinha(o) {
+  var pts = o.pts, vs = pts.map(function (p) { return p.v; });
+  var max = Math.max.apply(null, vs.concat([0])), min = Math.min.apply(null, vs.concat([0])), tot = (max - min) || 1;
+  var y = function (v) { return (max - v) / tot * 100; }, n = Math.max(pts.length - 1, 1);
+  var linha = pts.map(function (p, i) { return (i / n * 100).toFixed(2) + ',' + y(p.v).toFixed(2); }).join(' ');
+  var cada = Math.max(1, Math.ceil(pts.length / 8));
+  return '<div class="gr"><div class="grt"><h3>' + esc(o.titulo) + '</h3>' + (o.destaque != null ? '<b>' + o.destaque + '</b>' : '') + '</div>' +
+    (o.nota ? '<div class="grn">' + o.nota + '</div>' : '') +
+    '<div class="cols linha"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' +
+      (min < 0 ? '<line x1="0" x2="100" y1="' + y(0) + '" y2="' + y(0) + '" stroke="var(--verm)" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>' : '') +
+      '<polygon points="0,' + y(0) + ' ' + linha + ' 100,' + y(0) + '" fill="' + (o.cor || 'var(--azul)') + '" opacity=".14"/>' +
+      '<polyline points="' + linha + '" fill="none" stroke="' + (o.cor || 'var(--azul)') + '" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>' +
+      pts.map(function (p) { return '<div class="c" data-dica="' + esc(p.dica) + '"></div>'; }).join('') + '</div>' +
+    '<div class="xs">' + pts.map(function (p, i) { return '<span>' + ((pts.length - 1 - i) % cada === 0 ? esc(p.rot) : '') + '</span>'; }).join('') + '</div></div>';
+}
+// dica flutuante (mouse) ou fixa por um toque (celular)
+var dicaEl = document.createElement('div'); dicaEl.id = 'dica'; document.body.appendChild(dicaEl);
+function mostraDica(alvo, x, yy) {
+  if (!alvo) { dicaEl.style.display = 'none'; return; }
+  dicaEl.textContent = alvo.dataset.dica; dicaEl.style.display = 'block';
+  var w = dicaEl.offsetWidth, h = dicaEl.offsetHeight;
+  dicaEl.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, x - w / 2)) + 'px';
+  dicaEl.style.top = Math.max(8, yy - h - 12) + 'px';
+}
+document.addEventListener('mousemove', function (ev) { var a = ev.target.closest && ev.target.closest('[data-dica]'); mostraDica(a, ev.clientX, ev.clientY); });
+document.addEventListener('click', function (ev) { var a = ev.target.closest && ev.target.closest('[data-dica]'); mostraDica(a, ev.clientX, ev.clientY); });
+window.addEventListener('scroll', function () { dicaEl.style.display = 'none'; }, { passive: true });
+
 function blocoApi(a) {
   var link = '<a class="zap" style="color:var(--azul)" target="_blank" rel="noopener" href="https://console.anthropic.com/settings/billing">comprar créditos ↗</a>';
+  var cb = DADOS.cambio || { usd_brl: 5.6, fonte: 'aproximado' };
   var h = '<h2>Crédito da IA (Anthropic) · ' + link + '</h2>';
-  if (a.recargas && a.recargas.length) {
-    var pouco = a.saldo < 3 || (a.dias !== null && a.dias < 7);
-    h += '<div class="grade">' +
-      k('Saldo estimado', usdTxt(a.saldo), 'comprado ' + usdTxt(a.comprado) + ' − usado ' + usdTxt(a.usado), pouco ? 'r' : 'v') +
-      k('Gasto por dia', usdTxt(a.por_dia), 'média dos últimos 7 dias') +
-      k('Dura mais', a.dias === null ? '—' : a.dias + (a.dias === 1 ? ' dia' : ' dias'), pouco ? 'hora de recarregar' : 'no ritmo atual', pouco ? 'r' : '') +
-      '</div>';
-  } else {
-    h += '<div class="sub" style="margin-bottom:8px">Registre aqui cada compra de crédito na Anthropic: o painel desconta o custo real de cada pedido e avisa quando estiver acabando.</div>';
-  }
+  a.diario = a.diario && a.diario.length ? a.diario : [{ dia: new Date().toISOString().slice(0, 10), usd: 0 }];
+  var fonte = a.fonte === 'anthropic' ? '<span style="color:var(--verde)">● gasto real, puxado da Anthropic</span>'
+    : '<span style="color:var(--amb)">● gasto anotado pelo app</span> (para puxar o real da Anthropic, coloque o segredo ANTHROPIC_ADMIN_KEY na função gestao)';
+  h += '<div class="sub" style="margin-bottom:8px">' + fonte + (a.erro ? ' · <span style="color:var(--verm)">' + esc(a.erro) + '</span>' : '') + '</div>';
+  var pouco = a.saldo != null && (a.saldo < 3 || (a.dias !== null && a.dias < 7));
+  h += '<div class="grade">' +
+    (a.recargas && a.recargas.length ? k('Saldo para gastar', usdTxt(a.saldo), emReais(a.saldo) + ' · comprado ' + usdTxt(a.comprado) + ' − usado ' + usdTxt(a.usado), pouco ? 'r' : 'v') : '') +
+    k('Gasto por dia', usdTxt(a.por_dia), emReais(a.por_dia) + ' · média de 7 dias') +
+    (a.recargas && a.recargas.length ? k('Dura mais', a.dias === null ? '—' : a.dias + (a.dias === 1 ? ' dia' : ' dias'), pouco ? 'hora de recarregar' : 'no ritmo atual', pouco ? 'r' : '') : '') +
+    k('Gasto em 30 dias', usdTxt(a.diario.reduce(function (t, x) { return t + x.usd; }, 0)), emReais(a.diario.reduce(function (t, x) { return t + x.usd; }, 0))) +
+    k('Dólar', brl(cb.usd_brl), cb.fonte + (cb.quando ? ' · ' + esc(String(cb.quando).slice(0, 16)) : '')) +
+    '</div>';
+  if (!(a.recargas && a.recargas.length))
+    h += '<div class="sub" style="margin:8px 0">Registre aqui cada compra de crédito na Anthropic: o painel desconta o gasto e mostra quanto ainda tem.</div>';
+  h += '<div class="graficos">';
+  if (a.saldo_dia && a.saldo_dia.length > 1) h += graficoLinha({ titulo: 'Saldo dia a dia', destaque: usdTxt(a.saldo), cor: 'var(--verde)',
+    nota: 'compras − gasto, desde a primeira compra', pts: a.saldo_dia.map(function (x) { return { rot: nomeDia(x.dia), v: x.usd, dica: nomeDia(x.dia) + ': saldo ' + usdBrl(x.usd) }; }) });
+  h += grafico({ titulo: 'Gasto por dia na Anthropic', destaque: usdTxt(a.diario[a.diario.length - 1].usd) + ' hoje', cada: 5,
+    nota: 'últimos 30 dias, em US$ (toque numa barra para ver em R$)',
+    pts: a.diario.map(function (x) { return { rot: nomeDia(x.dia), v: x.usd, dica: nomeDia(x.dia) + ': ' + usdBrl(x.usd) }; }) });
+  h += '</div>';
+  if (a.usado_app != null && a.fonte === 'anthropic' && Math.abs(a.usado - a.usado_app) >= 0.5)
+    h += '<div class="sub" style="margin-top:6px">O app anotou ' + usdTxt(a.usado_app) + ' no mesmo período: a diferença (' + usdTxt(a.usado - a.usado_app) + ') é uso fora do app ou cálculo de preço desatualizado.</div>';
   h += '<div class="form" style="margin-top:10px">' +
     '<div><label>Compra (US$)</label><input id="apiUsd" inputmode="decimal" placeholder="20"></div>' +
     '<div><label>Data da compra</label><input id="apiData" type="date" value="' + new Date().toISOString().slice(0, 10) + '"></div>' +
@@ -296,34 +364,51 @@ function blocoApi(a) {
   if (a.recargas && a.recargas.length) h += '<div class="sub" style="margin-top:8px">' + a.recargas.map(function (r, i) {
     return dt(r.data + 'T12:00:00') + ' · ' + usdTxt(r.usd) + ' <button class="mini" onclick="if(confirm(\'Apagar esta compra?\'))acao({acao:\'api_recarga_apagar\',i:' + i + '})">apagar</button>';
   }).join(' &nbsp; ') + '</div>';
-  h += '<div class="sub" style="margin-top:6px">Estimativa: a Anthropic não informa o saldo por API. Se ligar a recarga automática lá, registre cada recarga aqui também.</div>';
+  h += '<div class="sub" style="margin-top:6px">A Anthropic não informa o saldo por API (só o gasto): registre aqui cada compra ou recarga automática.</div>';
   return h;
 }
-var COR_MOTOR = { 'Ágil (Haiku)': '#06b6d4', 'Padrão (Sonnet)': '#3b82f6', 'Profundo (Opus)': '#f59e0b' };
+// cores validadas para daltonismo no fundo escuro
+var COR_MOTOR = { 'Ágil (Haiku)': '#199e70', 'Padrão (Sonnet)': '#3987e5', 'Profundo (Opus)': '#c98500' };
 function corMotor(m) { return COR_MOTOR[m] || '#94a3b8'; }
 function blocoMotores(m) {
   if (!m) return '';
   var nomes = {};
   m.por_mes.forEach(function (x) { Object.keys(x.custo).forEach(function (k) { nomes[k] = 1; }); });
-  var lista = Object.keys(nomes);
+  m.trinta_dias.forEach(function (x) { nomes[x.motor] = 1; });
+  var lista = Object.keys(nomes).sort(function (a, b) { return (COR_MOTOR[b] ? 1 : 0) - (COR_MOTOR[a] ? 1 : 0) || a.localeCompare(b); });
   if (!lista.length) return '';
-  var ult = m.por_mes.slice(-6), max = Math.max.apply(null, ult.map(function (x) {
-    return Object.keys(x.custo).reduce(function (t, k) { return t + x.custo[k]; }, 0); }).concat([0.001]));
-  var h = '<h2>Uso da IA por motor</h2><div class="mot"><div class="leg">' + lista.map(function (k) {
-      return '<span><i style="background:' + corMotor(k) + '"></i>' + esc(k) + '</span>'; }).join('') + '</div>' +
-    '<div style="overflow-x:auto"><div class="pilha">' + ult.map(function (x, i) {
-      var tot = Object.keys(x.custo).reduce(function (t, k) { return t + x.custo[k]; }, 0);
-      var nome = new Date(x.mes + '-15').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
-      return '<div><em>' + (tot ? usdTxt(tot) : '') + '</em><div class="col" style="height:' + (tot / max * 110) + 'px">' +
-        lista.map(function (k) { var v = x.custo[k] || 0; return v ? '<b style="display:block;height:' + (v / tot * 100) + '%;background:' + corMotor(k) + '" title="' + esc(k) + ': ' + usdTxt(v) + '"></b>' : ''; }).join('') +
-        '</div><u>' + nome + '</u></div>';
-    }).join('') + '</div></div>';
-  var t30 = m.trinta_dias, max30 = Math.max.apply(null, t30.map(function (x) { return x.custo_usd; }).concat([0.001]));
-  if (t30.length) h += '<div class="sub" style="margin:14px 0 4px">Últimos 30 dias · custo real (cobrado do cliente)</div>' + t30.map(function (x) {
-    return '<div class="barra30"><span class="nm">' + esc(x.motor) + '</span><span class="tr"><i style="width:' + (x.custo_usd / max30 * 100) + '%;background:' + corMotor(x.motor) + '"></i></span>' +
-      '<span class="vl">' + usdTxt(x.custo_usd) + ' · ' + x.pedidos + ' pedidos (' + brl(x.cobrado) + ')</span></div>';
-  }).join('');
-  return h + '</div>';
+  return '<h2>Custo da IA por motor · 12 meses</h2><div class="sub" style="margin-bottom:8px">' +
+    (m.fonte === 'anthropic' ? 'custo real da Anthropic' : 'custo anotado pelo app') + '; pedidos e cobrado são dos últimos 30 dias</div>' +
+    '<div class="graficos">' + lista.map(function (k) {
+      var t = m.trinta_dias.filter(function (x) { return x.motor === k; })[0];
+      var atual = m.por_mes[m.por_mes.length - 1].custo[k] || 0;
+      return grafico({ titulo: k, cor: corMotor(k), destaque: usdTxt(atual),
+        nota: emReais(atual) + ' este mês' + (t ? ' · 30 dias: ' + t.pedidos + ' pedidos, ' + brl(t.cobrado) + ' cobrados' : ''),
+        pts: m.por_mes.map(function (x) { var v = x.custo[k] || 0; return { rot: nomeMes(x.mes), v: v, dica: nomeMes(x.mes) + ': ' + usdBrl(v) }; }) });
+    }).join('') + '</div>';
+}
+function blocoMeses() {
+  var ms = DADOS.meses, cb = cambioV(), tx = (DADOS.taxa_mp || 0) * 100;
+  var g = function (titulo, campo, fmt, cor, nota, fmtDica) {
+    var at = ms[ms.length - 1][campo];
+    return grafico({ titulo: titulo, destaque: fmt(at), cor: cor, nota: nota,
+      pts: ms.map(function (m) { return { rot: nomeMes(m.mes), v: m[campo], dica: nomeMes(m.mes) + ': ' + (fmtDica || fmt)(m[campo]) }; }) });
+  };
+  var n = function (v) { return String(v); };
+  return '<h2>Últimos 12 meses · um gráfico por assunto</h2><div class="sub" style="margin-bottom:8px">o número grande é o mês atual; toque numa barra para ver o valor · ' +
+      'R$ da IA no dólar de hoje (' + brl(cb) + ') · Mercado Pago fica com ' + tx.toLocaleString('pt-BR') + '% das compras</div><div class="graficos">' +
+    g('Cadastros', 'cadastros', n) +
+    g('Receita bruta', 'receita', brl, 'var(--verde)', 'mensalidades + anual + créditos') +
+    g('Taxa do Mercado Pago', 'taxa_mp', brl, 'var(--amb)', tx.toLocaleString('pt-BR') + '% sobre cada compra') +
+    g('Receita líquida', 'receita_liquida', brl, 'var(--verde)', 'receita − taxa do Mercado Pago') +
+    g('Créditos vendidos', 'creditos', brl, 'var(--verde)') +
+    g('Pedidos ao assistente', 'ia_pedidos', n) +
+    g('Custo da IA em dólar', 'ia_custo_usd', usdTxt, '#3987e5', 'o que a Anthropic cobra', usdBrl) +
+    g('Custo da IA em reais', 'ia_custo_brl', brl, '#3987e5', 'no dólar de hoje') +
+    g('IA cobrada dos clientes', 'ia_cobrado', brl, 'var(--verde)') +
+    g('Margem da IA', 'ia_margem', brl, 'var(--verde)', 'cobrado − taxa MP − custo em R$') +
+    g('Resultado', 'resultado', brl, 'var(--verde)', 'receita líquida − custo da IA') +
+    '</div>';
 }
 function registrarRecarga() {
   var v = Number(String(document.getElementById('apiUsd').value).replace(',', '.'));
@@ -337,7 +422,6 @@ function k(rot, val, nota, cls) {
 
 function desenhar() {
   var d = DADOS, r = d.resumo, p = r.planos;
-  var margem = r.ia_cobrado_mes - r.ia_custo_mes_usd * 5.6;   // câmbio aproximado
   var h = '<div class="topo"><h1>Easy<i>APP</i> · Gestão</h1><div><button class="lk" id="at">Atualizar</button> · <button class="lk" id="sair">Sair</button></div></div>' +
     '<div class="sub">atualizado ' + new Date(d.gerado_em).toLocaleString('pt-BR') + (VERSAO ? ' · app no site: versão ' + esc(VERSAO) : '') + '</div>' +
 
@@ -359,19 +443,17 @@ function desenhar() {
     '</div>' +
 
     '<h2>Este mês</h2><div class="grade">' +
-    k('Receita', brl(r.receita_mes), 'mensalidades + anual + créditos', 'v') +
+    k('Receita bruta', brl(r.receita_mes), 'mensalidades + anual + créditos', 'v') +
+    k('Taxa do Mercado Pago', '− ' + brl(r.taxa_mp_mes), ((d.taxa_mp || 0) * 100).toLocaleString('pt-BR') + '% das compras', 'a') +
+    k('Receita líquida', brl(r.receita_liquida_mes), 'o que fica com você', 'v') +
     k('Créditos vendidos', brl(r.creditos_mes), brl(r.creditos_total) + ' desde o início') +
     k('Pedidos ao assistente', r.ia_pedidos_mes) +
-    k('Custo da IA', usd(r.ia_custo_mes_usd), 'Anthropic') +
-    k('IA cobrada dos clientes', brl(r.ia_cobrado_mes), 'margem ≈ ' + brl(margem), margem < 0 ? 'r' : '') +
+    k('Custo da IA', usdTxt(r.ia_custo_mes_usd), brl(r.ia_custo_mes_brl) + (d.motores && d.motores.fonte === 'anthropic' ? ' · real da Anthropic' : ' · anotado pelo app')) +
+    k('IA cobrada dos clientes', brl(r.ia_cobrado_mes), 'margem ' + brl(r.ia_margem_mes) + ' (já sem taxa MP)', r.ia_margem_mes < 0 ? 'r' : '') +
+    k('Resultado', brl(r.resultado_mes), 'receita líquida − custo da IA', r.resultado_mes < 0 ? 'r' : 'v') +
     '</div>' +
 
-    blocoApi(d.api || {}) + blocoMotores(d.motores) +
-
-    '<h2>Últimos 12 meses</h2><div class="meses"><div class="sel">' +
-    [['cadastros', 'Cadastros'], ['receita', 'Receita'], ['creditos', 'Créditos'], ['ia_pedidos', 'Pedidos IA'], ['ia_custo_usd', 'Custo IA']].map(function (o) {
-      return '<button data-s="' + o[0] + '"' + (SERIE === o[0] ? ' class="on"' : '') + '>' + o[1] + '</button>';
-    }).join('') + '</div><div class="barras">' + barras() + '</div></div>' +
+    blocoApi(d.api || {}) + blocoMeses() + blocoMotores(d.motores) +
 
     '<h2>Vouchers</h2>' + formVoucher() +
       (d.vouchers && d.vouchers.length ? '<div class="tab" style="margin-top:10px"><table><thead><tr><th>Código</th><th>Dá</th><th>Usos</th><th>Até</th><th>Nota</th><th></th></tr></thead><tbody>' +
@@ -391,20 +473,8 @@ function desenhar() {
 
   document.getElementById('at').onclick = carregar;
   document.getElementById('sair').onclick = function () { sessao(null); DADOS = null; telaLogin(); };
-  Array.prototype.forEach.call(cx.querySelectorAll('[data-s]'), function (b) { b.onclick = function () { SERIE = b.dataset.s; desenhar(); }; });
   Array.prototype.forEach.call(cx.querySelectorAll('[data-f]'), function (b) { b.onclick = function () { FILTRO = b.dataset.f; desenhar(); }; });
   document.getElementById('busca').oninput = function (ev) { BUSCA = ev.target.value; document.getElementById('tab').innerHTML = tabela(); };
-}
-
-function barras() {
-  var ms = DADOS.meses, max = Math.max.apply(null, ms.map(function (m) { return m[SERIE]; }).concat([1]));
-  var fmt = SERIE === 'receita' || SERIE === 'creditos' ? function (v) { return 'R$' + Math.round(v); }
-          : SERIE === 'ia_custo_usd' ? function (v) { return '$' + v.toFixed(0); } : String;
-  return ms.map(function (m, i) {
-    var nome = new Date(m.mes + '-15').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
-    return '<div' + (i === ms.length - 1 ? ' class="at"' : '') + '><em>' + (m[SERIE] ? fmt(m[SERIE]) : '') + '</em>' +
-      '<i style="height:' + (m[SERIE] / max * 120) + 'px"></i><u>' + nome + '</u></div>';
-  }).join('');
 }
 
 function tabela() {
