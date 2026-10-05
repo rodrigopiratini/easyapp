@@ -102,6 +102,14 @@
   .bts button{padding:10px 16px;border-radius:10px;border:0;font-weight:700;cursor:pointer;font-size:14px}
   .bts .sim{background:var(--azul);color:#fff}.bts .nao{background:var(--bg);border:1px solid var(--line);color:var(--tx)}
   .bts button:disabled{opacity:.6;cursor:default}
+  .zona{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:12px}
+  .zona h4{margin:0 0 4px;font-size:14.5px}.zona p{margin:0 0 10px;color:var(--tx2);font-size:12.5px;line-height:1.45}
+  .zona.perigo{border-color:rgba(239,68,68,.5)}.zona.perigo h4{color:var(--verm)}
+  .zona label.ck{display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:10px;cursor:pointer}
+  .zona input[type=email]{width:100%;padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--tx);font-size:14px;margin-bottom:10px}
+  .zona button{padding:9px 14px;border-radius:10px;border:0;font-weight:700;cursor:pointer;font-size:13.5px;background:var(--amb);color:#1a1300}
+  .zona.perigo button{background:var(--verm);color:#fff}
+  .zona button:disabled{opacity:.45;cursor:default}
   .janela .resumo{font-size:13px;color:var(--tx2);margin-top:12px;min-height:18px}
   .rodape{margin-top:28px;padding-top:12px;border-top:1px solid var(--line);color:var(--tx2);font-size:12px;text-align:center}
   /* login */
@@ -125,7 +133,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.1.0 · 05/10/2026';
+var VERSAO_PAINEL = '1.2.0 · 05/10/2026';
 function rodape() { return '<div class="rodape">Painel de gestão · versão ' + VERSAO_PAINEL + '</div>'; }
 var VERSAO = '';   // a do APK publicado no site (versao.json, copiado pelo publicar-site --apk)
 fetch('versao.json', { cache: 'no-store' }).then(function (r) { return r.json(); })
@@ -287,6 +295,40 @@ function darCortesia(id, nome) {
   res();
   f.querySelector('.sim').onclick = function () {
     enviarPeq(f, { acao: 'dar_cortesia', user_id: id, tipo: tipo, dias: dias ? parseInt(dias, 10) : null });
+  };
+}
+
+// ⚙ conta: voltar às configurações de fábrica ou excluir
+function gerirConta(id) {
+  var p = pessoa(id), nome = p.nome || p.email || '';
+  var f = janelaPeq('<div class="topo"><h3>Conta</h3><button class="lk" onclick="fecharPeq()">fechar</button></div>' +
+    '<div class="quem">' + esc(nome) + (p.nome ? ' · ' + esc(p.email) : '') + ' · ' + esc(nomePlano(p)) + '</div>' +
+    '<div class="zona"><h4>↺ Voltar às configurações de fábrica</h4>' +
+      '<p>Apaga lançamentos, bancos, categorias, metas, módulos, conversa com o assistente e Open Finance, e a pessoa refaz o primeiro acesso (boas-vindas e termos). ' +
+      'O login continua. Plano, créditos e pagamentos ficam.</p>' +
+      '<label class="ck"><input type="checkbox" id="gcTeste"> Também voltar o plano para teste grátis de 14 dias</label>' +
+      '<button id="gcReset">Voltar de fábrica</button></div>' +
+    '<div class="zona perigo"><h4>🗑 Excluir conta</h4>' +
+      '<p>Apaga o login e todos os dados da pessoa, sem volta. Assinatura mensal no Mercado Pago é cancelada. Os registros de pagamento ficam, sem o nome.</p>' +
+      '<input type="email" id="gcMail" placeholder="digite o e-mail da pessoa para confirmar" autocomplete="off">' +
+      '<button id="gcExcluir" disabled>Excluir para sempre</button></div>' +
+    '<div class="resumo" id="pqRes"></div>');
+  var res = f.querySelector('#pqRes'), mail = f.querySelector('#gcMail'), bx = f.querySelector('#gcExcluir'), br = f.querySelector('#gcReset');
+  mail.oninput = function () { bx.disabled = mail.value.trim().toLowerCase() !== String(p.email || '').toLowerCase(); };
+  var rodar = function (b, corpo, texto, fim) {
+    var orig = b.textContent; b.disabled = true; b.textContent = texto; res.textContent = '';
+    acao(corpo).then(function (d) {
+      if (d && d.ok) { res.style.color = 'var(--verde)'; res.textContent = fim; setTimeout(fecharPeq, 1600); }
+      else { b.disabled = false; b.textContent = orig; }
+    }).catch(function (e) { alert(e.message); b.disabled = false; b.textContent = orig; });
+  };
+  br.onclick = function () {
+    if (!confirm('Voltar ' + nome + ' às configurações de fábrica? Os dados de uso serão apagados.')) return;
+    rodar(br, { acao: 'resetar_usuario', user_id: id, plano_teste: f.querySelector('#gcTeste').checked },
+      'Zerando…', 'Pronto: no próximo acesso a pessoa refaz as boas-vindas. Se for você testando, saia do app e entre de novo.');
+  };
+  bx.onclick = function () {
+    rodar(bx, { acao: 'excluir_usuario', user_id: id, confirmacao: mail.value.trim() }, 'Excluindo…', 'Conta excluída.');
   };
 }
 
@@ -616,7 +658,8 @@ function tabela() {
         '<td class="n">' + (p.bancos || '—') + '</td>' +
         '<td><button class="mini" onclick="darCreditos(\'' + p.id + '\',\'' + esc((p.nome || p.email).replace(/'/g, '')) + '\')">+ créditos</button>' +
         '<button class="mini" onclick="darCortesia(\'' + p.id + '\',\'' + esc((p.nome || p.email).replace(/'/g, '')) + '\')">⭐ cortesia</button></td>' +
-        '<td><button class="mini" onclick="abrirLog(\'' + p.id + '\')">📋 log</button></td></tr>';
+        '<td><button class="mini" onclick="abrirLog(\'' + p.id + '\')">📋 log</button>' +
+        '<button class="mini" onclick="gerirConta(\'' + p.id + '\')">⚙ conta</button></td></tr>';
     }).join('') + '</tbody></table>';
 }
 
