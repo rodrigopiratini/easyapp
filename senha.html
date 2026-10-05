@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>EasyAPP · Senha nova</title>
+<link rel="icon" href="img/icone-192.png">
+<style>
+  :root{--bg:#0f1420;--card:#161d2c;--line:#2a3548;--tx:#e8edf7;--tx2:#8b99b5;--azul:#3b82f6;--verde:#22c55e;--verm:#ef4444}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--tx);
+       font:16px -apple-system,system-ui,sans-serif;padding:24px 16px}
+  .cx{width:min(380px,100%)}
+  h1{font-size:26px;margin:0 0 6px}h1 i{color:var(--azul);font-style:normal}
+  p{color:var(--tx2);margin:0 0 20px;font-size:14.5px;line-height:1.5}
+  label{display:block;font-size:12.5px;color:var(--tx2);margin:2px 0 4px 2px}
+  input{width:100%;margin-bottom:12px;padding:13px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--tx);font-size:16px}
+  button{width:100%;padding:14px;border:0;border-radius:12px;background:var(--azul);color:#fff;font-size:16px;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.5}
+  .msg{font-size:14px;min-height:20px;margin-top:12px;color:var(--verm)}.msg.ok{color:var(--verde)}
+  .ok-grande{font-size:44px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="cx" id="cx"><p>Abrindo...</p></div>
+<script>
+/* O link do e-mail do EasyAPP cai aqui (quando o e-mail traz link em vez
+   de código). O Supabase manda os dados no fim do endereço (#...):
+   type=recovery -> criar a senha nova aqui mesmo; type=signup -> e-mail
+   confirmado; error -> link vencido. A chave abaixo é a pública do app. */
+var URL_SB = 'https://nhngqhgxmrnqbcnklrwc.supabase.co';
+var CHAVE = 'sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN';
+var cx = document.getElementById('cx');
+var h = new URLSearchParams(location.hash.replace(/^#/, ''));
+var q = new URLSearchParams(location.search);
+var tipo = h.get('type') || q.get('type'), token = h.get('access_token');
+var erro = h.get('error_description') || q.get('error_description');
+history.replaceState(null, '', location.pathname);   // o token não fica no endereço
+
+function titulo(t, sub) { return '<h1>EasyAPP<i> Financial</i></h1><h2 style="font-size:20px;margin:18px 0 6px">' + t + '</h2><p>' + sub + '</p>'; }
+
+if (erro || !token) {
+  cx.innerHTML = titulo('Este link venceu', 'Os links valem pouco tempo e só uma vez. Abra o app, toque em <b>Esqueci minha senha</b> e peça outro.');
+} else if (tipo === 'recovery') {
+  cx.innerHTML = titulo('Senha nova', 'Crie a senha nova e depois entre no app com ela.') +
+    '<label>Senha nova (mínimo 8 caracteres)</label><input id="s1" type="password" autocomplete="new-password">' +
+    '<label>Repita a senha</label><input id="s2" type="password" autocomplete="new-password">' +
+    '<button id="bt">Salvar senha</button><div class="msg" id="msg"></div>';
+  document.getElementById('bt').onclick = function () {
+    var s1 = document.getElementById('s1').value, s2 = document.getElementById('s2').value, m = document.getElementById('msg');
+    m.className = 'msg';
+    if (s1.length < 8) { m.textContent = 'a senha precisa de pelo menos 8 caracteres'; return; }
+    if (s1 !== s2) { m.textContent = 'as duas senhas não são iguais'; return; }
+    this.disabled = true; m.className = 'msg ok'; m.textContent = 'salvando...';
+    var bt = this;
+    fetch(URL_SB + '/auth/v1/user', {
+      method: 'PUT',
+      headers: { 'apikey': CHAVE, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: s1 })
+    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); }).then(function (x) {
+      if (!x.ok) throw new Error(/different|same/i.test(x.d.msg || '') ? 'a senha nova precisa ser diferente da antiga'
+                                 : (x.d.msg || x.d.error_description || 'não deu certo: peça outro link no app'));
+      cx.innerHTML = '<div class="ok-grande">✓</div>' + titulo('Senha trocada', 'Pronto. Volte ao app e entre com o seu e-mail e a senha nova.');
+    }).catch(function (e) { bt.disabled = false; m.className = 'msg'; m.textContent = e.message; });
+  };
+} else {
+  cx.innerHTML = '<div class="ok-grande">✓</div>' + titulo('E-mail confirmado', 'Tudo certo. Volte ao app e entre com o seu e-mail e senha.');
+}
+</script>
+</body>
+</html>

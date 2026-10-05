@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /gestao.html
+Disallow: /senha.html
+Disallow: /pago.html
+
+Sitemap: https://easyappfinancial.com.br/sitemap.xml

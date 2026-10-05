@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>EasyAPP Gestão</title>
+<link rel="icon" href="img/icone-192.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta name="theme-color" content="#0f1420">
+<link rel="manifest" href="gestao.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gestão">
+<style>
+  :root{--bg:#0f1420;--card:#161d2c;--line:#2a3548;--tx:#e8edf7;--tx2:#8b99b5;--azul:#3b82f6;--verde:#22c55e;--verm:#ef4444;--amb:#fbbf24}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);font:15px -apple-system,system-ui,sans-serif;
+       padding:calc(16px + env(safe-area-inset-top)) 16px 40px}
+  .cx{max-width:1100px;margin:0 auto}
+  h1{font-size:22px;margin:0}h1 i{color:var(--azul);font-style:normal}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin:26px 0 10px;font-weight:600}
+  .topo{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+  .sub{color:var(--tx2);font-size:12.5px}
+  .lk{background:none;border:0;color:var(--azul);font-size:14px;cursor:pointer;padding:6px 0}
+  .grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:10px}
+  .k{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .k b{display:block;font-size:22px;white-space:nowrap;font-variant-numeric:tabular-nums;margin-top:2px}
+  .k span{font-size:12px;color:var(--tx2)}
+  .k small{display:block;font-size:11.5px;color:var(--tx2);margin-top:2px}
+  .k.v b{color:var(--verde)}.k.a b{color:var(--amb)}.k.r b{color:var(--verm)}
+  .meses{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;overflow-x:auto}
+  .sel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .sel button,.filtro button{background:var(--bg);border:1px solid var(--line);color:var(--tx2);border-radius:20px;padding:6px 12px;font-size:13px;cursor:pointer}
+  .sel button.on,.filtro button.on{background:var(--azul);border-color:var(--azul);color:#fff}
+  .barras{display:flex;align-items:flex-end;gap:6px;height:160px;min-width:520px}
+  .barras div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:11px;color:var(--tx2)}
+  .barras i{display:block;width:100%;max-width:38px;background:var(--azul);border-radius:5px 5px 0 0;min-height:2px}
+  .barras div.at i{background:var(--verde)}
+  .barras em{font-style:normal;color:var(--tx);font-size:11px;margin-bottom:3px;white-space:nowrap}
+  .barras u{text-decoration:none;margin-top:5px}
+  .filtro{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  .filtro input{flex:1;min-width:180px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--tx);font-size:14px}
+  .tab{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px;min-width:860px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{color:var(--tx2);font-weight:600;font-size:12px;position:sticky;top:0;background:var(--card)}
+  td.n{text-align:right;font-variant-numeric:tabular-nums}th.n{text-align:right}
+  tr:last-child td{border-bottom:0}
+  .tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11.5px;background:var(--bg);border:1px solid var(--line)}
+  .tag.mensal,.tag.anual{border-color:var(--verde);color:var(--verde)}.tag.teste{border-color:var(--azul);color:var(--azul)}
+  .tag.cortesia{border-color:var(--amb);color:var(--amb)}.tag.vencida,.tag.pendente{border-color:var(--verm);color:var(--verm)}
+  .zap{color:var(--verde);text-decoration:none}
+  .mini{background:var(--bg);border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:4px 8px;font-size:12px;cursor:pointer;margin-left:4px}
+  .form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-items:end}
+  .form label{font-size:12px;color:var(--tx2);display:block;margin-bottom:4px}
+  .form input,.form select{width:100%;padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--tx);font-size:14px}
+  .form button{padding:10px;border:0;border-radius:9px;background:var(--azul);color:#fff;font-weight:700;cursor:pointer}
+  .mot{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:10px}
+  .mot .leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--tx2);margin-bottom:10px}
+  .mot .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .pilha{display:flex;align-items:flex-end;gap:6px;height:140px;min-width:420px}
+  .pilha>div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:11px;color:var(--tx2)}
+  .pilha .col{width:100%;max-width:38px;display:flex;flex-direction:column-reverse;border-radius:5px 5px 0 0;overflow:hidden}
+  .pilha em{font-style:normal;color:var(--tx);font-size:10.5px;margin-bottom:3px;white-space:nowrap}
+  .pilha u{text-decoration:none;margin-top:5px}
+  .barra30{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13px}
+  .barra30 .nm{width:130px;flex:none}.barra30 .tr{flex:1;height:12px;background:var(--bg);border-radius:6px;overflow:hidden}
+  .barra30 .tr i{display:block;height:100%}.barra30 .vl{width:230px;flex:none;text-align:right;color:var(--tx2);font-size:12px;white-space:nowrap}
+  @media(max-width:600px){.barra30{flex-wrap:wrap}.barra30 .vl{width:100%;text-align:left}}
+  .ok-msg{color:var(--verde);font-size:13px;margin-top:8px;min-height:18px}
+  /* login */
+  .login{max-width:360px;margin:12vh auto 0}
+  .login p{color:var(--tx2);font-size:14px;margin:6px 0 20px}
+  .login input{width:100%;margin-bottom:10px;padding:13px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--tx);font-size:16px}
+  .login button{width:100%;padding:14px;border:0;border-radius:12px;background:var(--azul);color:#fff;font-size:16px;font-weight:600;cursor:pointer}
+  .msg{font-size:14px;min-height:20px;margin-top:10px;color:var(--verm)}
+</style>
+</head>
+<body>
+<div class="cx" id="cx"></div>
+<script>
+/* Gestão do EasyAPP: só para o dono. A página não tem dado nenhum; os números
+   vêm da função "gestao", que confere o e-mail de quem entrou. A chave abaixo
+   é a pública do app. A sessão fica só nesta aba (sessionStorage). */
+var URL_SB = 'https://nhngqhgxmrnqbcnklrwc.supabase.co';
+var CHAVE = 'sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN';
+var cx = document.getElementById('cx');
+var DADOS = null, SERIE = 'cadastros', FILTRO = 'todos', BUSCA = '';
+var VERSAO = '';   // a do APK publicado no site (versao.json, copiado pelo publicar-site --apk)
+fetch('versao.json', { cache: 'no-store' }).then(function (r) { return r.json(); })
+  .then(function (v) { VERSAO = v.maior + '.' + v.menor + '.' + v.build; if (DADOS) desenhar(); }).catch(function () {});
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function brl(n) { return 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function usd(n) { return 'US$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function dt(s) { return s ? new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'; }
+function sessao(v) {
+  try { if (v === undefined) return JSON.parse(sessionStorage.getItem('gestao') || 'null');
+        if (v) sessionStorage.setItem('gestao', JSON.stringify(v)); else sessionStorage.removeItem('gestao'); } catch (e) { return null; }
+}
+
+function telaLogin(erro) {
+  cx.innerHTML = '<div class="login"><h1>Easy<i>APP</i> · Gestão</h1><p>Entre com o login de administrador.</p>' +
+    '<input id="m" type="email" autocomplete="username" placeholder="e-mail">' +
+    '<input id="s" type="password" autocomplete="current-password" placeholder="senha">' +
+    '<button id="b">Entrar</button><div class="msg" id="e">' + esc(erro || '') + '</div></div>';
+  function vai() {
+    var b = document.getElementById('b'); b.disabled = true;
+    fetch(URL_SB + '/auth/v1/token?grant_type=password', {
+      method: 'POST', headers: { apikey: CHAVE, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: document.getElementById('m').value.trim(), password: document.getElementById('s').value })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.access_token) throw new Error('e-mail ou senha não conferem');
+      sessao({ at: d.access_token, rt: d.refresh_token, exp: Date.now() + (d.expires_in - 60) * 1000 });
+      carregar();
+    }).catch(function (x) { b.disabled = false; document.getElementById('e').textContent = x.message; });
+  }
+  document.getElementById('b').onclick = vai;
+  document.getElementById('s').onkeydown = function (ev) { if (ev.key === 'Enter') vai(); };
+}
+
+function token() {
+  var s = sessao();
+  if (!s) return Promise.reject(new Error(''));
+  if (Date.now() < s.exp) return Promise.resolve(s.at);
+  return fetch(URL_SB + '/auth/v1/token?grant_type=refresh_token', {
+    method: 'POST', headers: { apikey: CHAVE, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: s.rt })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.access_token) throw new Error('entre de novo');
+    sessao({ at: d.access_token, rt: d.refresh_token, exp: Date.now() + (d.expires_in - 60) * 1000 });
+    return d.access_token;
+  });
+}
+
+function carregar() {
+  if (!sessao()) return telaLogin();
+  if (!DADOS) cx.innerHTML = '<p class="sub">carregando...</p>';
+  token().then(function (t) {
+    return fetch(URL_SB + '/functions/v1/gestao', {
+      method: 'POST', headers: { apikey: CHAVE, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, body: '{}'
+    });
+  }).then(function (r) { return r.json().then(function (d) { return [r.status, d]; }); }).then(function (x) {
+    if (x[1].erro) { if (x[0] === 401 || x[0] === 403) sessao(null); return telaLogin(x[1].erro); }
+    DADOS = x[1]; desenhar();
+  }).catch(function (x) { sessao(null); telaLogin(x.message); });
+}
+
+function acao(o) {
+  return token().then(function (t) {
+    return fetch(URL_SB + '/functions/v1/gestao', { method: 'POST',
+      headers: { apikey: CHAVE, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify(o) });
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (d.erro) { alert(d.erro); return d; }
+    carregar(); return d;
+  });
+}
+function darCreditos(id, nome) {
+  var v = prompt('Quantos R$ de créditos do assistente para ' + nome + '?', '20');
+  if (!v) return;
+  acao({ acao: 'dar_creditos', user_id: id, valor: Number(String(v).replace(/\./g, '').replace(',', '.')) });
+}
+function darCortesia(id, nome) {
+  var v = prompt('Cortesia para ' + nome + ' por quantos dias? (vazio = sem prazo)\nCortesia = app liberado e assistente sem franquia.', '');
+  if (v === null) return;
+  acao({ acao: 'dar_cortesia', user_id: id, dias: v.trim() ? parseInt(v, 10) : null });
+}
+function criarVoucher() {
+  var g = function (id) { return document.getElementById(id).value.trim(); };
+  var tipo = g('vTipo');
+  acao({ acao: 'voucher_criar', tipo: tipo, codigo: g('vCod'), valor: Number(g('vValor').replace(/\./g, '').replace(',', '.')),
+         dias: g('vDias'), usos_max: g('vUsos'), validade: g('vVal'), nota: g('vNota') })
+    .then(function (d) { if (d && d.ok) setTimeout(function () { var m = document.getElementById('vMsg'); if (m) m.textContent = 'Criado: ' + d.codigo; }, 1200); });
+}
+function usdTxt(n) { return 'US$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function blocoApi(a) {
+  var link = '<a class="zap" style="color:var(--azul)" target="_blank" rel="noopener" href="https://console.anthropic.com/settings/billing">comprar créditos ↗</a>';
+  var h = '<h2>Crédito da IA (Anthropic) · ' + link + '</h2>';
+  if (a.recargas && a.recargas.length) {
+    var pouco = a.saldo < 3 || (a.dias !== null && a.dias < 7);
+    h += '<div class="grade">' +
+      k('Saldo estimado', usdTxt(a.saldo), 'comprado ' + usdTxt(a.comprado) + ' − usado ' + usdTxt(a.usado), pouco ? 'r' : 'v') +
+      k('Gasto por dia', usdTxt(a.por_dia), 'média dos últimos 7 dias') +
+      k('Dura mais', a.dias === null ? '—' : a.dias + (a.dias === 1 ? ' dia' : ' dias'), pouco ? 'hora de recarregar' : 'no ritmo atual', pouco ? 'r' : '') +
+      '</div>';
+  } else {
+    h += '<div class="sub" style="margin-bottom:8px">Registre aqui cada compra de crédito na Anthropic: o painel desconta o custo real de cada pedido e avisa quando estiver acabando.</div>';
+  }
+  h += '<div class="form" style="margin-top:10px">' +
+    '<div><label>Compra (US$)</label><input id="apiUsd" inputmode="decimal" placeholder="20"></div>' +
+    '<div><label>Data da compra</label><input id="apiData" type="date" value="' + new Date().toISOString().slice(0, 10) + '"></div>' +
+    '<div><button onclick="registrarRecarga()">Registrar compra</button></div></div>';
+  if (a.recargas && a.recargas.length) h += '<div class="sub" style="margin-top:8px">' + a.recargas.map(function (r, i) {
+    return dt(r.data + 'T12:00:00') + ' · ' + usdTxt(r.usd) + ' <button class="mini" onclick="if(confirm(\'Apagar esta compra?\'))acao({acao:\'api_recarga_apagar\',i:' + i + '})">apagar</button>';
+  }).join(' &nbsp; ') + '</div>';
+  h += '<div class="sub" style="margin-top:6px">Estimativa: a Anthropic não informa o saldo por API. Se ligar a recarga automática lá, registre cada recarga aqui também.</div>';
+  return h;
+}
+var COR_MOTOR = { 'Ágil (Haiku)': '#06b6d4', 'Padrão (Sonnet)': '#3b82f6', 'Profundo (Opus)': '#f59e0b' };
+function corMotor(m) { return COR_MOTOR[m] || '#94a3b8'; }
+function blocoMotores(m) {
+  if (!m) return '';
+  var nomes = {};
+  m.por_mes.forEach(function (x) { Object.keys(x.custo).forEach(function (k) { nomes[k] = 1; }); });
+  var lista = Object.keys(nomes);
+  if (!lista.length) return '';
+  var ult = m.por_mes.slice(-6), max = Math.max.apply(null, ult.map(function (x) {
+    return Object.keys(x.custo).reduce(function (t, k) { return t + x.custo[k]; }, 0); }).concat([0.001]));
+  var h = '<h2>Uso da IA por motor</h2><div class="mot"><div class="leg">' + lista.map(function (k) {
+      return '<span><i style="background:' + corMotor(k) + '"></i>' + esc(k) + '</span>'; }).join('') + '</div>' +
+    '<div style="overflow-x:auto"><div class="pilha">' + ult.map(function (x, i) {
+      var tot = Object.keys(x.custo).reduce(function (t, k) { return t + x.custo[k]; }, 0);
+      var nome = new Date(x.mes + '-15').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+      return '<div><em>' + (tot ? usdTxt(tot) : '') + '</em><div class="col" style="height:' + (tot / max * 110) + 'px">' +
+        lista.map(function (k) { var v = x.custo[k] || 0; return v ? '<b style="display:block;height:' + (v / tot * 100) + '%;background:' + corMotor(k) + '" title="' + esc(k) + ': ' + usdTxt(v) + '"></b>' : ''; }).join('') +
+        '</div><u>' + nome + '</u></div>';
+    }).join('') + '</div></div>';
+  var t30 = m.trinta_dias, max30 = Math.max.apply(null, t30.map(function (x) { return x.custo_usd; }).concat([0.001]));
+  if (t30.length) h += '<div class="sub" style="margin:14px 0 4px">Últimos 30 dias · custo real (cobrado do cliente)</div>' + t30.map(function (x) {
+    return '<div class="barra30"><span class="nm">' + esc(x.motor) + '</span><span class="tr"><i style="width:' + (x.custo_usd / max30 * 100) + '%;background:' + corMotor(x.motor) + '"></i></span>' +
+      '<span class="vl">' + usdTxt(x.custo_usd) + ' · ' + x.pedidos + ' pedidos (' + brl(x.cobrado) + ')</span></div>';
+  }).join('');
+  return h + '</div>';
+}
+function registrarRecarga() {
+  var v = Number(String(document.getElementById('apiUsd').value).replace(',', '.'));
+  acao({ acao: 'api_recarga', usd: v, data: document.getElementById('apiData').value });
+}
+function copiar(t) { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () {}, function () { prompt('Copie:', t); }); }
+
+function k(rot, val, nota, cls) {
+  return '<div class="k ' + (cls || '') + '"><span>' + rot + '</span><b>' + val + '</b>' + (nota ? '<small>' + nota + '</small>' : '') + '</div>';
+}
+
+function desenhar() {
+  var d = DADOS, r = d.resumo, p = r.planos;
+  var margem = r.ia_cobrado_mes - r.ia_custo_mes_usd * 5.6;   // câmbio aproximado
+  var h = '<div class="topo"><h1>Easy<i>APP</i> · Gestão</h1><div><button class="lk" id="at">Atualizar</button> · <button class="lk" id="sair">Sair</button></div></div>' +
+    '<div class="sub">atualizado ' + new Date(d.gerado_em).toLocaleString('pt-BR') + (VERSAO ? ' · app no site: versão ' + esc(VERSAO) : '') + '</div>' +
+
+    '<h2>Inscritos</h2><div class="grade">' +
+    k('Inscritos', r.inscritos, '+' + r.novos_7d + ' na semana · +' + r.novos_30d + ' no mês') +
+    k('Entraram em 7 dias', r.ativos_7d, r.inscritos ? Math.round(r.ativos_7d / r.inscritos * 100) + '% da base' : '') +
+    k('Sem confirmar e-mail', r.sem_confirmar, '', r.sem_confirmar ? 'a' : '') +
+    k('Sem primeiro acesso', r.sem_primeiro_acesso, 'criaram e não terminaram', r.sem_primeiro_acesso ? 'a' : '') +
+    k('Com Open Finance', r.com_open_finance, r.erros_open_finance ? r.erros_open_finance + ' com erro' : '', r.erros_open_finance ? 'a' : '') +
+    '</div>' +
+
+    '<h2>Assinaturas</h2><div class="grade">' +
+    k('Pagantes', r.pagantes, p.mensal + ' mensal · ' + p.anual + ' anual', 'v') +
+    k('Receita recorrente', brl(r.mrr), 'por mês (MRR)', 'v') +
+    k('Em teste', p.teste, '14 dias grátis') +
+    k('Cortesia', p.cortesia) +
+    k('Vencidos', p.vencido, 'teste ou plano acabou', p.vencido ? 'r' : '') +
+    k('Recusados (30 dias)', r.pagamentos_recusados_30d, 'cartão recusado no MP', r.pagamentos_recusados_30d ? 'r' : '') +
+    '</div>' +
+
+    '<h2>Este mês</h2><div class="grade">' +
+    k('Receita', brl(r.receita_mes), 'mensalidades + anual + créditos', 'v') +
+    k('Créditos vendidos', brl(r.creditos_mes), brl(r.creditos_total) + ' desde o início') +
+    k('Pedidos ao assistente', r.ia_pedidos_mes) +
+    k('Custo da IA', usd(r.ia_custo_mes_usd), 'Anthropic') +
+    k('IA cobrada dos clientes', brl(r.ia_cobrado_mes), 'margem ≈ ' + brl(margem), margem < 0 ? 'r' : '') +
+    '</div>' +
+
+    blocoApi(d.api || {}) + blocoMotores(d.motores) +
+
+    '<h2>Últimos 12 meses</h2><div class="meses"><div class="sel">' +
+    [['cadastros', 'Cadastros'], ['receita', 'Receita'], ['creditos', 'Créditos'], ['ia_pedidos', 'Pedidos IA'], ['ia_custo_usd', 'Custo IA']].map(function (o) {
+      return '<button data-s="' + o[0] + '"' + (SERIE === o[0] ? ' class="on"' : '') + '>' + o[1] + '</button>';
+    }).join('') + '</div><div class="barras">' + barras() + '</div></div>' +
+
+    '<h2>Vouchers</h2><div class="form">' +
+      '<div><label>Tipo</label><select id="vTipo" onchange="document.getElementById(\'vValorBx\').hidden=this.value!==\'creditos\';document.getElementById(\'vDiasBx\').hidden=this.value!==\'cortesia\'">' +
+        '<option value="creditos">Créditos do assistente</option><option value="cortesia">Cortesia (app liberado)</option></select></div>' +
+      '<div id="vValorBx"><label>Valor (R$)</label><input id="vValor" inputmode="decimal" placeholder="20,00"></div>' +
+      '<div id="vDiasBx" hidden><label>Dias (vazio = sem prazo)</label><input id="vDias" inputmode="numeric" placeholder="30"></div>' +
+      '<div><label>Quantas pessoas podem usar</label><input id="vUsos" inputmode="numeric" value="1"></div>' +
+      '<div><label>Resgatar até (opcional)</label><input id="vVal" type="date"></div>' +
+      '<div><label>Código (vazio = automático)</label><input id="vCod" placeholder="EX.: AMIGOS30" style="text-transform:uppercase"></div>' +
+      '<div><label>Nota</label><input id="vNota" placeholder="para quem / por quê"></div>' +
+      '<div><button onclick="criarVoucher()">Criar voucher</button></div></div><div class="ok-msg" id="vMsg"></div>' +
+      (d.vouchers && d.vouchers.length ? '<div class="tab" style="margin-top:10px"><table><thead><tr><th>Código</th><th>Dá</th><th>Usos</th><th>Até</th><th>Nota</th><th></th></tr></thead><tbody>' +
+        d.vouchers.map(function (v) {
+          return '<tr style="' + (v.ativo ? '' : 'opacity:.45') + '"><td><b>' + esc(v.codigo) + '</b> <button class="mini" onclick="copiar(\'' + esc(v.codigo) + '\')">copiar</button></td>' +
+            '<td>' + (v.tipo === 'creditos' ? brl(v.valor) + ' em créditos' : 'cortesia' + (v.dias ? ' ' + v.dias + ' dias' : ' sem prazo')) + '</td>' +
+            '<td class="n">' + v.usos + ' / ' + v.usos_max + '</td><td>' + (v.validade ? dt(v.validade) : '—') + '</td><td>' + esc(v.nota || '') + '</td>' +
+            '<td>' + (v.ativo ? '<button class="mini" onclick="if(confirm(\'Desligar ' + esc(v.codigo) + '?\'))acao({acao:\'voucher_desligar\',codigo:\'' + esc(v.codigo) + '\'})">desligar</button>' : 'desligado') + '</td></tr>';
+        }).join('') + '</tbody></table></div>' : '') +
+
+    '<h2>Pessoas</h2><div class="filtro"><input id="busca" placeholder="buscar nome, e-mail ou WhatsApp" value="' + esc(BUSCA) + '">' +
+    [['todos', 'Todos'], ['pagantes', 'Pagantes'], ['teste', 'Em teste'], ['vencida', 'Vencidos'], ['ia', 'Usam IA']].map(function (o) {
+      return '<button data-f="' + o[0] + '"' + (FILTRO === o[0] ? ' class="on"' : '') + '>' + o[1] + '</button>';
+    }).join('') + '</div><div class="tab" id="tab">' + tabela() + '</div>';
+  cx.innerHTML = h;
+
+  document.getElementById('at').onclick = carregar;
+  document.getElementById('sair').onclick = function () { sessao(null); DADOS = null; telaLogin(); };
+  Array.prototype.forEach.call(cx.querySelectorAll('[data-s]'), function (b) { b.onclick = function () { SERIE = b.dataset.s; desenhar(); }; });
+  Array.prototype.forEach.call(cx.querySelectorAll('[data-f]'), function (b) { b.onclick = function () { FILTRO = b.dataset.f; desenhar(); }; });
+  document.getElementById('busca').oninput = function (ev) { BUSCA = ev.target.value; document.getElementById('tab').innerHTML = tabela(); };
+}
+
+function barras() {
+  var ms = DADOS.meses, max = Math.max.apply(null, ms.map(function (m) { return m[SERIE]; }).concat([1]));
+  var fmt = SERIE === 'receita' || SERIE === 'creditos' ? function (v) { return 'R$' + Math.round(v); }
+          : SERIE === 'ia_custo_usd' ? function (v) { return '$' + v.toFixed(0); } : String;
+  return ms.map(function (m, i) {
+    var nome = new Date(m.mes + '-15').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+    return '<div' + (i === ms.length - 1 ? ' class="at"' : '') + '><em>' + (m[SERIE] ? fmt(m[SERIE]) : '') + '</em>' +
+      '<i style="height:' + (m[SERIE] / max * 120) + 'px"></i><u>' + nome + '</u></div>';
+  }).join('');
+}
+
+function tabela() {
+  var b = BUSCA.trim().toLowerCase(), bd = b.replace(/\D/g, '');
+  var ps = DADOS.pessoas.filter(function (p) {
+    if (FILTRO === 'pagantes' && !(/mensal|anual/.test(p.plano) && p.status !== 'vencida')) return false;
+    if (FILTRO === 'teste' && !(p.plano === 'teste' && p.status !== 'vencida')) return false;
+    if (FILTRO === 'vencida' && p.status !== 'vencida') return false;
+    if (FILTRO === 'ia' && !p.ia_pedidos_mes) return false;
+    if (!b) return true;
+    return (p.nome + ' ' + p.email).toLowerCase().indexOf(b) >= 0 || (bd && p.whatsapp.indexOf(bd) >= 0);
+  });
+  if (!ps.length) return '<p class="sub" style="padding:14px">ninguém aqui</p>';
+  return '<table><thead><tr><th>Nome</th><th>E-mail</th><th>WhatsApp</th><th>Cadastro</th><th>Último acesso</th>' +
+    '<th>Plano</th><th>Vale até</th><th class="n">Créditos</th><th class="n">IA no mês</th><th class="n">Bancos</th><th>Dar</th></tr></thead><tbody>' +
+    ps.map(function (p) {
+      var st = p.status === 'vencida' || p.status === 'pendente' ? p.status : p.plano;
+      return '<tr><td>' + esc(p.nome || '—') + (p.primeiro_acesso ? '' : ' <span class="tag pendente" title="não terminou o primeiro acesso">novo</span>') + '</td>' +
+        '<td>' + esc(p.email) + (p.confirmado ? '' : ' <span class="tag pendente">não confirmado</span>') + '</td>' +
+        '<td>' + (p.whatsapp ? '<a class="zap" target="_blank" rel="noopener" href="https://wa.me/55' + esc(p.whatsapp.replace(/^55(?=\d{10,11}$)/, '')) + '">' + esc(p.whatsapp) + '</a>' : '—') + '</td>' +
+        '<td>' + dt(p.criado) + '</td><td>' + dt(p.ultimo) + '</td>' +
+        '<td>' + (p.plano ? '<span class="tag ' + esc(st) + '">' + esc(p.plano) + (p.status === 'cancelada' ? ' (cancelou)' : '') + (st !== p.plano ? ' · ' + esc(st) : '') + '</span>' : '—') + '</td>' +
+        '<td>' + (p.plano === 'cortesia' && !p.valido_ate ? 'sempre' : dt(p.valido_ate)) + '</td>' +
+        '<td class="n">' + (p.creditos_comprados ? brl(p.creditos_comprados) : '—') + '</td>' +
+        '<td class="n">' + (p.ia_pedidos_mes ? p.ia_pedidos_mes + ' · ' + brl(p.ia_cobrado_mes) : '—') + '</td>' +
+        '<td class="n">' + (p.bancos || '—') + '</td>' +
+        '<td><button class="mini" onclick="darCreditos(\'' + p.id + '\',\'' + esc((p.nome || p.email).replace(/'/g, '')) + '\')">+ créditos</button>' +
+        '<button class="mini" onclick="darCortesia(\'' + p.id + '\',\'' + esc((p.nome || p.email).replace(/'/g, '')) + '\')">⭐ cortesia</button></td></tr>';
+    }).join('') + '</tbody></table>';
+}
+
+carregar();
+</script>
+</body>
+</html>
