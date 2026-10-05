@@ -103,6 +103,7 @@
   .bts .sim{background:var(--azul);color:#fff}.bts .nao{background:var(--bg);border:1px solid var(--line);color:var(--tx)}
   .bts button:disabled{opacity:.6;cursor:default}
   .janela .resumo{font-size:13px;color:var(--tx2);margin-top:12px;min-height:18px}
+  .rodape{margin-top:28px;padding-top:12px;border-top:1px solid var(--line);color:var(--tx2);font-size:12px;text-align:center}
   /* login */
   .login{max-width:360px;margin:12vh auto 0}
   .login p{color:var(--tx2);font-size:14px;margin:6px 0 20px}
@@ -123,6 +124,9 @@ var cx = document.getElementById('cx');
 var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
+// versão deste painel: suba a cada publicação (aparece no rodapé e no login)
+var VERSAO_PAINEL = '1.1.0 · 05/10/2026';
+function rodape() { return '<div class="rodape">Painel de gestão · versão ' + VERSAO_PAINEL + '</div>'; }
 var VERSAO = '';   // a do APK publicado no site (versao.json, copiado pelo publicar-site --apk)
 fetch('versao.json', { cache: 'no-store' }).then(function (r) { return r.json(); })
   .then(function (v) { VERSAO = v.maior + '.' + v.menor + '.' + v.build; if (DADOS) desenhar(); }).catch(function () {});
@@ -140,7 +144,7 @@ function telaLogin(erro) {
   cx.innerHTML = '<div class="login"><h1>Easy<i>APP</i> · Gestão</h1><p>Entre com o login de administrador.</p>' +
     '<input id="m" type="email" autocomplete="username" placeholder="e-mail">' +
     '<input id="s" type="password" autocomplete="current-password" placeholder="senha">' +
-    '<button id="b">Entrar</button><div class="msg" id="e">' + esc(erro || '') + '</div></div>';
+    '<button id="b">Entrar</button><div class="msg" id="e">' + esc(erro || '') + '</div></div>' + rodape();
   function vai() {
     var b = document.getElementById('b'); b.disabled = true;
     fetch(URL_SB + '/auth/v1/token?grant_type=password', {
@@ -577,7 +581,7 @@ function desenhar() {
     '<h2>Pessoas</h2><div class="filtro"><input id="busca" placeholder="buscar nome, e-mail ou WhatsApp" value="' + esc(BUSCA) + '">' +
     [['todos', 'Todos'], ['pagantes', 'Pagantes'], ['teste', 'Em teste'], ['vencida', 'Vencidos'], ['ia', 'Usam IA']].map(function (o) {
       return '<button data-f="' + o[0] + '"' + (FILTRO === o[0] ? ' class="on"' : '') + '>' + o[1] + '</button>';
-    }).join('') + '</div><div class="tab" id="tab">' + tabela() + '</div>';
+    }).join('') + '</div><div class="tab" id="tab">' + tabela() + '</div>' + rodape();
   cx.innerHTML = h;
 
   document.getElementById('at').onclick = carregar;
