@@ -42,7 +42,7 @@
   tr:last-child td{border-bottom:0}
   .tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11.5px;background:var(--bg);border:1px solid var(--line)}
   .tag.mensal,.tag.anual{border-color:var(--verde);color:var(--verde)}.tag.teste{border-color:var(--azul);color:var(--azul)}
-  .tag.cortesia{border-color:var(--amb);color:var(--amb)}.tag.vencida,.tag.pendente{border-color:var(--verm);color:var(--verm)}
+  .tag.cortesia,.tag.cortesia_app{border-color:var(--amb);color:var(--amb)}.tag.vencida,.tag.pendente{border-color:var(--verm);color:var(--verm)}
   .zap{color:var(--verde);text-decoration:none}
   .mini{background:var(--bg);border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:4px 8px;font-size:12px;cursor:pointer;margin-left:4px}
   .form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-items:end}
@@ -180,9 +180,13 @@ function darCreditos(id, nome) {
   acao({ acao: 'dar_creditos', user_id: id, valor: Number(String(v).replace(/\./g, '').replace(',', '.')) });
 }
 function darCortesia(id, nome) {
-  var v = prompt('Cortesia para ' + nome + ' por quantos dias? (vazio = sem prazo)\nCortesia = app liberado e assistente sem franquia.', '');
+  var t = prompt('Qual cortesia para ' + nome + '?\n1 = completa (app liberado e assistente sem franquia)\n2 = só do app (assistente só com créditos comprados)', '1');
+  if (t === null) return;
+  t = t.trim();
+  if (t !== '1' && t !== '2') { alert('Digite 1 ou 2'); return; }
+  var v = prompt('Por quantos dias? (vazio = sem prazo)', '');
   if (v === null) return;
-  acao({ acao: 'dar_cortesia', user_id: id, dias: v.trim() ? parseInt(v, 10) : null });
+  acao({ acao: 'dar_cortesia', user_id: id, tipo: t === '2' ? 'cortesia_app' : 'cortesia', dias: v.trim() ? parseInt(v, 10) : null });
 }
 function criarVoucher() {
   var g = function (id) { return document.getElementById(id).value.trim(); };
@@ -215,12 +219,13 @@ function formVoucher() {
   return '<div class="form' + (e ? ' ed' : '') + '" id="vForm">' +
     (e ? '<div style="grid-column:1/-1" class="sub">Editando <b style="color:var(--tx)">' + esc(e.codigo) + '</b> · usado ' + e.usos + ' de ' + e.usos_max +
       (e.usos ? ' (o tipo não muda depois de usado)' : '') + '. O código não muda: os resgates ficam ligados a ele.</div>' : '') +
-    '<div><label>Tipo</label><select id="vTipo"' + (e && e.usos ? ' disabled' : '') + ' onchange="document.getElementById(\'vValorBx\').hidden=this.value!==\'creditos\';document.getElementById(\'vDiasBx\').hidden=this.value!==\'cortesia\'">' +
+    '<div><label>Tipo</label><select id="vTipo"' + (e && e.usos ? ' disabled' : '') + ' onchange="document.getElementById(\'vValorBx\').hidden=this.value!==\'creditos\';document.getElementById(\'vDiasBx\').hidden=this.value===\'creditos\'">' +
       '<option value="creditos"' + (tipo === 'creditos' ? ' selected' : '') + '>Créditos do assistente</option>' +
-      '<option value="cortesia"' + (tipo === 'cortesia' ? ' selected' : '') + '>Cortesia (app liberado)</option></select></div>' +
+      '<option value="cortesia"' + (tipo === 'cortesia' ? ' selected' : '') + '>Cortesia completa (app e assistente)</option>' +
+      '<option value="cortesia_app"' + (tipo === 'cortesia_app' ? ' selected' : '') + '>Cortesia só do app (assistente com créditos)</option></select></div>' +
     '<div id="vValorBx"' + (tipo === 'creditos' ? '' : ' hidden') + '><label>Valor (R$)</label><input id="vValor" inputmode="decimal" placeholder="20,00" value="' +
       (e && e.valor != null ? Number(e.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '') + '"></div>' +
-    '<div id="vDiasBx"' + (tipo === 'cortesia' ? '' : ' hidden') + '><label>Dias (vazio = sem prazo)</label><input id="vDias" inputmode="numeric" placeholder="30" value="' + (e && e.dias ? e.dias : '') + '"></div>' +
+    '<div id="vDiasBx"' + (tipo !== 'creditos' ? '' : ' hidden') + '><label>Dias (vazio = sem prazo)</label><input id="vDias" inputmode="numeric" placeholder="30" value="' + (e && e.dias ? e.dias : '') + '"></div>' +
     '<div><label>Quantas pessoas podem usar</label><input id="vUsos" inputmode="numeric" value="' + (e ? e.usos_max : 1) + '"></div>' +
     '<div><label>Resgatar até (opcional)</label><input id="vVal" type="date" value="' + (e ? diaInput(e.validade) : '') + '"></div>' +
     (e ? '<div><label>Situação</label><select id="vAtivo"><option value="sim"' + (e.ativo ? ' selected' : '') + '>Ligado</option>' +
@@ -438,6 +443,7 @@ function desenhar() {
     k('Receita recorrente', brl(r.mrr), 'por mês (MRR)', 'v') +
     k('Em teste', p.teste, '14 dias grátis') +
     k('Cortesia', p.cortesia) +
+    k('Cortesia só app', p.cortesia_app || 0) +
     k('Vencidos', p.vencido, 'teste ou plano acabou', p.vencido ? 'r' : '') +
     k('Recusados (30 dias)', r.pagamentos_recusados_30d, 'cartão recusado no MP', r.pagamentos_recusados_30d ? 'r' : '') +
     '</div>' +
@@ -459,7 +465,7 @@ function desenhar() {
       (d.vouchers && d.vouchers.length ? '<div class="tab" style="margin-top:10px"><table><thead><tr><th>Código</th><th>Dá</th><th>Usos</th><th>Até</th><th>Nota</th><th></th></tr></thead><tbody>' +
         d.vouchers.map(function (v) {
           return '<tr style="' + (v.ativo ? '' : 'opacity:.45') + '"><td><b>' + esc(v.codigo) + '</b> <button class="mini" onclick="copiar(\'' + esc(v.codigo) + '\')">copiar</button></td>' +
-            '<td>' + (v.tipo === 'creditos' ? brl(v.valor) + ' em créditos' : 'cortesia' + (v.dias ? ' ' + v.dias + ' dias' : ' sem prazo')) + '</td>' +
+            '<td>' + (v.tipo === 'creditos' ? brl(v.valor) + ' em créditos' : (v.tipo === 'cortesia_app' ? 'cortesia só do app' : 'cortesia') + (v.dias ? ' ' + v.dias + ' dias' : ' sem prazo')) + '</td>' +
             '<td class="n">' + v.usos + ' / ' + v.usos_max + '</td><td>' + (v.validade ? dt(v.validade) : '—') + '</td><td>' + esc(v.nota || '') + '</td>' +
             '<td><button class="mini" onclick="editarVoucher(\'' + esc(v.codigo) + '\')">editar</button>' +
             (v.ativo ? '<button class="mini" onclick="if(confirm(\'Desligar ' + esc(v.codigo) + '?\'))acao({acao:\'voucher_desligar\',codigo:\'' + esc(v.codigo) + '\'})">desligar</button>' : ' desligado') + '</td></tr>';
@@ -497,7 +503,7 @@ function tabela() {
         '<td>' + (p.whatsapp ? '<a class="zap" target="_blank" rel="noopener" href="https://wa.me/55' + esc(p.whatsapp.replace(/^55(?=\d{10,11}$)/, '')) + '">' + esc(p.whatsapp) + '</a>' : '—') + '</td>' +
         '<td>' + dt(p.criado) + '</td><td>' + dt(p.ultimo) + '</td>' +
         '<td>' + (p.plano ? '<span class="tag ' + esc(st) + '">' + esc(p.plano) + (p.status === 'cancelada' ? ' (cancelou)' : '') + (st !== p.plano ? ' · ' + esc(st) : '') + '</span>' : '—') + '</td>' +
-        '<td>' + (p.plano === 'cortesia' && !p.valido_ate ? 'sempre' : dt(p.valido_ate)) + '</td>' +
+        '<td>' + (/^cortesia/.test(p.plano) && !p.valido_ate ? 'sempre' : dt(p.valido_ate)) + '</td>' +
         '<td class="n">' + (p.creditos_comprados ? brl(p.creditos_comprados) : '—') + '</td>' +
         '<td class="n">' + (p.ia_pedidos_mes ? p.ia_pedidos_mes + ' · ' + brl(p.ia_cobrado_mes) : '—') + '</td>' +
         '<td class="n">' + (p.bancos || '—') + '</td>' +

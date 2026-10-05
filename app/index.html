@@ -5186,7 +5186,7 @@
     return P.rest('/rest/v1/rpc/minha_conta', { metodo: 'POST', corpo: {} }).then(function (r) { CONTA = r; return r; });
   }
   function vencido(a) {
-    return a && a.plano !== 'cortesia' && a.valido_ate && new Date(a.valido_ate) < new Date();
+    return a && !/^cortesia/.test(a.plano) && a.valido_ate && new Date(a.valido_ate) < new Date();
   }
   function checarPlano() {
     return lerConta().then(function (c) {
@@ -5358,7 +5358,7 @@
       var h = '';
 
       // ---- plano
-      var nome = !a ? '—' : a.plano === 'cortesia' ? 'Cortesia' : a.plano === 'teste' ? 'Teste grátis' : a.plano === 'anual' ? 'Anual' : 'Mensal';
+      var nome = !a ? '—' : a.plano === 'cortesia' ? 'Cortesia' : a.plano === 'cortesia_app' ? 'Cortesia (só o app)' : a.plano === 'teste' ? 'Teste grátis' : a.plano === 'anual' ? 'Anual' : 'Mensal';
       // as opções sempre à vista, com a atual marcada (a cortesia é uma delas, por enquanto)
       var atual = a ? a.plano : '';
       var opc = function (chave, titulo, preco, desc, botao) {
@@ -5372,7 +5372,8 @@
       };
       h += '<div class="card"><div class="lbl">Plano</div>' +
         (atual === 'teste' ? opc('teste', '🎁 Teste grátis', 'R$ 0', '14 dias para usar tudo, sem cartão', '') : '') +
-        opc('cortesia', '⭐ Cortesia', 'R$ 0', 'acesso liberado sem cobrança (amigos do lançamento)', '') +
+        (atual === 'cortesia_app' ? opc('cortesia_app', '⭐ Cortesia (só o app)', 'R$ 0', 'app liberado sem cobrança; o assistente usa créditos comprados', '')
+          : opc('cortesia', '⭐ Cortesia', 'R$ 0', 'acesso liberado sem cobrança (amigos do lançamento)', '')) +
         opc('mensal', '📅 Mensal', 'R$ 39,90', 'no cartão, renova sozinho; cancele quando quiser', 'Assinar mensal') +
         opc('anual', '🏆 Anual', 'R$ 399', '12 meses por R$ 33,25/mês · Pix, cartão ou boleto', 'Assinar anual') +
         (a && a.plano === 'mensal' && a.status === 'ativa' ? '<div class="c-bts"><button class="bt-no" id="cCancelar">Cancelar a renovação</button></div>' : '') +
@@ -5568,7 +5569,7 @@
         fn('conta', { acao: 'voucher', codigo: c }).then(function (r) {
           if (r.erro) { aviso(r.erro); return; }
           aviso(r.tipo === 'creditos' ? 'Pronto: ' + reais(r.valor) + ' em créditos do assistente'
-                : 'Pronto: cortesia ' + (r.dias ? 'por ' + r.dias + ' dias' : 'liberada'));
+                : 'Pronto: ' + (r.tipo === 'cortesia_app' ? 'cortesia do app' : 'cortesia') + ' ' + (r.dias ? 'por ' + r.dias + ' dias' : 'liberada'));
           re();
         }).catch(function (e) { aviso(e.message); });
       });
