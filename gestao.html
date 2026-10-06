@@ -164,7 +164,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.5.1 · 06/10/2026';
+var VERSAO_PAINEL = '1.5.2 · 06/10/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -195,9 +195,25 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function
 function brl(n) { return 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function usd(n) { return 'US$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function dt(s) { return s ? new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'; }
+/* A sessão fica só nesta aba (sessionStorage), a não ser que, no código das
+   duas etapas, a pessoa marque "lembrar neste aparelho": aí vai também para o
+   localStorage por 30 dias (só sessão já confirmada com o código). Sair apaga. */
 function sessao(v) {
-  try { if (v === undefined) return JSON.parse(sessionStorage.getItem('gestao') || 'null');
-        if (v) sessionStorage.setItem('gestao', JSON.stringify(v)); else sessionStorage.removeItem('gestao'); } catch (e) { return null; }
+  try {
+    if (v === undefined) {
+      var s = JSON.parse(sessionStorage.getItem('gestao') || 'null');
+      if (s) return s;
+      var l = JSON.parse(localStorage.getItem('gestao:lembrar') || 'null');
+      if (l && l.lembrar_ate > Date.now()) { sessionStorage.setItem('gestao', JSON.stringify(l)); return l; }
+      localStorage.removeItem('gestao:lembrar');
+      return null;
+    }
+    if (!v) { sessionStorage.removeItem('gestao'); localStorage.removeItem('gestao:lembrar'); return; }
+    var antes = JSON.parse(sessionStorage.getItem('gestao') || 'null');
+    if (v.lembrar_ate === undefined && antes && antes.lembrar_ate) v.lembrar_ate = antes.lembrar_ate;   // renovação do token
+    sessionStorage.setItem('gestao', JSON.stringify(v));
+    if (v.lembrar_ate > Date.now()) localStorage.setItem('gestao:lembrar', JSON.stringify(v));
+  } catch (e) { return null; }
 }
 
 function telaLogin(erro) {
@@ -266,6 +282,8 @@ function pedirCodigo(fatorId, novo, erro) {
         '<p>Depois digite o código de 6 dígitos que aparecer:</p>'
       : '<p>Digite o código de 6 dígitos do seu app autenticador.</p>') +
     '<input id="c" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000" style="text-align:center;letter-spacing:6px;font-size:22px">' +
+    '<label style="display:flex;gap:8px;align-items:center;font-size:14px;margin:4px 0 10px;justify-content:flex-start">' +
+      '<input type="checkbox" id="lembrar" style="width:auto;margin:0"> Lembrar neste aparelho por 30 dias</label>' +
     '<button id="b">Confirmar</button><div class="msg" id="e">' + esc(erro || '') + '</div>' +
     '<button class="lk" id="sairMfa" style="margin-top:10px;background:none;color:var(--azul);width:auto">Sair</button></div>' + rodape();
   var c = document.getElementById('c'); c.focus();
@@ -277,7 +295,8 @@ function pedirCodigo(fatorId, novo, erro) {
       return authMfa('factors/' + fatorId + '/verify', 'POST', { challenge_id: ch.id, code: cod });
     }).then(function (d) {
       if (!d.access_token) throw new Error('código não confere');
-      sessao({ at: d.access_token, rt: d.refresh_token, exp: Date.now() + (d.expires_in - 60) * 1000 });
+      sessao({ at: d.access_token, rt: d.refresh_token, exp: Date.now() + (d.expires_in - 60) * 1000,
+               lembrar_ate: document.getElementById('lembrar').checked ? Date.now() + 30 * 864e5 : 0 });
       carregar();
     }).catch(function (x) { b.disabled = false; document.getElementById('e').textContent = /invalid|expired/i.test(x.message) ? 'código não confere ou venceu: confira e tente de novo' : x.message; });
   }
