@@ -153,6 +153,7 @@
 <body>
 <div id="abertura"><img src="img/icone-192.png" alt=""><b>Easy<i>APP</i> · Gestão</b><small>abrindo o painel…</small></div>
 <div class="cx" id="cx"></div>
+<script src="gestao-testes.js?v=1.0.0"></script>
 <script>
 /* Gestão do EasyAPP: só para o dono. A página não tem dado nenhum; os números
    vêm da função "gestao", que confere o e-mail de quem entrou. A chave abaixo
@@ -164,7 +165,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.5.3 · 06/10/2026';
+var VERSAO_PAINEL = '1.6.0 · 06/10/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -185,7 +186,7 @@ function tirarAbertura() {
   setTimeout(function () { a.classList.add('some'); setTimeout(function () { a.remove(); }, 500); }, Math.max(0, 2600 - (Date.now() - ABERTO_EM)));   // a logo fica um tempo na tela (pedido do Rodrigo)
 }
 var ABA = (function () { try { return localStorage.getItem('gestao:aba') || 'geral'; } catch (e) { return 'geral'; } })();
-function trocarAba(a) { ABA = a; try { localStorage.setItem('gestao:aba', a); } catch (e) {} desenhar(); window.scrollTo(0, 0); }
+function trocarAba(a) { TestePrimeiroAcesso.pause(); ABA = a; try { localStorage.setItem('gestao:aba', a); } catch (e) {} desenhar(); window.scrollTo(0, 0); }
 function rodape() { return '<div class="rodape">Painel de gestão · versão ' + VERSAO_PAINEL + '</div>'; }
 var VERSAO = '';   // a do APK publicado no site (versao.json, copiado pelo publicar-site --apk)
 fetch('versao.json', { cache: 'no-store' }).then(function (r) { return r.json(); })
@@ -819,9 +820,11 @@ function desenhar() {
   var aba = function (k, t) { return '<button class="' + (ABA === k ? 'on' : '') + '" onclick="trocarAba(\'' + k + '\')">' + t + '</button>'; };
   var h = '<div class="topo"><h1><img src="img/icone-192.png" alt="">Easy<i>APP</i> · Gestão</h1><div><button class="lk" id="at">Atualizar</button> · <button class="lk" id="sair">Sair</button></div></div>' +
     '<div class="sub">atualizado ' + new Date(d.gerado_em).toLocaleString('pt-BR') + (VERSAO ? ' · app no site: versão ' + esc(VERSAO) : '') + '</div>' +
-    '<div class="abas">' + aba('geral', '📊 Visão geral') + aba('ia', '✦ IA e créditos') + aba('pessoas', '👥 Pessoas e vouchers') + aba('avisos', '🔔 Avisos dos bancos') + '</div>';
+    '<div class="abas">' + aba('geral', '📊 Visão geral') + aba('ia', '✦ IA e créditos') + aba('pessoas', '👥 Pessoas e vouchers') + aba('avisos', '🔔 Avisos dos bancos') + aba('testes', '🧪 Testar primeiro acesso') + '</div>';
 
-  if (ABA === 'avisos') {
+  if (ABA === 'testes') {
+    h += TestePrimeiroAcesso.html();
+  } else if (ABA === 'avisos') {
     h += blocoAvisos(d.avisos || []);
   } else if (ABA === 'ia') {
     h += blocoApi(d.api || {}) + blocoClientesIa(d) + blocoMotores(d.motores);
@@ -873,10 +876,11 @@ function desenhar() {
   }
   h += rodape();
   cx.innerHTML = h;
+  if (ABA === 'testes') TestePrimeiroAcesso.mount();
   tirarAbertura();
 
   document.getElementById('at').onclick = carregar;
-  document.getElementById('sair').onclick = function () { sessao(null); DADOS = null; telaLogin(); };
+  document.getElementById('sair').onclick = function () { TestePrimeiroAcesso.pause(); sessao(null); DADOS = null; telaLogin(); };
   Array.prototype.forEach.call(cx.querySelectorAll('[data-f]'), function (b) { b.onclick = function () { FILTRO = b.dataset.f; desenhar(); }; });
   var bu = document.getElementById('busca');
   if (bu) bu.oninput = function (ev) { BUSCA = ev.target.value; document.getElementById('tab').innerHTML = tabela(); };
