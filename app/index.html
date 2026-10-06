@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.8 \u00b7 06/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.9 \u00b7 06/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -518,8 +518,8 @@
 
   function resumo(mes) {
     return Promise.all([
-      rest('/rest/v1/resumo_mes?select=categoria,grupo,natureza,previsto,realizado'
-           + '&mes_ref=eq.' + mes + '&limit=800'),
+      lerTudo('/rest/v1/resumo_mes?select=categoria,grupo,natureza,previsto,realizado'
+           + '&mes_ref=eq.' + mes + '&order=categoria'),
       categorias(),
       caixaDoMes(mes),
       lerTudo('/rest/v1/lancamentos?select=valor,categorias(nome)&mes_ref=eq.' + mes
@@ -647,8 +647,8 @@
   function cartao(mes) {
     return Promise.all([
       rest('/rest/v1/fatura_total?select=compras,total&mes_ref=eq.' + mes),
-      rest('/rest/v1/resumo_mes?select=categoria,grupo,previsto,realizado,sai_por'
-           + '&mes_ref=eq.' + mes + '&sai_por=eq.CARTAO&limit=400'),
+      lerTudo('/rest/v1/resumo_mes?select=categoria,grupo,previsto,realizado,sai_por'
+           + '&mes_ref=eq.' + mes + '&sai_por=eq.CARTAO&order=categoria'),
       config(),
       lerTudo('/rest/v1/lancamentos?select=data,valor&mes_ref=eq.' + mes
               + '&meio=eq.CARTAO_CREDITO&natureza=eq.DESPESA&status=neq.IGNORADO')
@@ -746,9 +746,10 @@
   function extratoConta(mes, filtro, busca) {
     var q = '/rest/v1/lancamentos?select=id,data,valor,natureza,descricao,fornecedor,meio,'
           + 'status,origem,origem_id,conta_id,categoria_id,criado_em,contas(nome),categorias(nome)'
-          + '&mes_ref=eq.' + mes + '&meio=neq.CARTAO_CREDITO&order=data.desc,criado_em.desc&limit=400';
+          + '&mes_ref=eq.' + mes + '&meio=neq.CARTAO_CREDITO&order=data.desc,criado_em.desc,id.desc';
     if (busca) q += '&fornecedor=ilike.*' + encodeURIComponent(busca) + '*';
-    return Promise.all([rest(q), saldoAberturaDoMes(mes, filtro)]).then(function (r) {
+    // o mês inteiro (antes: só os 400 primeiros, e os totais saíam errados)
+    return Promise.all([lerTudo(q), saldoAberturaDoMes(mes, filtro)]).then(function (r) {
       // o mais recente em cima; no mesmo dia, o que entrou por último
       var itens = r[0].map(function (l) { return paraItem(l); }).sort(maisNovoPrimeiro);
       var inicial = r[1];
@@ -789,7 +790,7 @@
           + '&mes_ref=eq.' + mes + '&meio=eq.CARTAO_CREDITO&status=neq.IGNORADO'
           // so compra e estorno: o credito do PAGAMENTO que o Open Finance poe
           // dentro do cartao (RECEITA) somava na fatura o que ja foi pago
-          + '&natureza=eq.DESPESA&order=data.desc';
+          + '&natureza=eq.DESPESA&order=data.desc,id.desc';
     return lerTudo(q).then(function (linhas) {
       var itens = linhas.map(function (l) { return paraItem(l); });
       var alvo = String(busca || '').toLowerCase();
@@ -1521,9 +1522,9 @@
         var semConta = cats.length
           ? '&or=(categoria_id.is.null,categoria_id.in.(' + cats.map(function (c) { return c.id; }).join(',') + '))'
           : '&categoria_id=is.null';
-        return rest('/rest/v1/lancamentos?select=data,mes_ref,valor,natureza,fornecedor,descricao'
+        return lerTudo('/rest/v1/lancamentos?select=data,mes_ref,valor,natureza,fornecedor,descricao'
                     + semConta + '&status=eq.CONFIRMADO&origem=neq.MANUAL'
-                    + '&mes_ref=gte.' + (mes || hojeRef()) + '&limit=400');
+                    + '&mes_ref=gte.' + (mes || hojeRef()) + '&order=id');
       })
       .then(function (linhas) {
         var por = {}, total = 0;
@@ -2141,7 +2142,7 @@
   function planoLongoPrazo() {
     return Promise.all([config(), patrimonio(), projetarPorConta(3),
                         ano(new Date().getFullYear()),
-                        rest('/rest/v1/lancamentos?select=mes_ref,valor,meio,status&meio=eq.CARTAO_CREDITO&limit=5000')
+                        lerTudo('/rest/v1/lancamentos?select=mes_ref,valor,meio,status&meio=eq.CARTAO_CREDITO&order=id')
     ]).then(function (R) {
       var c = R[0], pat = R[1], pc = R[2], anoAtual = R[3], cartaoLanc = R[4];
 
