@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.5 \u00b7 06/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.6 \u00b7 06/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -5327,6 +5327,22 @@
   // pagamento e cadastro na Pluggy abrem no navegador do celular
   function abrirFora(url) { if (nativo) location.href = url; else window.open(url, '_blank', 'noopener'); }
 
+  /* Atualizar o app: o próprio app baixa o APK e abre o instalador do Android
+     (sem passar pelo navegador e pela pasta de downloads). APK antigo, sem
+     esse recurso: cai no download de antes. msg(texto) mostra o andamento. */
+  function instalarAtualizacao(link, msg) {
+    msg = msg || function () {};
+    msg('Baixando a versão nova… o instalador abre sozinho.');
+    return cap.nativePromise('Lembrete', 'instalarApk', { url: link }).then(function () {
+      msg('Toque em Atualizar na tela do Android. Seus dados continuam.');
+    }).catch(function (e) {
+      var m = String((e && e.message) || e || '');
+      if (/permitir/.test(m)) { msg('Ative "Permitir desta fonte" para o EasyAPP, volte e toque Atualizar de novo.'); return; }
+      if (/not implemented|não implementado|unimplemented/i.test(m) || !m) { abrirFora(link); return; }
+      msg('Não consegui baixar (' + m + '). Tentando pelo navegador…'); abrirFora(link);
+    });
+  }
+
   var CSS =
     '#cTermos,#cPlano{position:fixed;inset:0;z-index:9999;background:#0f1420;color:#e8edf7;overflow-y:auto;' +
     ' display:flex;align-items:center;justify-content:center;font:15px -apple-system,system-ui,sans-serif;padding:24px 18px}' +
@@ -5839,7 +5855,7 @@
           });
         };
       });
-      b('cAtualizarApp', function (e) { e.preventDefault(); abrirFora(SITE + 'EasyAPP-Financial.apk?v=' + versaoSite); });
+      b('cAtualizarApp', function (e) { e.preventDefault(); instalarAtualizacao(SITE + 'EasyAPP-Financial.apk?v=' + versaoSite, aviso); });
       b('cMdSalvar', function () {
         var n = parseInt(($('cMdDias') || {}).value, 10);
         if (!(n >= 0 && n < 1000)) { aviso('Digite quantos dias faltam (veja no MacroDroid)'); return; }
@@ -5917,20 +5933,21 @@
       if (nova <= minha || $('cVersaoNova')) return;
       var link = SITE + 'EasyAPP-Financial.apk?v=' + txt;
       var ja = ''; try { ja = localStorage.getItem('easyapp:baixou-versao') || ''; } catch (e) {}
+      var falar = function (t) { var x = $('cVnMsg'); if (x) x.textContent = t; };
       if (ja !== txt) {
         try { localStorage.setItem('easyapp:baixou-versao', txt); } catch (e) {}
-        setTimeout(function () { abrirFora(link); }, 1500);
+        setTimeout(function () { instalarAtualizacao(link, falar); }, 1200);
       }
       var f = document.createElement('div');
       f.id = 'cVersaoNova';
       f.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:9000;' +
         'background:#1e3a8a;color:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 8px 24px #0009;font:14px -apple-system,system-ui,sans-serif';
-      f.innerHTML = '<b>Versão nova do EasyAPP (' + esc(txt) + ')</b><div style="font-size:12.5px;opacity:.85;margin:3px 0 10px">' +
-        'O download começou: abra o arquivo e toque em Atualizar. Seus dados continuam.</div><div style="display:flex;gap:8px">' +
+      f.innerHTML = '<b>Versão nova do EasyAPP (' + esc(txt) + ')</b><div id="cVnMsg" style="font-size:12.5px;opacity:.85;margin:3px 0 10px">' +
+        'Toque em Atualizar: o app baixa e abre o instalador. Seus dados continuam.</div><div style="display:flex;gap:8px">' +
         '<button id="cVnSim" style="flex:1;padding:10px;border:0;border-radius:10px;background:#3b82f6;color:#fff;font-weight:700">Atualizar</button>' +
         '<button id="cVnNao" style="flex:none;padding:10px 14px;border:0;border-radius:10px;background:transparent;color:#cbd5e1">Depois</button></div>';
       document.body.appendChild(f);
-      $('cVnSim').onclick = function () { abrirFora(link); f.remove(); };
+      $('cVnSim').onclick = function () { instalarAtualizacao(link, falar); };
       $('cVnNao').onclick = function () { f.remove(); };   // volta na próxima abertura, até instalar
     }).catch(function () {});
   }
@@ -5940,6 +5957,14 @@
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible' && iniciado && Date.now() - ultimaChecagem > 30 * 60e3) checarVersao();
   });
+
+  (function medirTopo() {
+    function m() { var h = document.getElementById('cabecalho');
+      if (h) document.documentElement.style.setProperty('--topo', h.offsetHeight + 'px'); }
+    if (window.ResizeObserver) document.addEventListener('DOMContentLoaded', function () {
+      var h = document.getElementById('cabecalho'); if (h) new ResizeObserver(m).observe(h); m(); });
+    window.addEventListener('resize', m); setTimeout(m, 500);
+  })();
 
   function iniciar() {
     if (iniciado || !P.sessao()) return;
@@ -6402,6 +6427,10 @@
   .filtros button.vazio{opacity:.3}
   .filtros button.hoje{border-color:var(--acc)}
   .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  /* o menu de dentro da aba (Conta corrente/Cartão, Painel/Plano...) não rola
+     junto: fica preso logo abaixo do cabeçalho (--topo é a altura dele) */
+  .sub-fixo{position:sticky;top:var(--topo,96px);z-index:8;background:var(--bg);
+            box-shadow:0 -8px 0 var(--bg),0 4px 10px #0f1420cc}
   .seg button{background:#0d1320;color:var(--dim);padding:5px 9px;font-size:11px;
               border-radius:0;font-weight:600}
   .seg button.on{background:#22304a;color:var(--txt)}
@@ -6720,7 +6749,7 @@
   <div class="ab-nome">EasyAPP <span style="color:var(--acc)">Financial</span></div>
 </div>
 
-<header>
+<header id="cabecalho">
   <div class="row">
     <div style="min-width:0;overflow:hidden"><h1>EasyAPP<b> Financial</b></h1></div>
     <div style="display:flex;align-items:center;gap:6px">
@@ -6909,7 +6938,7 @@ function trocarAnalise(m){
 /* A barrinha que separa as quatro telas da Analise. */
 function abasAnalise(){
   var m=ST.modoAnalise||'PAINEL';
-  return '<div class="seg" style="width:100%;margin-bottom:10px">'+
+  return '<div class="seg sub-fixo" style="width:100%;margin-bottom:10px">'+
     '<button style="flex:1" class="'+(m==='PAINEL'?'on':'')+'" '+
       'onclick="trocarAnalise(\'PAINEL\')">Painel</button>'+
     '<button style="flex:1" class="'+(m==='PLANO'?'on':'')+'" '+
@@ -9275,7 +9304,7 @@ function renderExtrato(){
   if(!ST.mes) return;
   ST.modoEx = ST.modoEx || 'CONTA';
 
-  var abas='<div class="seg" style="width:100%;margin-bottom:10px">'+
+  var abas='<div class="seg sub-fixo" style="width:100%;margin-bottom:10px">'+
     '<button style="flex:1" class="'+(ST.modoEx==='CONTA'?'on':'')+'" '+
       'onclick="trocarExtrato(\'CONTA\')">Conta corrente</button>'+
     '<button style="flex:1" class="'+(ST.modoEx==='CARTAO'?'on':'')+'" '+
@@ -10278,7 +10307,7 @@ function abasConfig(){
   var m=ST.modoCfg||'CONTAS';
   function b(k,r){ return '<button style="flex:1" class="'+(m===k?'on':'')+'" '+
     'onclick="trocarConfig(\''+k+'\')">'+r+'</button>'; }
-  return '<div class="seg" style="width:100%;margin-bottom:10px">'+
+  return '<div class="seg sub-fixo" style="width:100%;margin-bottom:10px">'+
     b('CONTAS','Contas')+b('BANCOS','Bancos')+b('AJUSTES','Ajustes')+b('CONTA','Minha conta')+'</div>';
 }
 function trocarConfig(m){ ST.modoCfg=m; ST.cfgEditando=null; renderConfig(); aoTopo(); }
@@ -10345,9 +10374,18 @@ function bancosCarregar(){
   }).catch(function(e){ var b=el('cfgBancos'); if(b) b.innerHTML='<div class="vazio">Não consegui abrir.<br>'+e.message+'</div>'; });
 }
 function bancoDe(c){ return String(c.instituicao||c.nome||'').trim().split(/\s+/)[0].toUpperCase(); }
+/* Só pergunta "é a sua conta manual?" quando pode ser: mesmo banco, mesmo
+   titular (PF/PJ), conta com conta e cartão com cartão, e o final do número
+   não diz o contrário. Antes oferecia qualquer conta manual (o C6 PF aparecia
+   como "é a Santander AZR?") e a pessoa não sabia o que marcar. */
 function manuaisParecidas(o){
-  return (ST.bancos||[]).filter(function(m){ return !m.of && (m.tipo==='CARTAO')===(o.tipo==='CARTAO'); })
-    .sort(function(a,b){ return (bancoDe(b)===bancoDe(o))-(bancoDe(a)===bancoDe(o)) || a.nome.localeCompare(b.nome,'pt-BR'); });
+  return (ST.bancos||[]).filter(function(m){
+    if(m.of || (m.tipo==='CARTAO')!==(o.tipo==='CARTAO')) return false;
+    if(bancoDe(m)!==bancoDe(o)) return false;
+    if(m.titular && o.titular && m.titular!==o.titular) return false;
+    if(m.final && o.final && String(m.final).slice(-4)!==String(o.final).slice(-4)) return false;
+    return true;
+  }).sort(function(a,b){ return a.nome.localeCompare(b.nome,'pt-BR'); });
 }
 function bancosHtml(){
   var L=ST.bancos||[], h='';
@@ -10360,8 +10398,7 @@ function bancosHtml(){
     var cands=manuaisParecidas(o);
     if(!cands.length) return false;
     if(avisadas.indexOf(o.id)>=0) return true;
-    var nova=o.criado_em && Date.now()-new Date(o.criado_em).getTime()<30*864e5;
-    return nova && cands.some(function(m){ return bancoDe(m)===bancoDe(o); });
+    return o.criado_em && Date.now()-new Date(o.criado_em).getTime()<30*864e5;
   });
   pend.forEach(function(o){
     var cands=manuaisParecidas(o);
