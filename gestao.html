@@ -164,7 +164,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.5.2 · 06/10/2026';
+var VERSAO_PAINEL = '1.5.3 · 06/10/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -198,17 +198,57 @@ function dt(s) { return s ? new Date(s).toLocaleDateString('pt-BR', { day: '2-di
 /* A sessão fica só nesta aba (sessionStorage), a não ser que, no código das
    duas etapas, a pessoa marque "lembrar neste aparelho": aí vai também para o
    localStorage por 30 dias (só sessão já confirmada com o código). Sair apaga. */
+/* Biometria do aparelho (digital/rosto) para abrir o painel lembrado. Usa o
+   autenticador do próprio celular/computador (WebAuthn): a biometria nunca sai
+   do aparelho. É uma trava local - a proteção forte continua sendo senha +
+   código a cada 30 dias. */
+var b64u = function (buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+var deB64u = function (s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); };
+function bioDisponivel() {
+  return window.PublicKeyCredential && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable
+    ? PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(function () { return false; }) : Promise.resolve(false);
+}
+function cadastrarBio() {
+  var rnd = function (n) { return crypto.getRandomValues(new Uint8Array(n)); };
+  return navigator.credentials.create({ publicKey: {
+    challenge: rnd(32), rp: { name: 'EasyAPP Gestão' },
+    user: { id: rnd(16), name: 'gestao', displayName: 'Painel EasyAPP' },
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
+    timeout: 60000 } }).then(function (c) { localStorage.setItem('gestao:bio', b64u(c.rawId)); });
+}
+function destravarBio() {
+  var id = localStorage.getItem('gestao:bio');
+  if (!id) return Promise.reject(new Error('sem biometria'));
+  return navigator.credentials.get({ publicKey: {
+    challenge: crypto.getRandomValues(new Uint8Array(32)), timeout: 60000, userVerification: 'required',
+    allowCredentials: [{ type: 'public-key', id: deB64u(id), transports: ['internal'] }] } })
+    .then(function (a) { if (!a || !(new Uint8Array(a.response.authenticatorData)[32] & 4)) throw new Error('biometria não confirmada'); window.BIO_OK = true; });
+}
+function telaBio(erro) {
+  cx.innerHTML = '<div class="login"><h1><img src="img/icone-192.png" alt="">Easy<i>APP</i> · Gestão</h1>' +
+    '<p>Use a digital ou o rosto para abrir o painel.</p><button id="b">Abrir com biometria</button>' +
+    '<div class="msg" id="e">' + esc(erro || '') + '</div>' +
+    '<button class="lk" id="outra" style="margin-top:10px;background:none;color:var(--azul);width:auto">Entrar com senha e código</button></div>' + rodape();
+  tirarAbertura();
+  var vai = function () { destravarBio().then(carregar).catch(function () { document.getElementById('e').textContent = 'não deu certo: tente de novo ou entre com senha e código'; }); };
+  document.getElementById('b').onclick = vai;
+  document.getElementById('outra').onclick = function () { sessao(null); telaLogin(); };
+  vai();
+}
+
 function sessao(v) {
   try {
     if (v === undefined) {
       var s = JSON.parse(sessionStorage.getItem('gestao') || 'null');
       if (s) return s;
       var l = JSON.parse(localStorage.getItem('gestao:lembrar') || 'null');
-      if (l && l.lembrar_ate > Date.now()) { sessionStorage.setItem('gestao', JSON.stringify(l)); return l; }
-      localStorage.removeItem('gestao:lembrar');
+      // a lembrada só vale depois da digital/rosto (destravarBio)
+      if (l && l.lembrar_ate > Date.now() && window.BIO_OK) { sessionStorage.setItem('gestao', JSON.stringify(l)); return l; }
+      if (!l || !(l.lembrar_ate > Date.now())) { localStorage.removeItem('gestao:lembrar'); localStorage.removeItem('gestao:bio'); }
       return null;
     }
-    if (!v) { sessionStorage.removeItem('gestao'); localStorage.removeItem('gestao:lembrar'); return; }
+    if (!v) { sessionStorage.removeItem('gestao'); localStorage.removeItem('gestao:lembrar'); localStorage.removeItem('gestao:bio'); return; }
     var antes = JSON.parse(sessionStorage.getItem('gestao') || 'null');
     if (v.lembrar_ate === undefined && antes && antes.lembrar_ate) v.lembrar_ate = antes.lembrar_ate;   // renovação do token
     sessionStorage.setItem('gestao', JSON.stringify(v));
@@ -283,10 +323,12 @@ function pedirCodigo(fatorId, novo, erro) {
       : '<p>Digite o código de 6 dígitos do seu app autenticador.</p>') +
     '<input id="c" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000" style="text-align:center;letter-spacing:6px;font-size:22px">' +
     '<label style="display:flex;gap:8px;align-items:center;font-size:14px;margin:4px 0 10px;justify-content:flex-start">' +
-      '<input type="checkbox" id="lembrar" style="width:auto;margin:0"> Lembrar neste aparelho por 30 dias</label>' +
+      '<input type="checkbox" id="lembrar" style="width:auto;margin:0"> Lembrar neste aparelho por 30 dias (abre com a digital ou o rosto)</label>' +
     '<button id="b">Confirmar</button><div class="msg" id="e">' + esc(erro || '') + '</div>' +
     '<button class="lk" id="sairMfa" style="margin-top:10px;background:none;color:var(--azul);width:auto">Sair</button></div>' + rodape();
   var c = document.getElementById('c'); c.focus();
+  // sem digital/rosto no aparelho, não dá para lembrar (abriria sem trava nenhuma)
+  bioDisponivel().then(function (tem) { if (!tem) { var l = document.getElementById('lembrar'); if (l) l.closest('label').style.display = 'none'; } });
   document.getElementById('sairMfa').onclick = function () { sessao(null); telaLogin(); };
   function vai() {
     var cod = c.value.replace(/\D/g, ''); if (cod.length !== 6) { document.getElementById('e').textContent = 'o código tem 6 dígitos'; return; }
@@ -295,9 +337,12 @@ function pedirCodigo(fatorId, novo, erro) {
       return authMfa('factors/' + fatorId + '/verify', 'POST', { challenge_id: ch.id, code: cod });
     }).then(function (d) {
       if (!d.access_token) throw new Error('código não confere');
-      sessao({ at: d.access_token, rt: d.refresh_token, exp: Date.now() + (d.expires_in - 60) * 1000,
-               lembrar_ate: document.getElementById('lembrar').checked ? Date.now() + 30 * 864e5 : 0 });
-      carregar();
+      var nova = { at: d.access_token, rt: d.refresh_token, exp: Date.now() + (d.expires_in - 60) * 1000, lembrar_ate: 0 };
+      if (!document.getElementById('lembrar').checked) { sessao(nova); return carregar(); }
+      // lembrar: primeiro cadastra a biometria; se a pessoa desistir, não lembra
+      return cadastrarBio().then(function () {
+        window.BIO_OK = true; nova.lembrar_ate = Date.now() + 30 * 864e5; sessao(nova); carregar();
+      }).catch(function () { sessao(nova); carregar(); alert('Não cadastrei a biometria: o painel não vai ficar lembrado neste aparelho.'); });
     }).catch(function (x) { b.disabled = false; document.getElementById('e').textContent = /invalid|expired/i.test(x.message) ? 'código não confere ou venceu: confira e tente de novo' : x.message; });
   }
   document.getElementById('b').onclick = vai;
@@ -318,7 +363,11 @@ function token() {
 }
 
 function carregar() {
-  if (!sessao()) return telaLogin();
+  if (!sessao()) {
+    var lembrada = null; try { lembrada = JSON.parse(localStorage.getItem('gestao:lembrar') || 'null'); } catch (e) {}
+    if (lembrada && lembrada.lembrar_ate > Date.now() && localStorage.getItem('gestao:bio') && !window.BIO_OK) return telaBio();
+    return telaLogin();
+  }
   if (!DADOS) cx.innerHTML = '<p class="sub">carregando...</p>';
   token().then(function (t) {
     return fetch(URL_SB + '/functions/v1/gestao', {
@@ -328,7 +377,14 @@ function carregar() {
     if (x[1].mfa) return telaMfa();
     if (x[1].erro) { if (x[0] === 401 || x[0] === 403) sessao(null); return telaLogin(x[1].erro); }
     DADOS = x[1]; desenhar();
-  }).catch(function (x) { sessao(null); telaLogin(x.message); });
+  }).catch(function (x) {
+    // sem internet não é sessão inválida: não esquece o aparelho, só oferece tentar de novo
+    if (x instanceof TypeError || /fetch|network|Failed/i.test(String(x && x.message))) {
+      cx.innerHTML = '<div class="login"><p>Sem conexão com o servidor agora.</p><button id="denovo">Tentar de novo</button></div>' + rodape();
+      tirarAbertura(); document.getElementById('denovo').onclick = carregar; return;
+    }
+    sessao(null); telaLogin(x.message);
+  });
 }
 
 function acao(o) {
