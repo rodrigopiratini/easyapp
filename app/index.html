@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.3 \u00b7 06/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.4 \u00b7 06/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -5848,8 +5848,20 @@
     return m ? (+m[1]) * 1e6 + (+m[2]) * 1e3 + (+m[3]) : 0;
   }
   var versaoSite = '', ultimaChecagem = 0;
+  // na web, a página guardada pelo navegador: se a do servidor é outra, recarrega uma vez
+  function checarVersaoWeb() {
+    var minha = numVersao(CFG.versao); if (!minha) return;
+    fetch(location.pathname + '?x=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
+      var m = t.match(/"versao": "(\d+\.\d+\.\d+)/), nova = m ? numVersao(m[1]) : 0;
+      if (!nova || nova === minha) return;
+      var ja = ''; try { ja = sessionStorage.getItem('easyapp:recarregou') || ''; } catch (e) {}
+      if (ja === m[1]) return;
+      try { sessionStorage.setItem('easyapp:recarregou', m[1]); } catch (e) {}
+      location.replace(location.pathname + '?v=' + m[1]);
+    }).catch(function () {});
+  }
   function checarVersao() {
-    if (!nativo) return;
+    if (!nativo) { checarVersaoWeb(); return; }
     var minha = numVersao(CFG.versao);
     if (!minha) return;
     ultimaChecagem = Date.now();
