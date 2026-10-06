@@ -164,7 +164,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.4.0 · 06/10/2026';
+var VERSAO_PAINEL = '1.5.0 · 06/10/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -221,6 +221,63 @@ function telaLogin(erro) {
   document.getElementById('s').onkeydown = function (ev) { if (ev.key === 'Enter') vai(); };
 }
 
+/* Verificação em duas etapas (obrigatória no painel). Na primeira vez,
+   cadastra um app autenticador (Google Authenticator, Microsoft Authenticator,
+   1Password...) lendo o QR; depois, só o código de 6 dígitos a cada entrada. */
+function authMfa(caminho, metodo, corpo) {
+  return token().then(function (t) {
+    return fetch(URL_SB + '/auth/v1/' + caminho, { method: metodo || 'GET',
+      headers: { apikey: CHAVE, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' },
+      body: corpo ? JSON.stringify(corpo) : undefined });
+  }).then(function (r) { return r.text().then(function (x) {
+    var d = {}; try { d = x ? JSON.parse(x) : {}; } catch (e) {}
+    if (!r.ok) throw new Error(d.msg || d.message || d.error_description || ('erro ' + r.status));
+    return d;
+  }); });
+}
+function telaMfa(erro) {
+  cx.innerHTML = '<div class="login"><h1><img src="img/icone-192.png" alt="">Easy<i>APP</i> · Gestão</h1><p class="sub">conferindo a verificação em duas etapas…</p></div>' + rodape();
+  tirarAbertura();
+  authMfa('user').then(function (u) {
+    var f = (u.factors || []).filter(function (x) { return x.factor_type === 'totp' && x.status === 'verified'; })[0];
+    if (f) return pedirCodigo(f.id, false, erro);
+    // apaga tentativas de cadastro que não foram até o fim e cadastra de novo
+    var soltos = (u.factors || []).filter(function (x) { return x.factor_type === 'totp' && x.status !== 'verified'; });
+    return Promise.all(soltos.map(function (x) { return authMfa('factors/' + x.id, 'DELETE').catch(function () {}); }))
+      .then(function () { return authMfa('factors', 'POST', { factor_type: 'totp', friendly_name: 'Painel EasyAPP ' + Date.now(), issuer: 'EasyAPP Gestão' }); })
+      .then(function (n) { pedirCodigo(n.id, n.totp || {}, erro); });
+  }).catch(function (x) { sessao(null); telaLogin(x.message); });
+}
+function pedirCodigo(fatorId, novo, erro) {
+  cx.innerHTML = '<div class="login"><h1><img src="img/icone-192.png" alt="">Easy<i>APP</i> · Gestão</h1>' +
+    (novo
+      ? '<p><b>Ative a verificação em duas etapas</b> (uma vez só). No celular, abra um app autenticador ' +
+        '(Google Authenticator, Microsoft Authenticator...), toque em <b>+</b> e leia este QR:</p>' +
+        '<div style="background:#fff;border-radius:12px;padding:10px;width:200px;margin:10px auto"><img alt="QR" style="width:180px;height:180px;display:block" src="' +
+          esc(novo.qr_code || '') + '"></div>' +
+        '<p class="sub" style="word-break:break-all">Sem câmera? Digite esta chave no app: <b>' + esc(novo.secret || '') + '</b></p>' +
+        '<p>Depois digite o código de 6 dígitos que aparecer:</p>'
+      : '<p>Digite o código de 6 dígitos do seu app autenticador.</p>') +
+    '<input id="c" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000" style="text-align:center;letter-spacing:6px;font-size:22px">' +
+    '<button id="b">Confirmar</button><div class="msg" id="e">' + esc(erro || '') + '</div>' +
+    '<button class="lk" id="sairMfa" style="margin-top:10px;background:none;color:var(--azul);width:auto">Sair</button></div>' + rodape();
+  var c = document.getElementById('c'); c.focus();
+  document.getElementById('sairMfa').onclick = function () { sessao(null); telaLogin(); };
+  function vai() {
+    var cod = c.value.replace(/\D/g, ''); if (cod.length !== 6) { document.getElementById('e').textContent = 'o código tem 6 dígitos'; return; }
+    var b = document.getElementById('b'); b.disabled = true;
+    authMfa('factors/' + fatorId + '/challenge', 'POST', {}).then(function (ch) {
+      return authMfa('factors/' + fatorId + '/verify', 'POST', { challenge_id: ch.id, code: cod });
+    }).then(function (d) {
+      if (!d.access_token) throw new Error('código não confere');
+      sessao({ at: d.access_token, rt: d.refresh_token, exp: Date.now() + (d.expires_in - 60) * 1000 });
+      carregar();
+    }).catch(function (x) { b.disabled = false; document.getElementById('e').textContent = /invalid|expired/i.test(x.message) ? 'código não confere ou venceu: confira e tente de novo' : x.message; });
+  }
+  document.getElementById('b').onclick = vai;
+  c.onkeydown = function (ev) { if (ev.key === 'Enter') vai(); };
+}
+
 function token() {
   var s = sessao();
   if (!s) return Promise.reject(new Error(''));
@@ -242,6 +299,7 @@ function carregar() {
       method: 'POST', headers: { apikey: CHAVE, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, body: '{}'
     });
   }).then(function (r) { return r.json().then(function (d) { return [r.status, d]; }); }).then(function (x) {
+    if (x[1].mfa) return telaMfa();
     if (x[1].erro) { if (x[0] === 401 || x[0] === 403) sessao(null); return telaLogin(x[1].erro); }
     DADOS = x[1]; desenhar();
   }).catch(function (x) { sessao(null); telaLogin(x.message); });
@@ -252,6 +310,7 @@ function acao(o) {
     return fetch(URL_SB + '/functions/v1/gestao', { method: 'POST',
       headers: { apikey: CHAVE, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify(o) });
   }).then(function (r) { return r.json(); }).then(function (d) {
+    if (d.mfa) { telaMfa(); return d; }
     if (d.erro) { alert(d.erro); return d; }
     carregar(); return d;
   });
