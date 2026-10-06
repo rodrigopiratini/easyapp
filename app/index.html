@@ -1096,16 +1096,27 @@
   /* Classificar o FORNECEDOR: vale para o que já entrou e para o que vier.
      É o que faz a segunda compra do mesmo lugar não perguntar nada. */
   function classificarFornecedor(chave, categoria) {
-    return idDaCategoria(categoria).then(function (cid) {
+    /* Pega as mesmas compras que o semCategoria lista: sem conta OU numa das
+       contas "a classificar", e o fornecedor (ou, sem ele, a descrição)
+       começando pela chave. Antes só ia em categoria_id nulo e só olhava o
+       fornecedor: a compra da fatura (que cai em "A CLASSIFICAR") ficava. */
+    return Promise.all([idDaCategoria(categoria),
+      rest('/rest/v1/categorias?select=id&nome=in.(%22CARTAO%20-%20A%20CLASSIFICAR%22,'
+           + '%22CARTAO%20-%20NAO%20CLASSIFICADO%20(HISTORICO)%22)')]).then(function (r) {
+      var cid = r[0], cats = r[1];
       if (!cid) return { ok: false, erro: 'não achei a conta ' + categoria };
-      var f = encodeURIComponent(chave);
+      var semConta = cats.length
+        ? 'or(categoria_id.is.null,categoria_id.in.(' + cats.map(function (c) { return c.id; }).join(',') + '))'
+        : 'categoria_id.is.null';
+      var q = '"' + String(chave).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '*"';
+      var quem = 'or(fornecedor.ilike.' + q + ',and(or(fornecedor.is.null,fornecedor.eq.""),descricao.ilike.' + q + '))';
       return mudar('lancamentos',
-                   'fornecedor=ilike.' + f + '*&status=neq.IGNORADO&categoria_id=is.null',
+                   'and=' + encodeURIComponent('(' + semConta + ',' + quem + ')') + '&status=neq.IGNORADO',
                    { categoria_id: cid, status: 'CONFIRMADO' })
         .then(function (mexidos) {
           return gravar('regras', [{ chave: chave, categoria_id: cid, acertos: 0 }],
                         'user_id,chave')
-            .then(function () { return { ok: true, quantos: mexidos.length }; });
+            .then(function () { return { ok: true, atualizadas: mexidos.length }; });
         });
     });
   }
@@ -7412,7 +7423,12 @@ function classificarFornecedor(i){
   if(!cat) return;
   var bt=el('sb'+i); bt.disabled=true; bt.textContent='Classificando...';
   google.script.run.withSuccessHandler(function(r){
-    toast(r.atualizadas+' compras classificadas');
+    if(!r || r.ok===false){
+      bt.disabled=false; bt.textContent='Erro, tentar de novo';
+      return toast('Falhou: '+((r&&r.erro)||'sem resposta'));
+    }
+    var q=r.atualizadas!=null ? r.atualizadas : r.quantos;
+    toast(q===1 ? '1 compra classificada' : (q||0)+' compras classificadas');
     ST.ano=null;
     carregar(ST.mes);
   }).withFailureHandler(function(e){
