@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.7 \u00b7 06/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.8 \u00b7 06/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -6876,6 +6876,11 @@ function num(v){ return (Number(v)||0).toLocaleString('pt-BR',
 function moeda(v){ return (v<0?'-':'') + 'R$ ' +
   Math.abs(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function el(id){ return document.getElementById(id); }
+/* Texto que veio de fora (banco, aviso do celular, planilha, IA) vai para a
+   tela como TEXTO: um nome de loja com "<img onerror=...>" virava código
+   rodando dentro do app, com acesso ao login (auditoria A03). */
+function tx(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function toast(m){ var t=el('toast'); if(!t) return; t.textContent=m; t.classList.add('on');
   setTimeout(function(){t.classList.remove('on');},1900); }
 
@@ -7249,7 +7254,7 @@ function carregarAno(ano){
     catch(err){ el('tela-painel').innerHTML='<div class="vazio">Erro no painel:<br>'+
       ((err&&err.message)||err)+'</div>'; }
   }).withFailureHandler(function(e){
-    el('tela-painel').innerHTML='<div class="vazio">Não consegui montar o painel.<br>'+e.message+'</div>';
+    el('tela-painel').innerHTML='<div class="vazio">Não consegui montar o painel.<br>'+tx(e.message)+'</div>';
   }).apiAno(ano);
 }
 
@@ -7273,7 +7278,7 @@ function renderPendentes(){
       ? '<option value="">— escolher categoria —</option>'
       : '';
     op += ST.categorias.filter(function(x){return serveParaNatureza(x, p.natureza);})
-      .map(function(x){return '<option '+(x.nome===p.categoria?'selected':'')+'>'+x.nome+'</option>';}).join('');
+      .map(function(x){return '<option '+(x.nome===p.categoria?'selected':'')+'>'+tx(x.nome)+'</option>';}).join('');
     op += '<option value="__nova">+ criar conta nova</option>';
     /* Compacto: uma compra em ~3 linhas. Linha 1: nome e valor. Linha 2:
        quando, onde, como (e dólar, parcelas do aviso). Linha 3: a conta e o
@@ -7286,9 +7291,9 @@ function renderPendentes(){
     var catAtual = (ST.catEscolhida && ST.catEscolhida[p.uuid]) || p.categoria;
     h+='<div class="card pd'+(p.novo?' novo':'')+'" id="p'+i+'">'+
        '<div class="row" style="align-items:baseline;gap:8px">'+
-         '<div class="d" style="font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+p.descricao+'</div>'+
+         '<div class="d" style="font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+tx(p.descricao)+'</div>'+
          '<div class="big '+(p.natureza==='RECEITA'?'pos':'')+'" style="font-size:16px;white-space:nowrap">'+moeda(p.valor)+'</div></div>'+
-       '<div class="m" style="font-size:11.5px;margin-top:1px">'+p.dataHora+' · '+(p.conta||'sem conta')+' · '+meioTxt+
+       '<div class="m" style="font-size:11.5px;margin-top:1px">'+p.dataHora+' · '+tx(p.conta||'sem conta')+' · '+meioTxt+
          (p.novo?' · <span class="tag">NOVO</span>':'')+
          (p.moeda?' · <b style="color:var(--warn)">'+p.moeda+' '+num(p.valorOriginal)+'</b> × '+num(p.cotacao)+(p.cotacaoAprox?' (aprox.)':''):'')+
          (p.parcelasAviso>1?' · aviso diz <b>'+p.parcelasAviso+'x</b>':'')+'</div>'+
@@ -7344,10 +7349,10 @@ function filaSemCategoria(){
   s.fornecedores.forEach(function(f,i){
     h+='<div class="card" style="padding:9px 11px"><div class="forn" style="border:0;padding:0">'+
        '<div class="row"><div style="min-width:0">'+
-       '<div class="d" style="font-size:13.5px;line-height:1.25">'+f.exemplo+'</div>'+
+       '<div class="d" style="font-size:13.5px;line-height:1.25">'+tx(f.exemplo)+'</div>'+
        '<div class="m" style="font-size:11px">'+f.vezes+'x · '+f.qtdMeses+' '+(f.qtdMeses>1?'meses':'mês')+
        (f.ultima?' · última '+f.ultima:'')+
-       (f.chave&&f.chave!==f.exemplo?' · vira a regra <b>'+f.chave+'</b>':'')+'</div></div>'+
+       (f.chave&&f.chave!==f.exemplo?' · vira a regra <b>'+tx(f.chave)+'</b>':'')+'</div></div>'+
        '<div class="big" style="font-size:16px;white-space:nowrap;padding-left:8px">'+
        moeda(f.valor)+'</div></div>'+
        botaoConta('sc'+i, '', f.natureza||'DESPESA', 'mudouFila('+i+')')+
@@ -7373,7 +7378,7 @@ function reaplicarCriada(){
   if(s){
     s.value=ST.recemCriada.categoria;
     var bt=el('btn_'+ST.recemCriada.select);
-    if(bt) bt.innerHTML = ponto(familiaDe(s.value))+s.value+
+    if(bt) bt.innerHTML = ponto(familiaDe(s.value))+tx(s.value)+
       '<span style="margin-left:auto;color:var(--dim)">&#9662;</span>';
     var i=ST.recemCriada.select.replace(/^\D+/,'');
     var b=el(ST.recemCriada.select.charAt(0)==='c' ? 'b'+i : 'sb'+i);
@@ -7547,7 +7552,7 @@ function avisoFaltaConta(p, i){
     (cartao ? 'Em qual cartão seu foi essa compra?' : 'Em qual conta sua isso caiu?')+'</div>'+
     botaoEscolha('fc'+i, '', 'escolher…', cartao?'cartão':'conta', opcoes,
                  'definirConta('+i+')')+
-    '<div class="m" style="font-size:11px;margin-top:5px">Veio como <b>'+(p.conta||'sem conta')+
+    '<div class="m" style="font-size:11px;margin-top:5px">Veio como <b>'+tx(p.conta||'sem conta')+
     '</b>, que não é '+(cartao?'um cartão':'uma conta')+' do app. Enquanto não disser, '+
     (cartao ? 'ela não entra em nenhuma fatura.' : 'este valor não mexe em nenhum saldo.')+
     '</div></div>';
@@ -7586,10 +7591,10 @@ function ignorar(i){
 /* Botao que abre a folha de selecao no lugar do <select> nativo,
    que com 60 contas vira uma lista impossivel de usar no celular. */
 function botaoConta(id, valor, natureza, aoEscolher){
-  return '<input type="hidden" id="'+id+'" value="'+(valor||'')+'">'+
+  return '<input type="hidden" id="'+id+'" value="'+tx(valor||'')+'">'+
     '<button class="bt-conta" id="btn_'+id+'" onclick="abrirPicker(\''+id+'\',\''+
       natureza+'\',\''+aoEscolher.replace(/'/g,"\\'")+'\')">'+
-    (valor ? ponto(familiaDe(valor))+valor : '<span style="color:var(--dim)">escolher conta…</span>')+
+    (valor ? ponto(familiaDe(valor))+tx(valor) : '<span style="color:var(--dim)">escolher conta…</span>')+
     '<span style="margin-left:auto;color:var(--dim)">&#9662;</span></button>';
 }
 
@@ -7648,11 +7653,11 @@ function botaoEscolha(id, valor, vazio, titulo, itens, aoEscolher, textoNovo){
     if(o.valor===valor) achado=o;
   });
   var pintar = valor
-    ? ponto(achado?(achado.grupo||achado.rotulo):valor)+(achado?achado.rotulo:valor)
+    ? ponto(achado?(achado.grupo||achado.rotulo):valor)+tx(achado?achado.rotulo:valor)
     : '<span style="color:var(--dim)">'+vazio+'</span>';
   return '<input type="hidden" id="'+id+'" value="'+String(valor||'').replace(/"/g,'&quot;')+'">'+
     '<button class="bt-conta" id="btn_'+id+'" onclick="abrirEscolha(\''+id+'\',\''+
-      titulo+'\','+JSON.stringify(itens).replace(/"/g,'&quot;')+',\''+
+      titulo+'\','+JSON.stringify(itens).replace(/&/g,'&amp;').replace(/"/g,'&quot;')+',\''+
       String(aoEscolher||'').replace(/'/g,"\\'")+'\',\''+(textoNovo||'')+'\')">'+
     pintar+'<span style="margin-left:auto;color:var(--dim)">&#9662;</span></button>';
 }
@@ -7672,8 +7677,8 @@ function montarPicker(busca){
       ? li.map(function(x){
           return '<div class="pk'+(x.valor===atual?' sel':'')+'" '+
             'onclick="escolherConta('+JSON.stringify(x.valor).replace(/"/g,'&quot;')+')">'+
-            ponto(x.grupo||x.rotulo)+'<span>'+x.rotulo+'</span>'+
-            (x.grupo?'<span class="fam">'+x.grupo+'</span>':'')+'</div>';
+            ponto(x.grupo||x.rotulo)+'<span>'+tx(x.rotulo)+'</span>'+
+            (x.grupo?'<span class="fam">'+tx(x.grupo)+'</span>':'')+'</div>';
         }).join('')
       : '<div class="vazio" style="padding:26px">Nada com esse nome.</div>';
     return;
@@ -7692,7 +7697,7 @@ function montarPicker(busca){
         var f=familiaDe(x.nome);
         return '<div class="pk'+(x.nome===el(ST.pk.id).value?' sel':'')+'" '+
           'onclick="escolherConta('+JSON.stringify(x.nome).replace(/"/g,'&quot;')+')">'+
-          ponto(f)+'<span>'+x.nome+'</span><span class="fam">'+f+'</span></div>';
+          ponto(f)+'<span>'+tx(x.nome)+'</span><span class="fam">'+tx(f)+'</span></div>';
       }).join('')
     : (limpar ? '' : '<div class="vazio" style="padding:26px">Nenhuma conta com esse nome.</div>'));
 }
@@ -7710,7 +7715,7 @@ function escolherLista(p, valor){
   var rot = achado ? achado.rotulo : valor;
   var fam = achado ? (achado.grupo||achado.rotulo) : valor;
   var bt=el('btn_'+p.id);
-  if(bt) bt.innerHTML = ponto(fam)+rot+
+  if(bt) bt.innerHTML = ponto(fam)+tx(rot)+
     '<span style="margin-left:auto;color:var(--dim)">&#9662;</span>';
   if(p.aoEscolher) eval(p.aoEscolher);
 }
@@ -7899,7 +7904,7 @@ function renderMes(){
           h+='<label class="lc">'+
              '<input type="checkbox" onchange="'+(x.fatura ? 'baixarFatura(this)'
                : 'baixarPrevisto('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+',this)')+'">'+
-             '<span class="t">'+x.categoria+'</span>'+
+             '<span class="t">'+tx(x.categoria)+'</span>'+
              '<span class="n '+(x.natureza==='RECEITA'?'pos':'neg')+'">'+
              (x.natureza==='RECEITA'?'+':'-')+moeda(x.falta)+'</span></label>';
         });
@@ -7937,11 +7942,11 @@ function renderMes(){
         var quando = dq ? ('0'+dq.getDate()).slice(-2)+'/'+('0'+(dq.getMonth()+1)).slice(-2) : '';
         h+='<div class="ln" style="grid-template-columns:1fr auto">'+
            '<div class="nm">'+ponto(x.titular==='PJ'?'IMPOSTOS':'CASA')+
-           '<span>'+x.conta+
+           '<span>'+tx(x.conta)+
              '<br><span style="font-size:10.5px;color:var(--dim)">'+
              moeda(x.inicial)+(quando?' em '+quando:'')+
              ' · desde então '+moeda(x.movimento)+
-             (x.obs?' · '+x.obs:'')+'</span></span></div>'+
+             (x.obs?' · '+tx(x.obs):'')+'</span></span></div>'+
            '<span class="n '+(x.saldo>=0?'':'neg')+'">'+moeda(x.saldo)+'</span></div>';
        });
        h+='</div>';
@@ -7992,8 +7997,8 @@ function renderMes(){
      '<div class="cab-ln"><span>conta</span><span>previsto</span><span>realizado</span><span>diferença</span></div>'+
      '<div class="cab-mob"><span>previsto</span><span>realizado</span><span>saldo</span></div>';
   lista.forEach(function(d,i){
-    h+='<div class="ln tab" title="'+d.grupo+'">'+
-       '<div class="nm">'+ponto(d.grupo)+'<span>'+d.categoria+'</span></div>'+
+    h+='<div class="ln tab" title="'+tx(d.grupo)+'">'+
+       '<div class="nm">'+ponto(d.grupo)+'<span>'+tx(d.categoria)+'</span></div>'+
        '<input id="pv'+i+'"'+((d.daVerba>0.005||d.distribuido>0.005)?' class="vb" title="o previsto veio da verba do cartão"':'')+' value="'+(d.previsto>0.005?num(d.previsto):'')+'" '+
          'placeholder="'+(Number(d.padrao)>0.005?num(d.padrao):'0,00')+'" inputmode="decimal" '+
          'onfocus="this.select()" onblur="salvarPrevisto('+i+')" '+
@@ -8018,7 +8023,7 @@ function renderMes(){
     var base=lista.length;
     rec.forEach(function(d,k){
       var j=base+k;
-      h+='<div class="ln tab"><div class="nm">'+ponto('RECEITA')+'<span>'+d.categoria+'</span></div>'+
+      h+='<div class="ln tab"><div class="nm">'+ponto('RECEITA')+'<span>'+tx(d.categoria)+'</span></div>'+
          '<input id="pv'+j+'" value="'+(d.previsto>0.005?num(d.previsto):'')+'" '+
            'placeholder="'+(Number(d.padrao)>0.005?num(d.padrao):'0,00')+'" inputmode="decimal" '+
            'onfocus="this.select()" onblur="salvarPrevisto('+j+')" '+
@@ -8035,7 +8040,7 @@ function renderMes(){
   if(false){
     r.controle.forEach(function(d){
       h+='<div class="card" style="border-style:dashed">'+
-         '<div class="row"><div><div class="lbl">'+d.categoria+'</div>'+
+         '<div class="row"><div><div class="lbl">'+tx(d.categoria)+'</div>'+
          '<div style="font-size:19px;font-weight:600">'+moeda(d.realizado)+'</div></div>'+
          '<div style="text-align:right"><div class="lbl">meta</div>'+
          '<div style="font-size:15px;color:var(--dim)">'+moeda(d.previsto)+'</div></div></div>'+
@@ -8371,7 +8376,7 @@ function renderPainel(){
   h+='<div class="card"><div class="lbl" style="margin-bottom:10px">Para onde foi o dinheiro no ano</div>'+
      '<div class="barcat">';
   top.forEach(function(x){
-    h+='<div><div class="l"><span>'+x.categoria+'</span>'+
+    h+='<div><div class="l"><span>'+tx(x.categoria)+'</span>'+
        '<span class="num">'+moeda(x.valor)+' · '+Math.round(x.valor/a.despesaTotal*100)+'%</span></div>'+
        '<div class="t"><i style="width:'+(x.valor/maxv*100).toFixed(1)+'%"></i></div></div>';
   });
@@ -8503,7 +8508,7 @@ function renderPlano(){
     }
     p.sugestoes.forEach(function(x,i){
       h+='<div class="card" style="padding:11px 12px">'+
-        '<div class="row"><div class="d" style="font-size:14px">'+x.nome+'</div>'+
+        '<div class="row"><div class="d" style="font-size:14px">'+tx(x.nome)+'</div>'+
         '<div class="n pos" style="font-weight:700;font-size:17px">'+mil(x.aporte)+
           '<i style="display:block;font-size:9px;color:var(--dim);font-style:normal;'+
           'font-weight:400">por mês</i></div></div>'+
@@ -8620,7 +8625,7 @@ function blocoDoMes(m){
     contas.forEach(function(x){
       h+='<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)">'+
         '<div style="min-width:0"><div style="font-size:13px;white-space:nowrap;overflow:hidden;'+
-          'text-overflow:ellipsis">'+x.conta+'</div>'+
+          'text-overflow:ellipsis">'+tx(x.conta)+'</div>'+
           '<div class="m" style="font-size:11.5px">'+num(x.previsto)+' → <b style="color:var(--txt)">'+
           num(x.meta)+'</b> · '+num(x.porDia)+'/dia</div></div>'+
         '<div class="n pos" style="font-weight:700;white-space:nowrap">−'+num(x.economia)+'</div></div>';
@@ -8816,7 +8821,7 @@ function blocoDiagnostico(p, falta){
        mil(-d.sobra)+'</b>')+'. As maiores contas:</div>';
     d.maiores.forEach(function(x){
       h+='<div class="ln" style="grid-template-columns:1fr auto auto;grid-template-areas:none">'+
-         '<span style="font-size:12.5px">'+x.conta+'</span>'+
+         '<span style="font-size:12.5px">'+tx(x.conta)+'</span>'+
          '<span class="n" style="font-size:12px">'+seco(x.gasto)+'</span>'+
          '<span class="n" style="font-size:11px;color:var(--dim);min-width:46px">'+
            num(x.pct)+'%</span></div>';
@@ -8832,7 +8837,7 @@ function blocoDiagnostico(p, falta){
     alav.forEach(function(a){
       acum+=a.ganho;
       h+='<div class="card" style="padding:10px 12px">'+
-         '<div class="row"><div class="d" style="font-size:13.5px;font-weight:600">'+a.titulo+'</div>'+
+         '<div class="row"><div class="d" style="font-size:13.5px;font-weight:600">'+tx(a.titulo)+'</div>'+
          '<div class="n pos" style="font-weight:700">+'+seco(a.ganho)+
            '<i style="display:block;font-size:9px;color:var(--dim);font-style:normal;'+
            'font-weight:400;text-align:right">por mês</i></div></div>'+
@@ -8865,7 +8870,7 @@ function blocoDiagnostico(p, falta){
        'a partir daí esse dinheiro pode ir para o plano</div>';
     d.folgas.forEach(function(f){
       h+='<div class="ln" style="grid-template-columns:1fr auto;grid-template-areas:none">'+
-         '<span style="font-size:12.5px">'+f.conta+
+         '<span style="font-size:12.5px">'+tx(f.conta)+
            '<i class="sub">acaba em '+f.ate.substring(5)+'/'+f.ate.substring(0,4)+'</i></span>'+
          '<span class="n pos">+'+seco(f.libera)+'</span></div>';
     });
@@ -9203,7 +9208,7 @@ function renderCartao(){
       var atrasado=temMeta && x.metaAteHoje!==null && usado>x.metaAteHoje;
       var cc=!temMeta?'':(x.sobra<0?'neg':(atrasado?'wr':'pos'));
       var corBar=x.sobra<0?'var(--bad)':(atrasado?'var(--warn)':'var(--ok)');
-      h+='<div class="tg"><div class="nm">'+ponto(familiaDe(x.categoria))+x.categoria+'</div>'+
+      h+='<div class="tg"><div class="nm">'+ponto(familiaDe(x.categoria))+tx(x.categoria)+'</div>'+
          '<div class="tg-num"><span class="meta">'+
            (temMeta?'meta '+num(x.meta)+(x.fora>0?' · '+num(x.fora)+' pela conta':'')
                    :'sem meta')+'</span>'+
@@ -9262,7 +9267,7 @@ function calendario(k){
       c = dentro ? 'rgba(34,197,94,.22)' : 'rgba(239,68,68,.25)';
       t = dentro ? '#86efac' : '#fca5a5';
     }
-    h+='<div style="background:'+c+';color:'+t+'" title="'+(s.rotulo||'')+'">'+
+    h+='<div style="background:'+c+';color:'+t+'" title="'+tx(s.rotulo||'')+'">'+
        (s.rotulo?s.rotulo.split('/')[0]:s.dia)+'</div>';
   });
   return h+'</div><div class="m" style="font-size:10.5px;margin-top:6px">'+
@@ -9474,7 +9479,7 @@ function abrirDestino(id, linha){
   el('edForm').innerHTML =
     '<div class="lbl" style="margin-bottom:8px">Corrigir o destino</div>'+
     '<div class="card" style="padding:9px 11px;margin:0 0 10px">'+
-      '<div style="font-size:13.5px;line-height:1.3">'+(x.fornecedor||'')+'</div>'+
+      '<div style="font-size:13.5px;line-height:1.3">'+tx(x.fornecedor||'')+'</div>'+
       '<div class="m" style="font-size:11px;margin-top:3px">'+(x.data||'')+' · '+
         moeda(valor)+'</div></div>'+
     '<div class="lbl">Caiu em</div>'+
@@ -9591,10 +9596,10 @@ function extratoConta(e){
     var v=x.credito||x.debito;
     h+='<div class="li">'+
        '<span class="d1">'+String(x.data).substring(0,5)+'</span>'+
-       '<span class="d2">'+x.fornecedor+
+       '<span class="d2">'+tx(x.fornecedor)+
          (x.status==='PENDENTE'?'<b class="pend">a confirmar</b>':'')+
          seloManual(x)+
-         '<i>'+origemIc(x)+(x.categoria||'sem categoria')+' · '+x.conta+'</i></span>'+
+         '<i>'+origemIc(x)+tx(x.categoria||'sem categoria')+' · '+tx(x.conta)+'</i></span>'+
        '<span class="d3 '+(x.credito?'pos':'neg')+'">'+(x.credito?'+':'-')+moeda(v)+
          '<i>'+(x.semConta?'sem conta':moeda(x.saldo))+'</i></span>'+
        botaoTrocarConta(x, x.credito?'RECEITA':'DESPESA')+
@@ -9715,7 +9720,7 @@ function extratoCartao(e){
   e.itens.forEach(function(x){
     h+='<div class="li">'+
        '<span class="d1">'+String(x.data).substring(0,5)+'</span>'+
-       '<span class="d2">'+x.fornecedor+
+       '<span class="d2">'+tx(x.fornecedor)+
          // a parcela vinha no fim da linha de baixo, que e cortada com "..."
          // O numero vem pronto do servidor; a OBS e so o plano B.
          (x.parcela
@@ -9723,7 +9728,7 @@ function extratoCartao(e){
            : (/parcela\s*\d/i.test(x.obs||'')
                ? ' <b class="parc">'+String(x.obs).replace(/parcela\s*/i,'')+'</b>' : ''))+
          seloManual(x)+
-         '<i>'+origemIc(x)+(x.categoria||'sem categoria')+' · '+x.cartao.replace('CARTAO ','')+
+         '<i>'+origemIc(x)+tx(x.categoria||'sem categoria')+' · '+tx(x.cartao.replace('CARTAO ',''))+
          '</i></span>'+
        '<span class="d3">'+moeda(x.valor)+'<i>'+moeda(x.acumulado)+'</i></span>'+
        botaoTrocarConta(x, 'DESPESA')+
@@ -9903,7 +9908,7 @@ function lerFatura(){
       h+='<div class="tabela" style="margin-top:8px">'+
         r.compras.slice(0,40).map(function(c){
           return '<div class="li"><span class="d1">'+c.data.substring(0,5)+'</span>'+
-            '<span class="d2">'+c.descricao+'<i>'+c.categoria+
+            '<span class="d2">'+tx(c.descricao)+'<i>'+tx(c.categoria)+
             (c.parcela?' · parcela '+c.parcela:'')+
             (c.parceladaAntiga?' · compra antiga':'')+
             ' · fatura '+c.mes+'</i></span>'+
@@ -10135,7 +10140,7 @@ function renderPatrimonio(){
       h+='<div class="card" style="padding:10px 11px">'+
         contas.map(function(x){
           return '<div class="ln" style="grid-template-columns:1fr auto">'+
-            '<span style="font-size:13px">'+x.conta+
+            '<span style="font-size:13px">'+tx(x.conta)+
               '<i class="sub">saldo pelos aportes</i></span>'+
             '<span class="n pos" style="font-weight:600">'+moeda(x.saldo)+'</span></div>';
         }).join('')+
@@ -10181,7 +10186,7 @@ function patLista(lista, tipo){
     var ed = ST.patEdit===b.descricao;
     return '<div class="card" style="padding:9px 11px'+(ed?';border-color:var(--acc)':'')+'">'+
       '<div class="row"><div style="min-width:0">'+
-        '<div class="d" style="font-size:13.5px">'+b.descricao+'</div>'+
+        '<div class="d" style="font-size:13.5px">'+tx(b.descricao)+'</div>'+
         '<div class="m" style="font-size:11px">'+String(b.fonte||'').toLowerCase()+
           (b.atualizado?' · '+b.atualizado:'')+'</div></div>'+
         '<div class="big '+(tipo==='DIVIDA'?'neg':'')+'" style="font-size:16px">'+
@@ -10375,7 +10380,7 @@ function bancosCarregar(){
     var vivas={}; ST.bancos.forEach(function(c){ vivas[c.id]=c; });
     ofNovasGravar(ofNovasLer().filter(function(x){ return vivas[x.id]; }));
     var b=el('cfgBancos'); if(b) b.innerHTML=bancosHtml();
-  }).catch(function(e){ var b=el('cfgBancos'); if(b) b.innerHTML='<div class="vazio">Não consegui abrir.<br>'+e.message+'</div>'; });
+  }).catch(function(e){ var b=el('cfgBancos'); if(b) b.innerHTML='<div class="vazio">Não consegui abrir.<br>'+tx(e.message)+'</div>'; });
 }
 function bancoDe(c){ return String(c.instituicao||c.nome||'').trim().split(/\s+/)[0].toUpperCase(); }
 /* Só pergunta "é a sua conta manual?" quando pode ser: mesmo banco, mesmo
@@ -10407,11 +10412,11 @@ function bancosHtml(){
   pend.forEach(function(o){
     var cands=manuaisParecidas(o);
     h+='<div class="card" style="border-color:var(--acc)"><div class="lbl" style="margin-bottom:4px">🏦 Chegou pelo Open Finance</div>'+
-      '<div style="font-size:14px;font-weight:600">'+o.nome+'</div>'+
+      '<div style="font-size:14px;font-weight:600">'+tx(o.nome)+'</div>'+
       '<div class="m" style="font-size:12px;margin:4px 0 8px">Ela é alguma conta que você lançou à mão? Se for, marque: a manual sai e o saldo não conta duas vezes.</div>'+
       cands.map(function(m){
         return '<button class="bt-no" style="width:100%;margin-top:6px;text-align:left" onclick="bancoVincular(\''+m.id+'\',\''+o.id+'\')">'+
-          'É a <b>'+m.nome+'</b> <span style="color:var(--dim)">· '+m.titular+' · saldo '+moeda(m.saldo||0)+'</span></button>';
+          'É a <b>'+tx(m.nome)+'</b> <span style="color:var(--dim)">· '+m.titular+' · saldo '+moeda(m.saldo||0)+'</span></button>';
       }).join('')+
       '<button class="bt-no" style="width:100%;margin-top:6px" onclick="bancoNaoE(\''+o.id+'\')">Não, é uma conta nova</button></div>';
   });
@@ -10429,7 +10434,7 @@ function bancosHtml(){
     doBloco.forEach(function(c){
       var ed=ST.bancoEd===c.id, ligando=ST.bancoLigar===c.id;
       h+='<div class="card" style="padding:9px 11px'+(ed||ligando?';border-color:var(--acc)':'')+'"><div class="row"><div style="min-width:0">'+
-        '<div style="font-size:13.5px;font-weight:600">'+(c.tipo==='CARTAO'?'💳 ':'🏦 ')+c.nome+'</div>'+
+        '<div style="font-size:13.5px;font-weight:600">'+(c.tipo==='CARTAO'?'💳 ':'🏦 ')+tx(c.nome)+'</div>'+
         '<div class="m" style="font-size:11px">'+(c.of?'Open Finance':'manual')+(c.final?' · final '+c.final:'')+
           (!c.of && c.saldo_desde?' · saldo de '+moeda(c.saldo_inicial)+' em '+c.saldo_desde.split('-').reverse().join('/'):'')+'</div></div>'+
         (c.tipo==='CARTAO'?'':'<div style="text-align:right;white-space:nowrap;padding-left:8px"><div class="lbl">hoje</div>'+
@@ -10582,7 +10587,7 @@ function cfgContas(){
       var aberta = ST.cfgEditando===x.nome;
       h+='<div class="card" style="padding:9px 11px;border-left:4px solid '+cor(g)+(aberta?';border-color:var(--acc);border-left-color:'+cor(g):'')+'">'+
          '<div class="row"><div style="min-width:0">'+
-           '<div class="d" style="font-size:13.5px;line-height:1.25">'+x.nome+'</div>'+
+           '<div class="d" style="font-size:13.5px;line-height:1.25">'+tx(x.nome)+'</div>'+
            '<div class="m" style="font-size:11px">'+x.natureza.toLowerCase()+
              ' · sai por '+String(x.saiPor).toLowerCase()+
              (x.reajuste?' · reajusta '+num(x.reajuste*100)+'% em '+
@@ -10612,7 +10617,7 @@ function cfgContas(){
 function cfgFormEditar(x){
   var fams=ST.config.familias;
   return '<div style="border-top:1px solid var(--line);margin-top:9px;padding-top:9px">'+
-    '<div class="lbl">Nome</div><input id="cfNome" value="'+x.nome.replace(/"/g,'&quot;')+'">'+
+    '<div class="lbl">Nome</div><input id="cfNome" value="'+tx(x.nome)+'">'+
     '<div class="row" style="gap:8px;margin-top:8px">'+
       '<div style="flex:1"><div class="lbl">Família</div>'+
         botaoEscolha('cfFam', x.grupo, 'escolher…', 'família', fams, '', '+ criar família nova')+
@@ -10861,7 +10866,7 @@ function cfgAjustes(){
     if(a.chave==='NASCIMENTO' && /^\d{4}-\d{2}-\d{2}$/.test(mostrar)) mostrar=mostrar.split('-').reverse().join('/');
     var dica = a.chave==='NASCIMENTO' ? 'DD/MM/AAAA' : (a.chave==='FECHAMENTOS' ? '2026-10:28;2026-11:30' : '');
     h+='<div class="card" style="padding:10px 11px">'+
-      '<div class="lbl" style="margin-bottom:5px">'+a.rotulo+'</div>'+
+      '<div class="lbl" style="margin-bottom:5px">'+tx(a.rotulo)+'</div>'+
       (a.tipo==='simnao'
         ? segEscolha('aj'+i, String(v)==='SIM'?'SIM':'NAO', ['SIM','NAO'])+
           '<button class="bt-no" style="width:100%;margin-top:7px;padding:7px;font-size:12.5px" '+
@@ -10947,7 +10952,7 @@ function cfgAuditoria(){
     h+='<div class="lbl" style="margin:14px 0 6px">Possíveis lançamentos em dobro</div>';
     a.duplicados.forEach(function(d){
       h+='<div class="card" style="padding:9px 11px"><div class="row">'+
-        '<span class="d" style="font-size:12.5px">'+d.data+' · '+d.descricao+'</span>'+
+        '<span class="d" style="font-size:12.5px">'+d.data+' · '+tx(d.descricao)+'</span>'+
         '<span class="n">'+moeda(d.valor)+'</span></div>'+
         '<div class="m" style="font-size:11px">linhas '+d.linhas.join(', ')+'</div></div>';
     });
@@ -10958,7 +10963,7 @@ function cfgAuditoria(){
     h+='<div class="lbl" style="margin:14px 0 6px">Ajustes de fechamento em aberto</div>'+
       '<div class="card" style="border-color:var(--warn)">'+
       a.ajustes.map(function(x){
-        return '<div class="row"><span class="m">'+x.descricao+' · '+x.conta+'</span>'+
+        return '<div class="row"><span class="m">'+tx(x.descricao)+' · '+tx(x.conta)+'</span>'+
                '<span class="n">'+moeda(x.valor)+'</span></div>'; }).join('')+
       '<div class="m" style="font-size:11.5px;margin-top:7px">Somam '+moeda(tot)+'. '+
       'Depois que a auditoria explicar a diferença, apague — senão viram despesa de verdade.</div>'+
@@ -10983,12 +10988,12 @@ function auditoriaBanco(b){
   b.arquivos.forEach(function(f){
     if(!f.lido){
       h+='<div class="card" style="padding:9px 11px"><div class="d" style="font-size:12.5px">'+
-        f.arquivo+'</div><div class="m" style="font-size:11px">'+f.motivo+'</div></div>';
+        tx(f.arquivo)+'</div><div class="m" style="font-size:11px">'+tx(f.motivo)+'</div></div>';
       return;
     }
     var ok = Math.abs(f.diferenca)<0.02 && !f.soNoBanco.length && !f.soNoApp.length;
     h+='<div class="card" style="padding:10px 11px;border-color:'+(ok?'var(--ok)':'var(--warn)')+'">'+
-      '<div class="row"><span class="d" style="font-size:13px">'+f.conta+'</span>'+
+      '<div class="row"><span class="d" style="font-size:13px">'+tx(f.conta)+'</span>'+
       '<span class="n '+(ok?'pos':'neg')+'" style="font-weight:600">'+
         (ok?'bate':moeda(f.diferenca))+'</span></div>'+
       '<div class="m" style="font-size:11px">'+f.arquivo+' · banco '+f.linhasNoBanco+
