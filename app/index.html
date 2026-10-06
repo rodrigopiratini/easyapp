@@ -26,19 +26,19 @@
  #trava button{display:block;width:100%;padding:13px;border:0;border-radius:12px;
    background:#3b82f6;color:#fff;font-size:16px;font-weight:600;margin-bottom:10px}
  #trava button.sec{background:transparent;color:#8b99b5;font-weight:500}
- #trava[data-modo=tampa] .cx>*:not(.ab-barras):not(h1){visibility:hidden}
- #trava .ab-barras{margin-bottom:6px}
+ #trava[data-modo=tampa] .cx>*:not(.ab-tile):not(h1){visibility:hidden}
+ #trava .ab-tile{margin-bottom:18px!important}
  #trava h1{animation:surge .5s ease .5s both}
 </style></head><body>
 <div id="entrar"><div class="cx"></div></div>
 <div id="trava" hidden><div class="cx">
-  <div class="ab-barras" style="justify-content:center"><i></i><i></i><i></i></div>
+  <div class="ab-tile" style="margin:0 auto"><div class="ab-barras" style="justify-content:center"><i></i><i></i><i></i></div></div>
   <h1>EasyAPP<i> Financial</i></h1>
   <p id="tMsg"></p>
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.2 \u00b7 06/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.3 \u00b7 06/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -6618,12 +6618,20 @@
           bottom:calc(66px + env(safe-area-inset-bottom));
           background:var(--card2);border:1px solid var(--acc);border-radius:14px;
           padding:13px;box-shadow:0 10px 34px #0009;max-width:520px;margin:0 auto}
-  #abertura{position:fixed;inset:0;z-index:99;background:var(--bg);
+  #abertura{position:fixed;inset:0;z-index:9000;background:var(--bg);
             display:flex;flex-direction:column;align-items:center;justify-content:center;
             gap:22px;transition:opacity .42s ease, transform .42s ease, visibility .42s}
   #abertura.sai{opacity:0;transform:scale(1.08);visibility:hidden}
   /* Entrada: as três barras do ícone nascem uma a uma, com um quique, e
      depois respiram em onda enquanto os dados chegam. O nome sobe junto. */
+  /* o ícone do app: as barras dentro do quadrado arredondado, com a sombra
+     azul (o mesmo da abertura do painel de gestão, 112 px) */
+  .ab-tile{width:112px;height:112px;border-radius:26px;background:#141b2b;display:flex;align-items:center;justify-content:center;
+           box-shadow:0 12px 40px rgba(59,130,246,.35);animation:pulsa 1.8s ease-in-out .9s infinite}
+  @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+  .ab-tile .ab-barras{height:62px;gap:8px}
+  .ab-tile .ab-barras i{width:17px}
+  .ab-tile .ab-barras i:nth-child(1){height:24px}.ab-tile .ab-barras i:nth-child(2){height:42px}.ab-tile .ab-barras i:nth-child(3){height:62px}
   .ab-barras{display:flex;align-items:flex-end;gap:9px;height:76px}
   .ab-barras i{display:block;width:20px;border-radius:5px;transform-origin:bottom;
                animation:nasce .6s cubic-bezier(.34,1.56,.64,1) both,
@@ -6644,11 +6652,11 @@
   .ld i:nth-child(2){height:17px;background:var(--acc);animation-delay:.15s}
   .ld i:nth-child(3){height:24px;background:var(--ok);animation-delay:.3s}
   @keyframes ldOnda{ from{transform:scaleY(.35)} to{transform:scaleY(1)} }
-  @media (prefers-reduced-motion:reduce){ .ab-barras i,.ld i,.ab-nome{animation:none} }
+  @media (prefers-reduced-motion:reduce){ .ab-barras i,.ld i,.ab-nome,.ab-tile{animation:none} }
 </style>
 
 <div id="abertura">
-  <div class="ab-barras"><i></i><i></i><i></i></div>
+  <div class="ab-tile"><div class="ab-barras"><i></i><i></i><i></i></div></div>
   <div class="ab-nome">EasyAPP <span style="color:var(--acc)">Financial</span></div>
 </div>
 
@@ -7064,7 +7072,7 @@ function fecharAbertura(){
   var a=el('abertura');
   if(!a || a.classList.contains('sai')) return;
   // deixa a entrada terminar: as barras levam ~1s para nascer e o nome subir
-  var falta=2400-(Date.now()-ABRIU_EM);   // ver a logo com calma (pedido do Rodrigo)
+  var falta=3200-(Date.now()-ABRIU_EM);   // ver a logo com calma (pedido do Rodrigo)
   if(falta>0){ setTimeout(fecharAbertura, falta); return; }
   a.classList.add('sai');
   setTimeout(function(){ if(a.parentNode) a.parentNode.removeChild(a); }, 600);
