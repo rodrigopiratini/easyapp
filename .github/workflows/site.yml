@@ -9,10 +9,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-  # o APK novo chega pelo build do Android (no Storage do Supabase); de hora em
-  # hora o site confere e, se mudou, publica de novo com ele
+  # o APK novo chega pelo build do Android (no Storage do Supabase); a cada
+  # 5 minutos o site confere e, só se mudou, publica de novo com ele
   schedule:
-    - cron: '17 * * * *'
+    - cron: '*/5 * * * *'
 
 permissions:
   contents: read
@@ -32,8 +32,21 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
+      # nas conferências automáticas, só segue se o APK do Storage é mais novo
+      # que o que está no ar (senão sai aqui, em segundos)
+      - name: Tem APK novo?
+        id: novo
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "seguir=1" >> $GITHUB_OUTPUT; exit 0; fi
+          B=https://nhngqhgxmrnqbcnklrwc.supabase.co/storage/v1/object/public/app/versao.json
+          novo=$(curl -sSf "$B" | python3 -c 'import json,sys;v=json.load(sys.stdin);print(v["maior"],v["menor"],v["build"])' || echo "")
+          noar=$(curl -sSf "https://easyappfinancial.com.br/versao.json?x=$RANDOM" | python3 -c 'import json,sys;v=json.load(sys.stdin);print(v["maior"],v["menor"],v["build"])' || echo "")
+          echo "Storage: $novo · no ar: $noar"
+          if [ -n "$novo" ] && [ "$novo" != "$noar" ]; then echo "seguir=1" >> $GITHUB_OUTPUT; fi
       - uses: actions/checkout@v4
+        if: steps.novo.outputs.seguir == '1'
       - name: APK e versão mais novos (Storage do Supabase)
+        if: steps.novo.outputs.seguir == '1'
         run: |
           B=https://nhngqhgxmrnqbcnklrwc.supabase.co/storage/v1/object/public/app
           if curl -sSf -o /tmp/versao.json "$B/versao.json" && curl -sSf -o /tmp/app.apk "$B/EasyAPP-Financial.apk"; then
@@ -50,8 +63,11 @@ jobs:
             echo "sem APK no Storage ainda: fica o do repositório"
           fi
       - uses: actions/configure-pages@v5
+        if: steps.novo.outputs.seguir == '1'
       - uses: actions/upload-pages-artifact@v3
+        if: steps.novo.outputs.seguir == '1'
         with:
           path: .
       - id: deploy
+        if: steps.novo.outputs.seguir == '1'
         uses: actions/deploy-pages@v4
