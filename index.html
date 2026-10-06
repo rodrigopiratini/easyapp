@@ -606,7 +606,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
         </ol>
         <div id="dica" hidden class="dica">
           <b>Baixou? Agora é só abrir o arquivo</b>
-          Toque na notificação <b>“Download concluído”</b> ou abra <b>Arquivos → Downloads → EasyAPP-Financial.apk</b>.<br><br>
+          Toque na notificação <b>“Download concluído”</b> ou abra <b>Arquivos → Downloads</b> e escolha o <b>EasyAPP-Financial</b> com o número de versão mais alto.<br><br>
           Abriu este link pelo WhatsApp, Instagram ou Gmail? Toque em <b>⋮ → Abrir no Chrome</b> e baixe de lá.
         </div>
         <a class="btn btn-p js-apk" href="#">
@@ -660,10 +660,23 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
    APK_URL: onde o botão "Baixar" aponta. Vazio = o botão vira "em breve". */
 var APK_URL  = 'EasyAPP-Financial.apk?v=202610042138';   // no próprio site: o Android reconhece como instalador
 
+/* O nome do arquivo baixado leva a versão no ar (versao.json, que a publicação
+   atualiza com o APK): antes era sempre o mesmo nome, e quem já tinha um APK
+   velho em Downloads abria o velho sem perceber. */
+function linkApk(a, v) {
+  a.href = 'EasyAPP-Financial.apk?v=' + v;
+  a.setAttribute('download', 'EasyAPP-Financial-' + v + '.apk');
+}
+fetch('versao.json?x=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (v) {
+  var ver = [v.maior, v.menor, v.build].join('.');
+  if (/^\d+\.\d+\.\d+$/.test(ver)) document.querySelectorAll('.js-apk').forEach(function (a) {
+    if (!a.closest('nav') && !a.closest('.hero') && APK_URL) linkApk(a, ver);
+  });
+}).catch(function () {});
 document.querySelectorAll('.js-apk').forEach(function (a) {
   if (a.closest('nav') || a.closest('.hero')) { a.href = '#testar'; return; }
   if (APK_URL) {
-    a.href = APK_URL; a.setAttribute('download', 'EasyAPP-Financial-' + (APK_URL.split('v=')[1] || 'novo') + '.apk');
+    linkApk(a, String(Date.now()));
     a.addEventListener('click', function () { var d = document.getElementById('dica'); if (d) d.hidden = false; });
     return;
   }
