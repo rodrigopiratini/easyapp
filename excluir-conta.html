@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Excluir minha conta · EasyAPP</title>
+<link rel="icon" href="img/icone-192.png">
+<link rel="stylesheet" href="legal.css">
+<style>
+  form{display:grid;gap:10px;max-width:380px;margin:18px 0}
+  input{padding:12px;border-radius:10px;border:1px solid #2a3548;background:#0f1420;color:inherit;font-size:16px}
+  button{padding:12px;border-radius:10px;border:0;background:#dc2626;color:#fff;font-weight:700;font-size:16px;cursor:pointer}
+  button:disabled{opacity:.5}
+  #msg{min-height:1.4em}
+</style>
+</head>
+<body>
+<main>
+<a class="volta" href="./">← EasyAPP Financial</a>
+<h1>Excluir minha conta</h1>
+
+<p class="resumo">Você pode excluir a sua conta e <b>todos os seus dados</b> a qualquer momento. Pelo app: <b>Config → Minha conta →
+Excluir minha conta</b>. Sem o app à mão, faça aqui mesmo.</p>
+
+<h2>O que acontece</h2>
+<ul>
+  <li>Apagamos na hora: cadastro, lançamentos, contas, categorias, planos e previsões, conversas com o assistente,
+    avisos do celular e a conexão com o Open Finance.</li>
+  <li>Se você tem assinatura mensal, ela é <b>cancelada no Mercado Pago antes</b> de apagarmos a conta: nada mais é cobrado.</li>
+  <li>Ficam só os registros de pagamento já feitos, sem ligação com você, porque a lei fiscal exige guardá-los.</li>
+  <li>Não dá para desfazer. Quer guardar seus números? Antes, exporte a planilha no app.</li>
+</ul>
+
+<h2>Excluir agora</h2>
+<p>Confirme com o e-mail e a senha da conta.</p>
+<form id="f" autocomplete="on">
+  <input id="m" type="email" placeholder="e-mail da conta" autocomplete="username" required>
+  <input id="s" type="password" placeholder="senha" autocomplete="current-password" required>
+  <label style="display:flex;gap:8px;align-items:flex-start;font-size:14px"><input id="ok" type="checkbox" style="width:auto;margin-top:3px">
+    <span>Entendo que a conta e todos os dados serão apagados para sempre.</span></label>
+  <button id="b" type="submit">Excluir minha conta</button>
+  <div id="msg"></div>
+</form>
+
+<p>Esqueceu a senha? Use "Esqueci minha senha" no app, ou escreva para <b><span class="contato"></span></b> do e-mail da conta
+que fazemos a exclusão por você em até 15 dias.</p>
+</main>
+<script src="legal.js"></script>
+<script>
+(function () {
+  var URL_SB = 'https://nhngqhgxmrnqbcnklrwc.supabase.co', CHAVE = 'sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN';
+  var msg = function (t, cor) { var e = document.getElementById('msg'); e.textContent = t; e.style.color = cor || '#f87171'; };
+  document.getElementById('f').onsubmit = function (ev) {
+    ev.preventDefault();
+    var email = document.getElementById('m').value.trim().toLowerCase(), senha = document.getElementById('s').value;
+    if (!document.getElementById('ok').checked) return msg('marque que entende que tudo será apagado');
+    if (!confirm('Excluir a conta ' + email + ' e todos os dados? Não dá para desfazer.')) return;
+    var b = document.getElementById('b'); b.disabled = true; msg('conferindo…', '#9ca3af');
+    fetch(URL_SB + '/auth/v1/token?grant_type=password', { method: 'POST',
+      headers: { apikey: CHAVE, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, password: senha }) })
+    .then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.access_token) throw new Error('e-mail ou senha não conferem');
+      msg('excluindo…', '#9ca3af');
+      return fetch(URL_SB + '/functions/v1/conta', { method: 'POST',
+        headers: { apikey: CHAVE, Authorization: 'Bearer ' + d.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: 'excluir', senha: senha }) }).then(function (r) { return r.json(); });
+    }).then(function (r) {
+      if (!r || !r.ok) throw new Error((r && r.erro) || 'não consegui excluir agora; tente de novo');
+      document.getElementById('f').innerHTML = '<p style="color:#4ade80"><b>Pronto: a conta e todos os dados foram excluídos.</b> ' +
+        'Se tinha o app instalado, pode desinstalar.</p>';
+    }).catch(function (x) { b.disabled = false; msg(x.message); });
+  };
+})();
+</script>
+</body>
+</html>
