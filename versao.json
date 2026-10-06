@@ -2,5 +2,5 @@
   "_como": "maior.menor.build - maior: virada grande (lançamento oficial = 2); menor: funcionalidade nova (sobe à mão, e o build volta a 0); build: sobe sozinho a cada gerar-apk.command",
   "maior": 1,
   "menor": 5,
-  "build": 1
+  "build": 2
 }

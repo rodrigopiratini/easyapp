@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.5.1 \u00b7 06/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.5.2 \u00b7 06/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -4907,9 +4907,16 @@
     var d = document.createElement('div');
     d.className = 'ia-card';
     d.innerHTML = '<div class="nm">' + esc(m.icone || '🧩') + ' ' + esc(m.nome) + '</div>' +
-      '<div class="sub">versão ' + v.numero + ' · ' + (noAr ? 'no ar' : v.estado === 'descartada' ? 'descartada (dá para recuperar)' :
-        v.estado === 'antiga' ? 'versão antiga' : 'rascunho, ainda não aplicado') + '</div>' +
-      (noAr ? '' : '<div class="ia-bts"><button data-a="ver">Ver prévia</button><button data-a="ok" class="ok">Aplicar</button></div>');
+      '<div class="sub">versão ' + v.numero + ' · ' + (noAr ? 'Ativo' : v.estado === 'rascunho' ? 'Rascunho' : 'Desabilitado · salvo para reaplicar') + '</div>' +
+      (noAr ? '<div class="ia-bts"><button data-a="abrir" class="ok">Abrir</button><button data-a="desf">Desfazer</button></div>' : '<div class="ia-bts"><button data-a="ver">Ver prévia</button><button data-a="ok" class="ok">Aplicar</button></div>');
+    if (noAr) {
+      d.querySelector('[data-a=abrir]').onclick = function () { abrirModulo(m.id, v.id, m.nome); };
+      d.querySelector('[data-a=desf]').onclick = function () {
+        if (!confirm('Desfazer esta versão? Ela ficará desabilitada e salva em Módulos. Se houver uma versão anterior, ela será reativada.')) return;
+        rest('/rest/v1/rpc/desfazer_modulo', { metodo: 'POST', corpo: { p_modulo: m.id } })
+          .then(function () { menuDosModulos(); return listarModulos(); }).catch(function (e) { toastIA(e.message); });
+      };
+    }
     if (!noAr) {
       d.querySelector('[data-a=ver]').onclick = function () {
         abrirModulo(m.id, v.id, (m.icone || '🧩') + ' ' + m.nome + ' · prévia v' + v.numero, d);
@@ -5136,75 +5143,42 @@
   function listarModulos() {
     var c = $('iaMods');
     c.innerHTML = barrinhas();
-    Promise.all([
+    return Promise.all([
       rest('/rest/v1/modulos?select=id,nome,descricao,icone,versao_ativa&order=criado_em'),
-      rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado&order=numero.desc')
+      rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado&order=numero.desc'),
+      rest('/rest/v1/aparencia_versoes?select=id,numero,estado,descricao,css,menus&order=numero.desc')
     ]).then(function (r) {
-      var vers = r[1];
-      var h = '', guardados = [];
+      c.innerHTML = '<div class="ia-vazio">Módulos e layouts ficam salvos aqui. Desfazer mantém a versão desabilitada para aplicar novamente, sem outro pedido ao assistente.</div>';
       r[0].forEach(function (m) {
-        var ativa = vers.filter(function (v) { return v.id === m.versao_ativa; })[0];
-        var rasc = vers.filter(function (v) { return v.modulo_id === m.id && v.estado === 'rascunho'; })[0];
-        if (!ativa && !rasc) {
-          // nunca aplicado (todas as versões descartadas): fica guardado, para recuperar
-          var ult = vers.filter(function (v) { return v.modulo_id === m.id; })[0];
-          if (ult) guardados.push([m, ult]);
-          return;
-        }
-        h += '<div class="ia-card" style="border-color:#2a3548" data-m="' + m.id + '">' +
-          '<div class="nm">' + esc(m.icone) + ' ' + esc(m.nome) + '</div>' +
-          '<div class="sub">' + esc(m.descricao) + '<br>' +
-          (ativa ? 'no ar: versão ' + ativa.numero : 'ainda não aplicado') +
-          (rasc ? ' · rascunho v' + rasc.numero + ' esperando' : '') + '</div><div class="ia-bts">' +
-          (ativa ? '<button data-a="abrir" class="ok">Abrir</button>' : '') +
-          (rasc ? '<button data-a="rasc">Ver rascunho</button>' : '') +
-          (ativa ? '<button data-a="desf">Desfazer</button>' : '') +
-          '<button data-a="apag" class="no">Apagar</button></div></div>';
-        setTimeout(function () {
-          var el = document.querySelector('[data-m="' + m.id + '"]'); if (!el) return;
-          var b = function (a) { return el.querySelector('[data-a=' + a + ']'); };
-          if (b('abrir')) b('abrir').onclick = function () { abrirModulo(m.id, ativa.id, m.icone + ' ' + m.nome); };
-          if (b('rasc')) b('rasc').onclick = function () {
-            abrirModulo(m.id, rasc.id, m.icone + ' ' + m.nome + ' · prévia v' + rasc.numero, null);
-          };
-          if (b('desf')) b('desf').onclick = function () {
-            if (!confirm('Voltar ' + m.nome + ' para a versão anterior?')) return;
-            rest('/rest/v1/rpc/desfazer_modulo', { metodo: 'POST', corpo: { p_modulo: m.id } })
-              .then(function () { listarModulos(); menuDosModulos(); }).catch(function (e) { toastIA(e.message); });
-          };
-          b('apag').onclick = function () {
-            if (!confirm('Apagar o módulo ' + m.nome + ' e todos os dados dele?\n\nIsso não tem volta.')) return;
-            rest('/rest/v1/modulos?id=eq.' + m.id, { metodo: 'DELETE', prefer: 'return=minimal' })
-              .then(function () { listarModulos(); menuDosModulos(); }).catch(function (e) { toastIA(e.message); });
-          };
-        }, 0);
+        r[1].filter(function (v) { return v.modulo_id === m.id; }).forEach(function (v) {
+          cartaoVersao(m, v, c);
+        });
       });
-      var ap = TEMA && TEMA.id
-        ? '<div class="ia-card" style="border-color:#2a3548"><div class="nm">🎨 Aparência do app</div>' +
-          '<div class="sub">' + esc(TEMA.descricao || 'personalizada por você') + ' · versão ' + (TEMA.numero || 1) +
-          (Object.keys(TEMA.menus || {}).length ? '<br>menu: ' + esc(Object.keys(TEMA.menus).map(function (k) { return TEMA.menus[k]; }).join(', ')) : '') +
-          '</div><div class="ia-bts">' +
-          '<button id="iaApDesf">Desfazer última</button><button id="iaApPad" class="no">Voltar ao padrão</button></div></div>'
-        : '';
-      c.innerHTML = ap + (h || (guardados.length ? '' : '<div class="ia-vazio">Nenhum módulo ainda.<br>Peça um no Chat.</div>'));
-      if (guardados.length) {
-        var tit = document.createElement('div');
-        tit.className = 'm'; tit.style.cssText = 'font-size:12px;color:#8b99b5;margin:12px 2px 6px';
-        tit.textContent = 'Pedidos que não chegaram a ser aplicados (a última versão de cada um):';
-        c.appendChild(tit);
-        guardados.forEach(function (g) { cartaoVersao(g[0], g[1], c); });
-      }
-      if (ap) {
-        $('iaApDesf').onclick = function () {
-          rest('/rest/v1/rpc/desfazer_aparencia', { metodo: 'POST', corpo: {} })
-            .then(carregarTemaAtivo).then(listarModulos);
-        };
-        $('iaApPad').onclick = function () {
-          if (!confirm('Voltar o app ao visual padrão? O histórico fica guardado.')) return;
-          rest('/rest/v1/rpc/aparencia_padrao', { metodo: 'POST', corpo: {} })
-            .then(carregarTemaAtivo).then(listarModulos);
-        };
-      }
+      r[2].forEach(function (v) {
+        var ativa = v.estado === 'ativa';
+        var d = document.createElement('div'); d.className = 'ia-card';
+        d.innerHTML = '<div class="nm">🎨 Layout · versão ' + v.numero + '</div>' +
+          '<div class="sub">' + esc(v.descricao || 'Aparência do app') + '<br>' +
+          (ativa ? 'Ativo' : v.estado === 'rascunho' ? 'Rascunho' : 'Desabilitado · salvo para reaplicar') +
+          '</div><div class="ia-bts">' + (ativa
+            ? '<button data-a="desf">Desfazer</button><button data-a="pad">Voltar ao padrão</button>'
+            : '<button data-a="ver">Ver prévia</button><button data-a="ok" class="ok">Aplicar</button>') + '</div>';
+        if (ativa) {
+          var desfazer = function (rpc) {
+            return rest('/rest/v1/rpc/' + rpc, { metodo: 'POST', corpo: {} })
+              .then(carregarTemaAtivo).then(listarModulos).catch(function (e) { toastIA(e.message); });
+          };
+          d.querySelector('[data-a=desf]').onclick = function () { desfazer('desfazer_aparencia'); };
+          d.querySelector('[data-a=pad]').onclick = function () { desfazer('aparencia_padrao'); };
+        } else {
+          d.querySelector('[data-a=ver]').onclick = function () {
+            previaAparencia({ versao_id: v.id, css: v.css, menus: v.menus }, d);
+          };
+          d.querySelector('[data-a=ok]').onclick = function () { aplicarAparencia(v.id, d).then(listarModulos); };
+        }
+        c.appendChild(d);
+      });
+      if (!r[0].length && !r[2].length) c.innerHTML = '<div class="ia-vazio">Nenhum módulo ou layout ainda.<br>Peça um no Chat.</div>';
     }).catch(function (e) { c.innerHTML = '<div class="ia-vazio">' + esc(e.message) + '</div>'; });
   }
 
@@ -5360,6 +5334,7 @@
   }
   function reais(v) { return 'R$ ' + (Number(v) || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
   function data(iso) { var d = new Date(iso); return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear(); }
+  function dataHora(iso) { var d = new Date(iso); return isNaN(d.getTime()) ? 'data indisponível' : data(iso) + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); }
   function aviso(m) { if (typeof window.toast === 'function') window.toast(m); else alert(m); }
   function uid() { var s = P.sessao(); return s && s.user_id; }
 
@@ -5808,7 +5783,7 @@
       } else {
         (of.itens || []).forEach(function (i) {
           h += '<div class="c-lin"><span>🏦 ' + esc(i.banco || 'Banco') + (i.ultimo_erro ? '<br><small class="neg">' + esc(i.ultimo_erro) + '</small>' : '') + '</span><b style="font-weight:500;font-size:12px">' +
-            (i.ultima_sync ? 'atualizado ' + data(i.ultima_sync) : 'aguardando') + '</b></div>';
+            (i.ultima_sync ? 'atualizado ' + dataHora(i.ultima_sync) : 'aguardando') + '</b></div>';
         });
         if (!(of.itens || []).length) h += '<div class="m" style="font-size:12px">Conta Pluggy cadastrada. Agora conecte um banco.</div>';
         h += '<details class="c-passo" style="margin-top:10px"><summary>📖 Passo a passo e vídeo · como conectar mais bancos</summary>' + passos + '</details>';
@@ -6807,7 +6782,6 @@
   <div class="row">
     <div style="min-width:0;overflow:hidden"><h1>EasyAPP<b> Financial</b></h1></div>
     <div style="display:flex;align-items:center;gap:6px">
-      <div class="seg" id="filtro"></div>
       <span class="pill" id="badge">-</span>
       <button class="bt-ico" onclick="abrirLancar()" title="Lançar à mão">+</button>
       <button id="btAtualizar" class="bt-ico" onclick="atualizarTudo()" title="Atualizar tudo">&#8635;</button>
@@ -7052,11 +7026,6 @@ function renderCabecalho(){
       return '<button class="'+(ST.familia===f?'on':'')+'" onclick="mudarFamilia(\''+f+'\')" '+
              'style="border-left:3px solid '+cor(f)+'">'+f+'</button>';
     }).join('');
-
-  el('filtro').innerHTML = ['TUDO','PF','PJ'].map(function(f){
-    return '<button class="'+(ST.filtro===f?'on':'')+'" onclick="mudarFiltro(\''+f+'\')">'+
-           (f==='TUDO'?'Tudo':f)+'</button>';
-  }).join('');
 
   // mantem o mes selecionado visivel na barra rolavel
   var sel=el('meses').querySelector('button.on');
