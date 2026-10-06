@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.3.4 \u00b7 04/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.0 \u00b7 06/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -76,7 +76,7 @@
       'Authorization': 'Bearer ' + (sessao ? sessao.token : ANON)
     };
     if (opcoes.prefer) h['Prefer'] = opcoes.prefer;
-    return comSessao().then(function () {
+    return comSessao().then(emDia).then(function () {
     h['Authorization'] = 'Bearer ' + (sessao ? sessao.token : ANON);
     return fetch(URL_BASE + caminho, {
       method: opcoes.metodo || 'GET', headers: h,
@@ -127,18 +127,53 @@
     return Promise.reject(new Error(motivo || 'faça login de novo'));
   }
 
+  /* Renovar o login, UMA vez só. Quando o token de 1 hora vence com a tela
+     carregando, dezenas de consultas recebem 401 juntas; cada uma pedia a
+     própria renovação - 32 no mesmo segundo em 05/10 - e o Supabase barrava
+     algumas por excesso (429). O app lia isso como "sessão inválida" e
+     pedia a senha. Agora as consultas esperam a mesma renovação, e só uma
+     recusa DO LOGIN (refresh token inválido) leva à tela de entrar: rede
+     fora, 429 ou servidor fora do ar não derrubam a sessão. */
+  var renovando = null;
   function renovar() {
+    if (renovando) return renovando;
+    // outra aba / janela pode ter renovado antes: o refresh token gira a cada
+    // renovação, e o guardado é o mais novo
+    try {
+      var g = JSON.parse(localStorage.getItem('easyapp:sessao') || 'null');
+      if (g && g.refresh && sessao && g.user_id === sessao.user_id && g.refresh !== sessao.refresh) {
+        sessao = g;
+        if (g.expira && g.expira - Date.now() > 60e3) return Promise.resolve(sessao);
+      }
+    } catch (e) {}
     if (!sessao || !sessao.refresh) return pedirLogin('sessão expirada');
-    return fetch(URL_BASE + '/auth/v1/token?grant_type=refresh_token', {
+    var usado = sessao.refresh;
+    renovando = fetch(URL_BASE + '/auth/v1/token?grant_type=refresh_token', {
       method: 'POST',
       headers: { 'apikey': ANON, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: sessao.refresh })
-    }).then(function (r) { return r.json(); }).then(function (d) {
-      if (!d.access_token) return pedirLogin('sessão expirada');
-      sessao = { token: d.access_token, refresh: d.refresh_token, user_id: sessao.user_id };
-      try { localStorage.setItem('easyapp:sessao', JSON.stringify(sessao)); } catch (e) {}
-      return sessao;
-    });
+      body: JSON.stringify({ refresh_token: usado })
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) {
+        if (d.access_token) {
+          sessao = { token: d.access_token, refresh: d.refresh_token, user_id: sessao.user_id,
+                     expira: Date.now() + (Number(d.expires_in) || 3600) * 1000 };
+          try { localStorage.setItem('easyapp:sessao', JSON.stringify(sessao)); } catch (e) {}
+          return sessao;
+        }
+        // só o "esse refresh token não vale mais" pede a senha de novo
+        if (r.status === 400 || r.status === 401 || r.status === 403) return pedirLogin('sessão expirada');
+        throw new Error('não consegui renovar o login agora (' + r.status + '): tente de novo');
+      });
+    }).finally(function () { renovando = null; });
+    return renovando;
+  }
+  // antes de cada consulta: faltando menos de 1 minuto, renova primeiro (uma
+  // vez), em vez de deixar todas baterem no 401 juntas
+  function emDia() {
+    if (sessao && sessao.refresh && sessao.expira && sessao.expira - Date.now() < 60e3) {
+      return renovar().catch(function () {});
+    }
+    return Promise.resolve();
   }
 
   function entrar(email, senha) {
@@ -190,7 +225,8 @@
 
   /* Uma resposta de login (senha, código, cadastro) vira a sessão do app. */
   function usarSessao(d) {
-    sessao = { token: d.access_token, refresh: d.refresh_token, user_id: d.user.id };
+    sessao = { token: d.access_token, refresh: d.refresh_token, user_id: d.user.id,
+               expira: Date.now() + (Number(d.expires_in) || 3600) * 1000 };
     try { localStorage.setItem('easyapp:sessao', JSON.stringify(sessao)); } catch (e) {}
     // solta a fila com uma folga: disparar no mesmo instante em que o
     // token nasce e o que expoe a diferenca de relogio entre os servicos
@@ -505,7 +541,9 @@
         var item = {
           categoria: l.categoria, grupo: l.grupo, padrao: padrao[l.categoria] || 0,
           previsto: n(l.previsto), realizado: n(l.realizado),
-          saldo: n(l.previsto - l.realizado)
+          // receita lê-se ao contrário da despesa: enquanto o dinheiro não
+          // entra o saldo é negativo (vermelho); entrou a mais, fica positivo
+          saldo: l.natureza === 'RECEITA' ? n(l.realizado - l.previsto) : n(l.previsto - l.realizado)
         };
         familias[l.grupo] = true;
         if (l.natureza === 'RECEITA') {
@@ -4398,16 +4436,25 @@
     Promise.all([
       atualizarMes(),
       rest('/rest/v1/chat_mensagens?select=papel,texto,criado_em,pedidos_ia(valor_cobrado,versao_id,modulo_id)' +
-           '&order=criado_em.desc,papel.asc&limit=20')
+           '&order=criado_em.desc,papel.asc&limit=20'),
+      rest('/rest/v1/modulos?select=id,nome,icone,versao_ativa').catch(function () { return []; }),
+      rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado').catch(function () { return []; })
     ]).then(function (r) {
       IA.carregado = true;
       var msgs = r[1].reverse();
+      var mods = {}, vers = {};
+      (r[2] || []).forEach(function (m) { mods[m.id] = m; });
+      (r[3] || []).forEach(function (v) { vers[v.id] = v; });
       IA.hist = msgs.map(function (m) { return { papel: m.papel, texto: m.texto }; });
       $('iaMsgs').innerHTML = '';
       if (!msgs.length) boasVindas();
       msgs.forEach(function (m) {
         bolha(m.papel, m.texto);
         if (m.papel === 'assistant' && m.pedidos_ia) custo(Number(m.pedidos_ia.valor_cobrado));
+        // o módulo que esta resposta montou continua a um toque: ver e aplicar
+        // (antes, ao reabrir o chat, sobrava só o texto e não havia como aplicar)
+        var pv = m.papel === 'assistant' && m.pedidos_ia && m.pedidos_ia.versao_id && vers[m.pedidos_ia.versao_id];
+        if (pv && mods[pv.modulo_id]) cartaoVersao(mods[pv.modulo_id], pv);
       });
       rolar();
     }).catch(function (e) {
@@ -4657,6 +4704,27 @@
     $('iaMsgs').appendChild(d);
   }
 
+  // cartão de uma versão já salva (histórico do chat e Meus módulos)
+  function cartaoVersao(m, v, onde) {
+    var noAr = m.versao_ativa === v.id;
+    var d = document.createElement('div');
+    d.className = 'ia-card';
+    d.innerHTML = '<div class="nm">' + esc(m.icone || '🧩') + ' ' + esc(m.nome) + '</div>' +
+      '<div class="sub">versão ' + v.numero + ' · ' + (noAr ? 'no ar' : v.estado === 'descartada' ? 'descartada (dá para recuperar)' :
+        v.estado === 'antiga' ? 'versão antiga' : 'rascunho, ainda não aplicado') + '</div>' +
+      (noAr ? '' : '<div class="ia-bts"><button data-a="ver">Ver prévia</button><button data-a="ok" class="ok">Aplicar</button></div>');
+    if (!noAr) {
+      d.querySelector('[data-a=ver]').onclick = function () {
+        abrirModulo(m.id, v.id, (m.icone || '🧩') + ' ' + m.nome + ' · prévia v' + v.numero, d);
+      };
+      d.querySelector('[data-a=ok]').onclick = function () {
+        if (m.versao_ativa && !confirm('Aplicar a versão ' + v.numero + ' de ' + m.nome + '? A que está no ar vira versão antiga (dá para desfazer).')) return;
+        aplicar(v.id, d).then(function () { m.versao_ativa = v.id; if ($('iaMods') && !$('iaMods').hidden) listarModulos(); });
+      };
+    }
+    (onde || $('iaMsgs')).appendChild(d);
+  }
+
   function cartaoRascunho(r) {
     if (r.tipo === 'aparencia') return cartaoAparencia(r);
     var d = document.createElement('div');
@@ -4873,14 +4941,19 @@
     c.innerHTML = barrinhas();
     Promise.all([
       rest('/rest/v1/modulos?select=id,nome,descricao,icone,versao_ativa&order=criado_em'),
-      rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado&estado=in.(ativa,rascunho)&order=numero.desc')
+      rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado&order=numero.desc')
     ]).then(function (r) {
       var vers = r[1];
-      var h = '';
+      var h = '', guardados = [];
       r[0].forEach(function (m) {
         var ativa = vers.filter(function (v) { return v.id === m.versao_ativa; })[0];
         var rasc = vers.filter(function (v) { return v.modulo_id === m.id && v.estado === 'rascunho'; })[0];
-        if (!ativa && !rasc) return;
+        if (!ativa && !rasc) {
+          // nunca aplicado (todas as versões descartadas): fica guardado, para recuperar
+          var ult = vers.filter(function (v) { return v.modulo_id === m.id; })[0];
+          if (ult) guardados.push([m, ult]);
+          return;
+        }
         h += '<div class="ia-card" style="border-color:#2a3548" data-m="' + m.id + '">' +
           '<div class="nm">' + esc(m.icone) + ' ' + esc(m.nome) + '</div>' +
           '<div class="sub">' + esc(m.descricao) + '<br>' +
@@ -4916,7 +4989,14 @@
           '</div><div class="ia-bts">' +
           '<button id="iaApDesf">Desfazer última</button><button id="iaApPad" class="no">Voltar ao padrão</button></div></div>'
         : '';
-      c.innerHTML = ap + (h || '<div class="ia-vazio">Nenhum módulo ainda.<br>Peça um no Chat.</div>');
+      c.innerHTML = ap + (h || (guardados.length ? '' : '<div class="ia-vazio">Nenhum módulo ainda.<br>Peça um no Chat.</div>'));
+      if (guardados.length) {
+        var tit = document.createElement('div');
+        tit.className = 'm'; tit.style.cssText = 'font-size:12px;color:#8b99b5;margin:12px 2px 6px';
+        tit.textContent = 'Pedidos que não chegaram a ser aplicados (a última versão de cada um):';
+        c.appendChild(tit);
+        guardados.forEach(function (g) { cartaoVersao(g[0], g[1], c); });
+      }
       if (ap) {
         $('iaApDesf').onclick = function () {
           rest('/rest/v1/rpc/desfazer_aparencia', { metodo: 'POST', corpo: {} })
@@ -5120,7 +5200,7 @@
     '#minhaConta .card{margin-bottom:10px}#minhaConta input{width:100%;box-sizing:border-box;margin:4px 0 8px}' +
     '#minhaConta .c-lin{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}' +
     '#minhaConta .c-lin:last-child{border:0}#minhaConta .c-bts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}' +
-    '#minhaConta .c-bts button{flex:1;min-width:120px}#minhaConta code{font-size:12px;word-break:break-all;background:var(--bg);padding:2px 5px;border-radius:5px}' +
+    '#minhaConta .c-bts button{flex:1 1 0;min-width:130px;margin:0;padding:12px 10px;font-size:14.5px;font-weight:600;border-radius:12px;border:0;cursor:pointer}#minhaConta code{font-size:12px;word-break:break-all;background:var(--bg);padding:2px 5px;border-radius:5px}' +
     '#minhaConta .c-erro{color:var(--bad);font-size:12.5px;min-height:16px;margin-top:6px}' +
     '.c-passo{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:0 0 10px}' +
     '.c-cred{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}.c-cred .c-bt{margin:0;padding:11px 4px}' +
@@ -5317,7 +5397,7 @@
           fn('openfinance', { acao: 'item_conectado', itemId: id }).then(function (x) {
             aviso((x.banco || 'Banco') + ' conectado. Buscando as transações...');
             return fn('openfinance', { acao: 'sincronizar', dias: 90 });
-          }).then(function (s) { aviso(s.novas + ' lançamentos novos'); recarregarApp(); depois && depois(); })
+          }).then(function (s) { aviso(s.novas + ' lançamentos novos'); avisarContasNovas(s); recarregarApp(); depois && depois(); })
             .catch(function (e) { aviso(e.message); });
         },
         onError: function (e) { aviso('A Pluggy não conectou: ' + ((e && e.message) || 'tente de novo')); }
@@ -5332,8 +5412,16 @@
     fn('openfinance', { acao: 'status' }).then(function (s) {
       if (!s.configurado || !s.itens.length) return;
       try { localStorage.setItem('easyapp:of-sync', String(Date.now())); } catch (e) {}
-      return fn('openfinance', { acao: 'sincronizar' }).then(function (r) { if (r.novas || r.adotadas) recarregarApp(); });
+      return fn('openfinance', { acao: 'sincronizar' }).then(function (r) { avisarContasNovas(r); if (r.novas || r.adotadas) recarregarApp(); });
     }).catch(function () {});
+  }
+  // contas que o Open Finance acabou de criar: a aba Bancos pergunta se alguma era manual
+  function avisarContasNovas(r) {
+    var l = (r && r.contas_novas) || [];
+    if (!l.length || typeof window.ofContasNovas !== 'function') return;
+    window.ofContasNovas(l);
+    setTimeout(function () { aviso('Conta nova do Open Finance: ' + l.map(function (x) { return x.nome; }).join(', ') +
+      '. Se ela já estava lançada à mão, junte em Configurações → Bancos.'); }, 1800);
   }
   function recarregarApp() {
     try {
@@ -5502,9 +5590,15 @@
         });
         if (!(of.itens || []).length) h += '<div class="m" style="font-size:12px">Conta Pluggy cadastrada. Agora conecte um banco.</div>';
         h += '<details class="c-passo" style="margin-top:10px"><summary>📖 Passo a passo e vídeo · como conectar mais bancos</summary>' + passos + '</details>';
-        h += '<div class="c-bts"><button class="c-bt" id="cOfConectar">+ conectar banco</button>' +
-          ((of.itens || []).length ? '<button class="bt-no" id="cOfSync">Atualizar agora</button>' : '') +
-          '<button class="bt-no" id="cOfRemover">Remover</button></div><div class="c-erro" id="cOfErro"></div>';
+        // conectado: o atalho é o meu.pluggy.ai (onde se liga mais um banco); depois "+ conectar banco" autoriza aqui
+        h += '<div class="c-bts">' +
+          ((of.itens || []).length ? '<button class="c-bt" id="cOfSync">↻ Atualizar agora</button>' : '') +
+          '<button class="c-bt' + ((of.itens || []).length ? ' sec' : '') + '" id="cOfConectar">+ conectar banco</button></div>' +
+          '<div class="c-bts"><button class="c-bt sec" id="cOfMeu">Abrir meu.pluggy.ai</button>' +
+          '<button class="c-bt sec" id="cOfRemover">Remover</button></div>' +
+          '<div class="m" style="font-size:11.5px;margin-top:6px">Ligou um banco novo no meu.pluggy.ai? Toque em <b>Atualizar agora</b>: o app procura as conexões novas. ' +
+          'Se ele não aparecer, toque em <b>+ conectar banco</b>, escolha <b>MeuPluggy</b> e autorize o banco novo.</div>' +
+          '<div class="c-erro" id="cOfErro"></div>';
       }
       h += '</div>';
 
@@ -5609,6 +5703,7 @@
       });
       b('cPluggySite', function (e) { e.preventDefault(); abrirFora('https://dashboard.pluggy.ai'); });
       b('cMeuPluggy', function (e) { e.preventDefault(); abrirFora('https://meu.pluggy.ai'); });
+      b('cOfMeu', function () { abrirFora('https://meu.pluggy.ai'); });
       b('cOfVideo', function () { tutorialPluggy(); });
       b('cOfSalvar', function () {
         erro('salvando...');
@@ -5617,7 +5712,11 @@
       b('cOfConectar', function () { conectarBanco(re).catch(function (e) { erro(e.message); }); });
       b('cOfSync', function () {
         erro('buscando...');
-        fn('openfinance', { acao: 'sincronizar' }).then(function (r) { aviso(r.novas + ' novos, ' + r.adotadas + ' confirmados'); recarregarApp(); re(); })
+        fn('openfinance', { acao: 'sincronizar' }).then(function (r) {
+          aviso((r.bancos_novos && r.bancos_novos.length ? 'Banco novo: ' + r.bancos_novos.join(', ') + '. ' : '') + r.novas + ' novos, ' + r.adotadas + ' confirmados');
+          avisarContasNovas(r);
+          recarregarApp(); re();
+        })
           .catch(function (e) { erro(e.message); });
       });
       b('cOfRemover', function () {
@@ -6071,6 +6170,12 @@
   /* setas de entrada e saída: só a seta colorida, sem quadrinho (o nome
      "seta" já era dos triângulos de abrir/fechar - não reutilizar) */
   .mov{font-style:normal;font-weight:900;margin-right:6px}
+  /* saldo em conta: um bloquinho para PJ e outro para PF */
+  .sb-bloco{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:6px 10px 4px;margin-top:8px}
+  .sb-tit{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;font-weight:700;
+     color:var(--dim);text-transform:uppercase;letter-spacing:.04em;padding:4px 0 6px;border-bottom:1px solid var(--line)}
+  .sb-tit b{font-size:14px;letter-spacing:0;text-transform:none}
+  .sb-bloco .ln:last-child{border-bottom:0}
   .mov.in{color:#22c55e}.mov.out{color:#ef4444}
   .chip-verba{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 8px;
      border-radius:20px;background:rgba(245,158,11,.14);color:#fbbf24;border:1px solid rgba(245,158,11,.3)}
@@ -7073,8 +7178,11 @@ function painelRateio(p, i){
          botaoEscolha('rc'+k, pt.cat||'', 'conta…', 'conta',
                       op.map(function(n){ return { valor:n, rotulo:n, grupo:familiaDe(n) }; }),
                       'recalcularRateio('+i+')')+'</div>'+
-       '<input id="rv'+k+'" style="flex:1;text-align:right" inputmode="decimal" value="'+
-         (pt.valor?num(pt.valor):'')+'" placeholder="0,00">'+
+       '<label style="flex:1;display:flex;align-items:center;gap:4px;min-width:0">'+
+         '<span style="color:var(--dim);font-size:13px">R$</span>'+
+         '<input id="rv'+k+'" style="flex:1;min-width:0;text-align:right" inputmode="decimal" value="'+
+         (pt.valor?num(pt.valor):'')+'" placeholder="0,00" oninput="mascaraMoeda(this)" '+
+         'onchange="recalcularRateio('+i+')"></label>'+
        (ST.partes.length>2?'<button class="bt-x" onclick="ST.partes.splice('+k+',1);renderPendentes()">&times;</button>':'')+
        '</div>';
   });
@@ -7539,7 +7647,16 @@ function renderMes(){
       h+='<div style="margin-top:8px">';
       // conta de investimento nao entra aqui: ela aparece no Patrimonio, e o
       // total desta lista e o que da para gastar
-      s.contas.filter(function(x){ return x.titular!=='INV'; }).forEach(function(x){
+      // dois blocos (PJ e PF), cada um em ordem de banco: as contas do mesmo
+      // banco ficam juntas
+      var banco=function(x){ return String(x.instituicao||x.conta||'').trim().split(/\s+/)[0].toUpperCase(); };
+      var blocos=[['PJ','Pessoa jurídica (PJ)',s.totalPJ],['PF','Pessoa física (PF)',s.totalPF]];
+      blocos.forEach(function(bl){
+       var doBloco=s.contas.filter(function(x){ return x.titular===bl[0]; })
+         .sort(function(a,b){ return banco(a).localeCompare(banco(b),'pt-BR') || String(a.conta).localeCompare(String(b.conta),'pt-BR'); });
+       if(!doBloco.length) return;
+       h+='<div class="sb-bloco"><div class="sb-tit"><span>'+bl[1]+'</span><b class="'+(bl[2]>=0?'pos':'neg')+'">'+moeda(bl[2])+'</b></div>';
+       doBloco.forEach(function(x){
         // A data do saldo informado e o divisor de aguas: o que e anterior a
         // ela ja esta dentro do numero que voce digitou, e por isso mexer num
         // lancamento velho muda a ABERTURA do mes, nunca o saldo de hoje.
@@ -7553,9 +7670,10 @@ function renderMes(){
              ' · desde então '+moeda(x.movimento)+
              (x.obs?' · '+x.obs:'')+'</span></span></div>'+
            '<span class="n '+(x.saldo>=0?'':'neg')+'">'+moeda(x.saldo)+'</span></div>';
+       });
+       h+='</div>';
       });
-      h+='<div class="m" style="font-size:11px;margin-top:8px">PF '+moeda(s.totalPF)+
-         ' · PJ '+moeda(s.totalPJ)+'<br>'+
+      h+='<div class="m" style="font-size:11px;margin-top:8px">'+
          'lançamento com data anterior à do saldo informado muda a abertura do '+
          'mês, não o saldo de hoje — aquele saldo já contava com ele.</div></div>';
     }
@@ -8207,8 +8325,19 @@ function blocoDoMes(m){
         '<div style="font-size:19px;font-weight:700">guardar '+num(m.meta)+'</div></div>'+
       '<div style="text-align:right"><div class="lbl">'+(falta>0?'🎯 Buraco':'✓ Sobra')+'</div>'+
         '<div style="font-size:22px;font-weight:800" class="'+(falta>0?'neg':'pos')+'">'+num(Math.abs(falta))+'</div></div></div>'+
-      '<div class="m" style="font-size:11.5px;margin-top:6px">para guardar '+num(m.meta)+' o mês precisa terminar com <b>'+num(precisa)+
-        '</b> (começou com '+num(inicio)+'); a projeção é <b class="'+(m.saldoFim>=0?'pos':'neg')+'">'+num(m.saldoFim)+'</b></div>'+
+      /* A conta por extenso: guardar é o mês ENTREGAR dinheiro novo (entra − sai),
+         não só terminar com a meta na conta. Quem terminar com 2.150 tendo
+         começado com 1.467 guardou 683, não 2.150. */
+      '<div class="m" style="font-size:11.5px;margin-top:6px;line-height:1.5">'+
+        'começou com '+num(inicio)+' → projeção '+'<b class="'+(m.saldoFim>=0?'pos':'neg')+'">'+num(m.saldoFim)+'</b>: '+
+        (m.sobra<0 ? 'o mês gasta <b class="neg">'+num(-m.sobra)+'</b> a mais do que entra'
+                   : 'o mês entrega <b class="pos">'+num(m.sobra)+'</b> (entra − sai)')+'.<br>'+
+        'Guardar '+num(m.meta)+' é o mês entregar +'+num(m.meta)+', ou seja, terminar com <b>'+num(precisa)+'</b>.'+
+        (falta>0 ? '<br>Buraco = '+(m.sobra<0 ? num(-m.sobra)+' (o que o mês consome) + ' : '')+num(m.meta)+' (a meta)'+
+                   (m.sobra>0 ? ' − '+num(m.sobra)+' (o que o mês já entrega)' : '')+' = <b class="neg">'+num(falta)+'</b>.' : '')+
+        (falta>0 && m.saldoFim<m.meta ? '<br><span style="color:var(--dim)">Só para ter '+num(m.meta)+' na conta no fim do mês faltariam '+
+           num(n2(m.meta-m.saldoFim))+' — mas aí parte da "reserva" seria o dinheiro que já estava lá no dia 1.</span>' : '')+
+      '</div>'+
     '</div>';
 
   var contas=(m.contas||[]).filter(function(x){ return x.economia>0; });
@@ -9606,11 +9735,13 @@ function renderMetas(){
   h+='<div class="lbl" style="margin:2px 0 6px">'+nomeMes+'</div>'+
     '<div class="mini">'+
       miniCard('meta', num(m.meta))+
-      miniCard('vai sobrar', num(m.sobra), m.sobra>=0?'pos':'neg')+
+      miniCard('resultado do mês', num(m.sobra), m.sobra>=0?'pos':'neg')+
       miniCard(ok?'folga':'falta', num(Math.abs(m.sobra-m.meta)), ok?'pos':'neg')+
     '</div>'+
     '<div class="bar" style="margin:-4px 0 4px"><i style="width:'+pct.toFixed(0)+'%;background:'+
       (ok?'var(--ok)':'var(--bad)')+'"></i></div>'+
+    '<div class="m" style="font-size:11.5px;margin-bottom:6px">resultado = o que entra − o que sai no mês (pela projeção). '+
+      (m.sobra<0?'Negativo: o mês usa '+num(-m.sobra)+' do que já estava na conta. ':'')+'É dele que sai a reserva.</div>'+
     (!ok?'<div class="m" style="font-size:12px;margin-bottom:12px">o que fazer: '+
       '<a href="#" onclick="trocarAnalise(\'PLANO\');return false" style="color:var(--acc)">'+
       'ações no Plano</a></div>':'<div style="height:12px"></div>');
@@ -9883,7 +10014,7 @@ function abasConfig(){
   function b(k,r){ return '<button style="flex:1" class="'+(m===k?'on':'')+'" '+
     'onclick="trocarConfig(\''+k+'\')">'+r+'</button>'; }
   return '<div class="seg" style="width:100%;margin-bottom:10px">'+
-    b('CONTAS','Contas')+b('AJUSTES','Ajustes')+b('CONTA','Minha conta')+'</div>';
+    b('CONTAS','Contas')+b('BANCOS','Bancos')+b('AJUSTES','Ajustes')+b('CONTA','Minha conta')+'</div>';
 }
 function trocarConfig(m){ ST.modoCfg=m; ST.cfgEditando=null; renderConfig(); aoTopo(); }
 
@@ -9895,11 +10026,200 @@ function renderConfig(){
   if(ST.modoCfg==='PATRIM') ST.modoCfg='CONTAS';   // patrimonio virou aba da Analise
   if(ST.modoCfg==='CONTAS')      h+=cfgContas();
   else if(ST.modoCfg==='AUDIT')  h+=cfgAuditoria();
+  else if(ST.modoCfg==='BANCOS') h+='<div id="cfgBancos"><div class="load">Abrindo os bancos...</div></div>';
   else if(ST.modoCfg==='CONTA')  h+='<div id="minhaConta"><div class="load">Abrindo...</div></div>';
   else                           h+=cfgAjustes();
   c.innerHTML=h;
   // plano, avisos do celular, Open Finance, termos e excluir conta (conta.js)
   if(ST.modoCfg==='CONTA' && window.EASYAPP_CONTA) window.EASYAPP_CONTA.render(el('minhaConta'));
+  if(ST.modoCfg==='BANCOS') bancosCarregar();
+}
+
+/* ---------- BANCOS: as contas de banco e cartões ----------
+   Para quem não liga o Open Finance (ou para o banco que não liga): a conta
+   entra à mão, com o saldo de um dia. Quando o mesmo banco chega pelo Open
+   Finance, a pessoa diz qual das manuais ele é e a manual sai - senão o
+   saldo contaria duas vezes. */
+var BANCOS_LISTA=['Banco do Brasil','Banrisul','Bradesco','BTG','C6','Caixa','Cora','Inter','Itaú','Mercado Pago',
+  'Neon','Nubank','PagBank','PicPay','Safra','Santander','Sicoob','Sicredi','Stone','XP'];
+function ponteRest(c,o){ return window.EASYAPP_PONTE.rest(c,o); }
+function ponteFn(nome, corpo){
+  return ponteRest('/rest/v1/perfis?select=id&limit=1').then(function(){
+    var cfg=window.EASYAPP_CFG||{};
+    return fetch(cfg.url+'/functions/v1/'+nome, { method:'POST',
+      headers:{ apikey:cfg.anon, Authorization:'Bearer '+window.EASYAPP_PONTE.sessao().token, 'Content-Type':'application/json' },
+      body:JSON.stringify(corpo||{}) });
+  }).then(function(r){ return r.json(); }).then(function(d){ if(d&&d.erro) throw new Error(d.erro); return d; });
+}
+function ofNovasLer(){ try{ return JSON.parse(localStorage.getItem('easyapp:of-novas')||'[]'); }catch(e){ return []; } }
+function ofNovasGravar(l){ try{ localStorage.setItem('easyapp:of-novas', JSON.stringify(l||[])); }catch(e){} }
+// chamado pela sincronização do Open Finance quando ela cria contas novas
+window.ofContasNovas=function(lista){
+  if(!lista||!lista.length) return;
+  var ja=ofNovasLer(), ids=ja.map(function(x){ return x.id; });
+  lista.forEach(function(x){ if(ids.indexOf(x.id)<0) ja.push(x); });
+  ofNovasGravar(ja);
+  ST.bancos=null;
+};
+function bancosCarregar(){
+  var box=el('cfgBancos'); if(!box) return;
+  if(ST.bancos){ box.innerHTML=bancosHtml(); return; }
+  Promise.all([
+    ponteRest('/rest/v1/contas?select=id,nome,tipo,titular,instituicao,final,saldo_inicial,saldo_desde,pluggy_account_id,criado_em&ativa=eq.true&order=nome'),
+    ponteRest('/rest/v1/saldos_contas?select=conta_id,saldo')
+  ]).then(function(r){
+    var sal={}; r[1].forEach(function(x){ sal[x.conta_id]=Number(x.saldo)||0; });
+    r[0].forEach(function(c){ c.saldo=sal[c.id]; c.of=!!c.pluggy_account_id; });
+    ST.bancos=r[0];
+    // pendências de vínculo: só as contas novas que ainda existem e ainda têm manual parecida
+    var vivas={}; ST.bancos.forEach(function(c){ vivas[c.id]=c; });
+    ofNovasGravar(ofNovasLer().filter(function(x){ return vivas[x.id]; }));
+    var b=el('cfgBancos'); if(b) b.innerHTML=bancosHtml();
+  }).catch(function(e){ var b=el('cfgBancos'); if(b) b.innerHTML='<div class="vazio">Não consegui abrir.<br>'+e.message+'</div>'; });
+}
+function bancoDe(c){ return String(c.instituicao||c.nome||'').trim().split(/\s+/)[0].toUpperCase(); }
+function manuaisParecidas(o){
+  return (ST.bancos||[]).filter(function(m){ return !m.of && (m.tipo==='CARTAO')===(o.tipo==='CARTAO'); })
+    .sort(function(a,b){ return (bancoDe(b)===bancoDe(o))-(bancoDe(a)===bancoDe(o)) || a.nome.localeCompare(b.nome,'pt-BR'); });
+}
+function bancosHtml(){
+  var L=ST.bancos||[], h='';
+  // 1) o Open Finance trouxe contas novas: alguma era manual?
+  // (as avisadas pela sincronização deste aparelho e, para as que chegaram pela
+  // sincronização automática, as criadas nos últimos 30 dias com manual do mesmo banco)
+  var avisadas=ofNovasLer().map(function(x){ return x.id; }), recusadas=ofNaoLer();
+  var pend=L.filter(function(o){
+    if(!o.of || recusadas.indexOf(o.id)>=0) return false;
+    var cands=manuaisParecidas(o);
+    if(!cands.length) return false;
+    if(avisadas.indexOf(o.id)>=0) return true;
+    var nova=o.criado_em && Date.now()-new Date(o.criado_em).getTime()<30*864e5;
+    return nova && cands.some(function(m){ return bancoDe(m)===bancoDe(o); });
+  });
+  pend.forEach(function(o){
+    var cands=manuaisParecidas(o);
+    h+='<div class="card" style="border-color:var(--acc)"><div class="lbl" style="margin-bottom:4px">🏦 Chegou pelo Open Finance</div>'+
+      '<div style="font-size:14px;font-weight:600">'+o.nome+'</div>'+
+      '<div class="m" style="font-size:12px;margin:4px 0 8px">Ela é alguma conta que você lançou à mão? Se for, marque: a manual sai e o saldo não conta duas vezes.</div>'+
+      cands.map(function(m){
+        return '<button class="bt-no" style="width:100%;margin-top:6px;text-align:left" onclick="bancoVincular(\''+m.id+'\',\''+o.id+'\')">'+
+          'É a <b>'+m.nome+'</b> <span style="color:var(--dim)">· '+m.titular+' · saldo '+moeda(m.saldo||0)+'</span></button>';
+      }).join('')+
+      '<button class="bt-no" style="width:100%;margin-top:6px" onclick="bancoNaoE(\''+o.id+'\')">Não, é uma conta nova</button></div>';
+  });
+  // 2) nova conta manual
+  h+='<div class="card" style="padding:8px 10px"><div class="row" style="gap:6px">'+
+     '<div class="m" style="font-size:12px;flex:1">Contas e cartões. As do Open Finance chegam sozinhas; as outras, lance aqui com o saldo.</div>'+
+     '<button class="bt-no" style="padding:7px 11px;font-size:12.5px;background:var(--acc);color:#fff;flex:none" onclick="ST.bancoNovo=!ST.bancoNovo;ST.bancoEd=null;bancosCarregar()">'+(ST.bancoNovo?'Fechar':'+&nbsp;conta manual')+'</button></div>'+
+     (ST.bancoNovo?bancoForm(null):'')+'</div>';
+  // 3) a lista, em dois blocos (PJ e PF), em ordem de banco
+  [['PJ','Pessoa jurídica (PJ)'],['PF','Pessoa física (PF)'],['INV','Investimento']].forEach(function(bl){
+    var doBloco=L.filter(function(c){ return c.titular===bl[0]; })
+      .sort(function(a,b){ return bancoDe(a).localeCompare(bancoDe(b),'pt-BR') || (a.tipo==='CARTAO')-(b.tipo==='CARTAO') || a.nome.localeCompare(b.nome,'pt-BR'); });
+    if(!doBloco.length) return;
+    h+='<div class="lbl" style="margin:14px 0 6px">'+bl[1]+'</div>';
+    doBloco.forEach(function(c){
+      var ed=ST.bancoEd===c.id, ligando=ST.bancoLigar===c.id;
+      h+='<div class="card" style="padding:9px 11px'+(ed||ligando?';border-color:var(--acc)':'')+'"><div class="row"><div style="min-width:0">'+
+        '<div style="font-size:13.5px;font-weight:600">'+(c.tipo==='CARTAO'?'💳 ':'🏦 ')+c.nome+'</div>'+
+        '<div class="m" style="font-size:11px">'+(c.of?'Open Finance':'manual')+(c.final?' · final '+c.final:'')+
+          (!c.of && c.saldo_desde?' · saldo de '+moeda(c.saldo_inicial)+' em '+c.saldo_desde.split('-').reverse().join('/'):'')+'</div></div>'+
+        (c.tipo==='CARTAO'?'':'<div style="text-align:right;white-space:nowrap;padding-left:8px"><div class="lbl">hoje</div>'+
+          '<div class="'+((c.saldo||0)<0?'neg':'')+'" style="font-size:14px">'+moeda(c.saldo||0)+'</div></div>')+'</div>'+
+        (c.of?'' :
+          '<div class="row" style="gap:6px;margin-top:8px">'+
+            '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" onclick="ST.bancoEd=ST.bancoEd===\''+c.id+'\'?null:\''+c.id+'\';ST.bancoLigar=null;ST.bancoNovo=false;bancosCarregar()">'+(ed?'Fechar':'Editar')+'</button>'+
+            '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" onclick="ST.bancoLigar=ST.bancoLigar===\''+c.id+'\'?null:\''+c.id+'\';ST.bancoEd=null;bancosCarregar()">Já conectei no Open Finance</button>'+
+            '<button class="bt-no" style="padding:6px 10px;font-size:12px;color:var(--bad)" onclick="bancoExcluir(\''+c.id+'\')">Excluir</button>'+
+          '</div>')+
+        (ed?bancoForm(c):'')+
+        (ligando?bancoLigarHtml(c):'')+
+        '</div>';
+    });
+  });
+  if(!L.length) h+='<div class="vazio">Nenhuma conta ainda. Conecte o Open Finance em Minha conta ou lance uma conta manual.</div>';
+  return h;
+}
+function bancoForm(c){
+  var hoje=new Date(), iso=hoje.getFullYear()+'-'+('0'+(hoje.getMonth()+1)).slice(-2)+'-'+('0'+hoje.getDate()).slice(-2);
+  var tit=c?c.titular:'PF';
+  return '<div style="border-top:1px solid var(--line);margin-top:9px;padding-top:9px">'+
+    '<div class="lbl">Banco</div><input id="bkBanco" list="bkLista" placeholder="ex.: Santander" value="'+(c?String(c.instituicao||bancoDe(c)).replace(/"/g,'&quot;'):'')+'">'+
+    '<datalist id="bkLista">'+BANCOS_LISTA.map(function(b){ return '<option value="'+b+'">'; }).join('')+'</datalist>'+
+    '<div class="lbl" style="margin-top:8px">Número da conta (opcional)</div><input id="bkNum" inputmode="numeric" placeholder="agência/conta ou só o final" value="'+(c&&c.final?c.final:'')+'">'+
+    '<div class="row" style="gap:8px;margin-top:8px"><div style="flex:1"><div class="lbl">Saldo</div>'+
+      '<input id="bkSaldo" inputmode="decimal" placeholder="0,00" oninput="mascaraMoedaSinal(this)" value="'+(c?num(c.saldo_inicial):'')+'"></div>'+
+      '<div style="flex:1"><div class="lbl">Saldo do dia</div><input id="bkData" type="date" value="'+(c&&c.saldo_desde?c.saldo_desde:iso)+'"></div></div>'+
+    '<div class="m" style="font-size:11px;margin-top:4px">O saldo que a conta tinha no FIM desse dia. Os lançamentos depois dele mexem no saldo; os de antes, não. Saldo negativo: comece com o sinal de menos.</div>'+
+    '<div class="lbl" style="margin-top:8px">É conta de</div>'+
+    '<input type="hidden" id="bkTit" value="'+tit+'"><div class="seg" style="width:100%" id="seg_bkTit">'+
+    [['PF','Pessoa física (PF)'],['PJ','Empresa (PJ)']].map(function(o){
+      return '<button style="flex:1" data-v="'+o[0]+'" class="'+(o[0]===tit?'on':'')+'" onclick="el(\'bkTit\').value=\''+o[0]+'\';'+
+        'Array.prototype.forEach.call(el(\'seg_bkTit\').children,function(b){b.classList.toggle(\'on\',b.dataset.v===\''+o[0]+'\');})">'+o[1]+'</button>';
+    }).join('')+'</div>'+
+    '<div class="row" style="margin-top:10px;gap:8px">'+
+      '<button class="bt-ok" style="flex:1" onclick="bancoSalvar('+(c?'\''+c.id+'\'':'null')+')">'+(c?'Salvar':'Criar conta')+'</button></div></div>';
+}
+// a máscara de dinheiro, aceitando o sinal de menos (cheque especial)
+function mascaraMoedaSinal(inp){
+  var neg=/^\s*-/.test(inp.value); mascaraMoeda(inp); if(neg && inp.value) inp.value='-'+inp.value;
+}
+function bancoSalvar(id){
+  var banco=(el('bkBanco').value||'').trim(), numero=(el('bkNum').value||'').replace(/\D/g,'');
+  var tit=el('bkTit').value||'PF', dia=el('bkData').value;
+  var txt=String(el('bkSaldo').value||'0'), neg=/^\s*-/.test(txt);
+  var saldo=(parseFloat(txt.replace(/[^\d,]/g,'').replace(',','.'))||0)*(neg?-1:1);
+  if(!banco){ toast('Diga o banco'); return; }
+  if(!dia){ toast('Diga o dia do saldo'); return; }
+  var fim=numero?numero.slice(-4):null;
+  var dados={ instituicao:banco, titular:tit, final:fim, saldo_inicial:Math.round(saldo*100)/100, saldo_desde:dia };
+  var feito;
+  if(id){
+    feito=ponteRest('/rest/v1/contas?id=eq.'+id, { metodo:'PATCH', corpo:dados, prefer:'return=minimal' });
+  } else {
+    var base=(normaliza(banco).toUpperCase()+' '+tit+(fim?' '+fim:'')).slice(0,56), nome=base, k=2;
+    var usados=(ST.bancos||[]).map(function(c){ return c.nome; });
+    while(usados.indexOf(nome)>=0) nome=base+' '+(k++);
+    dados.nome=nome; dados.tipo='CORRENTE'; dados.user_id=window.EASYAPP_PONTE.sessao().user_id;
+    feito=ponteRest('/rest/v1/contas', { metodo:'POST', corpo:dados, prefer:'return=minimal' });
+  }
+  feito.then(function(){
+    toast(id?'Conta salva':'Conta criada'); ST.bancoNovo=false; ST.bancoEd=null; ST.bancos=null;
+    ST.cacheMes={}; ST.extras=null; ST.saldos=null; bancosCarregar();
+  }).catch(function(e){ toast('Não salvei: '+e.message); });
+}
+function bancoExcluir(id){
+  var c=(ST.bancos||[]).filter(function(x){ return x.id===id; })[0]; if(!c) return;
+  if(!confirm('Excluir a conta '+c.nome+'? Os lançamentos dela ficam, sem conta.')) return;
+  ponteRest('/rest/v1/contas?id=eq.'+id, { metodo:'DELETE', prefer:'return=minimal' }).then(function(){
+    toast('Conta excluída'); ST.bancos=null; ST.cacheMes={}; ST.extras=null; bancosCarregar();
+  }).catch(function(e){ toast('Não excluí: '+e.message); });
+}
+function bancoLigarHtml(m){
+  var ofs=(ST.bancos||[]).filter(function(o){ return o.of && (o.tipo==='CARTAO')===(m.tipo==='CARTAO'); })
+    .sort(function(a,b){ return (bancoDe(b)===bancoDe(m))-(bancoDe(a)===bancoDe(m)) || a.nome.localeCompare(b.nome,'pt-BR'); });
+  if(!ofs.length) return '<div class="m" style="font-size:12px;margin-top:8px">Nenhuma conta do Open Finance ainda. Conecte o banco em Configurações → Minha conta → Open Finance e volte aqui.</div>';
+  return '<div style="border-top:1px solid var(--line);margin-top:9px;padding-top:9px"><div class="m" style="font-size:12px">Qual conta do Open Finance é esta? A manual sai e fica a do banco, com o saldo do banco.</div>'+
+    ofs.map(function(o){ return '<button class="bt-no" style="width:100%;margin-top:6px;text-align:left" onclick="bancoVincular(\''+m.id+'\',\''+o.id+'\')">'+
+      o.nome+' <span style="color:var(--dim)">· saldo '+moeda(o.saldo||0)+'</span></button>'; }).join('')+'</div>';
+}
+function bancoVincular(manual, of){
+  var m=(ST.bancos||[]).filter(function(x){ return x.id===manual; })[0], o=(ST.bancos||[]).filter(function(x){ return x.id===of; })[0];
+  if(!m||!o) return;
+  if(!confirm(m.nome+' é a '+o.nome+'?\n\nA conta manual sai e fica a do Open Finance, com o saldo do banco. '+
+              'O que você lançou à mão e o banco também trouxe não fica repetido.')) return;
+  toast('Juntando...');
+  ponteFn('openfinance', { acao:'vincular_manual', manual:manual, openfinance:of }).then(function(r){
+    ofNovasGravar(ofNovasLer().filter(function(x){ return x.id!==of; }));
+    toast('Pronto: '+r.conta+(r.removidos?' · '+r.removidos+' lançamento(s) repetido(s) saíram':''));
+    ST.bancoLigar=null; ST.bancos=null; ST.cacheMes={}; ST.extras=null; ST.saldos=null; bancosCarregar();
+  }).catch(function(e){ toast('Não juntei: '+e.message); });
+}
+function ofNaoLer(){ try{ return JSON.parse(localStorage.getItem('easyapp:of-nao')||'[]'); }catch(e){ return []; } }
+function bancoNaoE(of){
+  ofNovasGravar(ofNovasLer().filter(function(x){ return x.id!==of; }));
+  var n=ofNaoLer(); n.push(of); try{ localStorage.setItem('easyapp:of-nao', JSON.stringify(n)); }catch(e){}
+  bancosCarregar();
 }
 
 /* ---------- CONTAS ---------- */
