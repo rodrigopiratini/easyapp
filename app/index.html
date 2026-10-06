@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.6 \u00b7 06/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.7 \u00b7 06/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -5296,6 +5296,10 @@
   var P = window.EASYAPP_PONTE, CFG = window.EASYAPP_CFG || {};
   var VERSAO_TERMOS = '2026-10-02';
   var SITE = 'https://easyappfinancial.com.br/';
+  /* A versão nova do APK sai daqui, direto de onde o build publica: o site só
+     copiava de 5 em 5 minutos (e o GitHub atrasa esse relógio, às vezes meia
+     hora), então o app demorava para ver a atualização. */
+  var APK_BASE = 'https://nhngqhgxmrnqbcnklrwc.supabase.co/storage/v1/object/public/app/';
   var cap = window.Capacitor;
   var nativo = !!(cap && cap.nativePromise && cap.isNativePlatform && cap.isNativePlatform());
   var iniciado = false;
@@ -5855,7 +5859,7 @@
           });
         };
       });
-      b('cAtualizarApp', function (e) { e.preventDefault(); instalarAtualizacao(SITE + 'EasyAPP-Financial.apk?v=' + versaoSite, aviso); });
+      b('cAtualizarApp', function (e) { e.preventDefault(); instalarAtualizacao(APK_BASE + 'EasyAPP-Financial.apk?v=' + versaoSite, aviso); });
       b('cMdSalvar', function () {
         var n = parseInt(($('cMdDias') || {}).value, 10);
         if (!(n >= 0 && n < 1000)) { aviso('Digite quantos dias faltam (veja no MacroDroid)'); return; }
@@ -5927,11 +5931,11 @@
     var minha = numVersao(CFG.versao);
     if (!minha) return;
     ultimaChecagem = Date.now();
-    fetch(SITE + 'versao.json?x=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (v) {
+    fetch(APK_BASE + 'versao.json?x=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (v) {
       var txt = v.maior + '.' + v.menor + '.' + v.build, nova = numVersao(txt);
       versaoSite = txt;
       if (nova <= minha || $('cVersaoNova')) return;
-      var link = SITE + 'EasyAPP-Financial.apk?v=' + txt;
+      var link = APK_BASE + 'EasyAPP-Financial.apk?v=' + txt;
       var ja = ''; try { ja = localStorage.getItem('easyapp:baixou-versao') || ''; } catch (e) {}
       var falar = function (t) { var x = $('cVnMsg'); if (x) x.textContent = t; };
       if (ja !== txt) {
@@ -5955,7 +5959,7 @@
   // o Android costuma só VOLTAR com o app (ele fica em segundo plano): confere
   // de novo ao voltar, no máximo a cada 30 minutos
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible' && iniciado && Date.now() - ultimaChecagem > 30 * 60e3) checarVersao();
+    if (document.visibilityState === 'visible' && iniciado && Date.now() - ultimaChecagem > 5 * 60e3) checarVersao();
   });
 
   (function medirTopo() {
