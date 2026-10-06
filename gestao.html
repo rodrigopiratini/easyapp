@@ -111,6 +111,36 @@
   .zona.perigo button{background:var(--verm);color:#fff}
   .zona button:disabled{opacity:.45;cursor:default}
   .janela .resumo{font-size:13px;color:var(--tx2);margin-top:12px;min-height:18px}
+  /* abertura: a logo grande no meio, some quando os dados chegam */
+  #abertura{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .45s}
+  #abertura img{width:112px;height:112px;border-radius:26px;box-shadow:0 12px 40px rgba(59,130,246,.35);animation:pulsa 1.6s ease-in-out infinite}
+  #abertura b{font-size:22px;letter-spacing:.02em}#abertura b i{color:var(--azul);font-style:normal}
+  #abertura small{color:var(--tx2);font-size:13px}
+  #abertura.some{opacity:0;pointer-events:none}
+  @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+  h1 img{width:30px;height:30px;border-radius:8px;vertical-align:-7px;margin-right:9px}
+  .abas{display:flex;gap:6px;margin:14px 0 4px;border-bottom:1px solid var(--line);overflow-x:auto}
+  .abas button{background:none;border:0;border-bottom:2px solid transparent;color:var(--tx2);padding:10px 14px;font-size:14.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .abas button.on{color:var(--tx);border-bottom-color:var(--azul)}
+  /* saldo da IA: o número grande, o medidor e quanto dura */
+  .heroi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:grid;grid-template-columns:1.2fr 1fr;gap:18px;align-items:center}
+  .heroi .rot{font-size:12px;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
+  .heroi .num{font-size:40px;font-weight:800;line-height:1.1;margin:4px 0;font-variant-numeric:tabular-nums}
+  .heroi .num.r{color:var(--verm)}.heroi .num.v{color:var(--verde)}
+  .heroi .sub2{color:var(--tx2);font-size:13px}
+  .medidor{height:12px;border-radius:7px;background:var(--bg);border:1px solid var(--line);overflow:hidden;margin:10px 0 6px}
+  .medidor i{display:block;height:100%;border-radius:6px}
+  .heroi form,.heroi .acoes{display:grid;gap:8px}
+  .heroi input{width:100%;padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--tx);font-size:14px}
+  .heroi button{padding:10px;border:0;border-radius:9px;background:var(--azul);color:#fff;font-weight:700;cursor:pointer}
+  .heroi button.sec{background:var(--bg);border:1px solid var(--line);color:var(--tx)}
+  @media(max-width:700px){.heroi{grid-template-columns:1fr}.heroi .num{font-size:34px}}
+  .ranking{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+  .ranking .lin{display:grid;grid-template-columns:minmax(0,1.3fr) 2fr auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .ranking .lin:last-child{border-bottom:0}
+  .ranking .lin span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ranking .bar{height:10px;background:var(--bg);border-radius:5px;overflow:hidden}.ranking .bar i{display:block;height:100%;background:var(--azul);border-radius:0 4px 4px 0}
+  .ranking b{font-variant-numeric:tabular-nums;white-space:nowrap}
   .rodape{margin-top:28px;padding-top:12px;border-top:1px solid var(--line);color:var(--tx2);font-size:12px;text-align:center}
   /* login */
   .login{max-width:360px;margin:12vh auto 0}
@@ -121,6 +151,7 @@
 </style>
 </head>
 <body>
+<div id="abertura"><img src="img/icone-192.png" alt=""><b>Easy<i>APP</i> · Gestão</b><small>abrindo o painel…</small></div>
 <div class="cx" id="cx"></div>
 <script>
 /* Gestão do EasyAPP: só para o dono. A página não tem dado nenhum; os números
@@ -133,7 +164,14 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.2.0 · 05/10/2026';
+var VERSAO_PAINEL = '1.3.0 · 06/10/2026';
+var ABERTO_EM = Date.now();
+function tirarAbertura() {
+  var a = document.getElementById('abertura'); if (!a || a.classList.contains('some')) return;
+  setTimeout(function () { a.classList.add('some'); setTimeout(function () { a.remove(); }, 500); }, Math.max(0, 900 - (Date.now() - ABERTO_EM)));
+}
+var ABA = (function () { try { return localStorage.getItem('gestao:aba') || 'geral'; } catch (e) { return 'geral'; } })();
+function trocarAba(a) { ABA = a; try { localStorage.setItem('gestao:aba', a); } catch (e) {} desenhar(); window.scrollTo(0, 0); }
 function rodape() { return '<div class="rodape">Painel de gestão · versão ' + VERSAO_PAINEL + '</div>'; }
 var VERSAO = '';   // a do APK publicado no site (versao.json, copiado pelo publicar-site --apk)
 fetch('versao.json', { cache: 'no-store' }).then(function (r) { return r.json(); })
@@ -149,10 +187,11 @@ function sessao(v) {
 }
 
 function telaLogin(erro) {
-  cx.innerHTML = '<div class="login"><h1>Easy<i>APP</i> · Gestão</h1><p>Entre com o login de administrador.</p>' +
+  cx.innerHTML = '<div class="login"><h1><img src="img/icone-192.png" alt="">Easy<i>APP</i> · Gestão</h1><p>Entre com o login de administrador.</p>' +
     '<input id="m" type="email" autocomplete="username" placeholder="e-mail">' +
     '<input id="s" type="password" autocomplete="current-password" placeholder="senha">' +
     '<button id="b">Entrar</button><div class="msg" id="e">' + esc(erro || '') + '</div></div>' + rodape();
+  tirarAbertura();
   function vai() {
     var b = document.getElementById('b'); b.disabled = true;
     fetch(URL_SB + '/auth/v1/token?grant_type=password', {
@@ -485,41 +524,60 @@ document.addEventListener('click', function (ev) { var a = ev.target.closest && 
 window.addEventListener('scroll', function () { dicaEl.style.display = 'none'; }, { passive: true });
 
 function blocoApi(a) {
-  var link = '<a class="zap" style="color:var(--azul)" target="_blank" rel="noopener" href="https://console.anthropic.com/settings/billing">comprar créditos ↗</a>';
   var cb = DADOS.cambio || { usd_brl: 5.6, fonte: 'aproximado' };
-  var h = '<h2>Crédito da IA (Anthropic) · ' + link + '</h2>';
+  var conhecido = a.saldo != null;
   a.diario = a.diario && a.diario.length ? a.diario : [{ dia: new Date().toISOString().slice(0, 10), usd: 0 }];
-  var fonte = a.fonte === 'anthropic' ? '<span style="color:var(--verde)">● gasto real, puxado da Anthropic</span>'
-    : '<span style="color:var(--amb)">● gasto anotado pelo app</span> (para puxar o real da Anthropic, coloque o segredo ANTHROPIC_ADMIN_KEY na função gestao)';
-  h += '<div class="sub" style="margin-bottom:8px">' + fonte + (a.erro ? ' · <span style="color:var(--verm)">' + esc(a.erro) + '</span>' : '') + '</div>';
-  var pouco = a.saldo != null && (a.saldo < 3 || (a.dias !== null && a.dias < 7));
-  h += '<div class="grade">' +
-    (a.recargas && a.recargas.length ? k('Saldo para gastar', usdTxt(a.saldo), emReais(a.saldo) + ' · comprado ' + usdTxt(a.comprado) + ' − usado ' + usdTxt(a.usado), pouco ? 'r' : 'v') : '') +
+  var g30 = a.diario.reduce(function (t, x) { return t + x.usd; }, 0);
+  var pouco = conhecido && (a.saldo < 3 || (a.dias !== null && a.dias < 7));
+  var h = '<h2>Crédito da IA na Anthropic · <a class="zap" style="color:var(--azul)" target="_blank" rel="noopener" href="https://console.anthropic.com/settings/billing">abrir o console ↗</a></h2>';
+  // 1) o número que importa: quanto ainda tem, e para quantos dias dá
+  h += '<div class="heroi"><div>';
+  if (conhecido) {
+    var pct = a.comprado > 0 ? Math.max(0, Math.min(100, a.saldo / a.comprado * 100)) : 0;
+    h += '<div class="rot">Saldo para gastar</div>' +
+      '<div class="num ' + (pouco ? 'r' : 'v') + '">' + usdTxt(a.saldo) + '</div>' +
+      '<div class="sub2">' + emReais(a.saldo) + ' · ' + (a.dias === null ? 'sem uso recente' : (pouco ? '⚠️ ' : '') + 'dá para uns <b>' + a.dias + (a.dias === 1 ? ' dia' : ' dias') + '</b> no ritmo atual') + '</div>' +
+      '<div class="medidor" title="' + pct.toFixed(0) + '% do que havia"><i style="width:' + pct.toFixed(1) + '%;background:' + (pouco ? 'var(--verm)' : 'var(--verde)') + '"></i></div>' +
+      '<div class="sub2">' + (a.base_saldo ? 'você informou ' + usdTxt(a.base_saldo.usd) + ' em ' + dt(a.base_saldo.data + 'T12:00:00') : 'comprado ' + usdTxt(a.comprado)) +
+        ' − gasto desde então ' + usdTxt(a.usado) + '</div>';
+  } else {
+    h += '<div class="rot">Saldo para gastar</div><div class="num" style="color:var(--amb)">?</div>' +
+      '<div class="sub2">A Anthropic não informa o saldo por API. Abra o console (link acima), veja o <b>Credit balance</b> e informe ao lado: daí em diante o painel desconta o que os clientes gastam e mostra quanto sobra.</div>';
+  }
+  h += '</div><div class="acoes">' +
+    '<form onsubmit="informarSaldo();return false"><label class="sub2">Saldo que o console mostra hoje (US$)</label>' +
+      '<input id="apiSaldo" inputmode="decimal" placeholder="ex.: 42,17"><button>' + (conhecido ? 'Atualizar o saldo' : 'Informar o saldo') + '</button></form>' +
+    '<form onsubmit="registrarRecarga();return false"><label class="sub2">Comprei créditos (US$)</label>' +
+      '<div style="display:flex;gap:6px"><input id="apiUsd" inputmode="decimal" placeholder="20"><input id="apiData" type="date" value="' + new Date().toISOString().slice(0, 10) + '" style="max-width:150px"></div>' +
+      '<button class="sec">Registrar compra</button></form>' +
+  '</div></div>';
+  // 2) em números
+  h += '<div class="grade" style="margin-top:10px">' +
     k('Gasto por dia', usdTxt(a.por_dia), emReais(a.por_dia) + ' · média de 7 dias') +
-    (a.recargas && a.recargas.length ? k('Dura mais', a.dias === null ? '—' : a.dias + (a.dias === 1 ? ' dia' : ' dias'), pouco ? 'hora de recarregar' : 'no ritmo atual', pouco ? 'r' : '') : '') +
-    k('Gasto em 30 dias', usdTxt(a.diario.reduce(function (t, x) { return t + x.usd; }, 0)), emReais(a.diario.reduce(function (t, x) { return t + x.usd; }, 0))) +
+    k('Gasto em 30 dias', usdTxt(g30), emReais(g30)) +
     k('Dólar', brl(cb.usd_brl), cb.fonte + (cb.quando ? ' · ' + esc(String(cb.quando).slice(0, 16)) : '')) +
-    '</div>';
-  if (!(a.recargas && a.recargas.length))
-    h += '<div class="sub" style="margin:8px 0">Registre aqui cada compra de crédito na Anthropic: o painel desconta o gasto e mostra quanto ainda tem.</div>';
-  h += '<div class="graficos">';
+    k('De onde vem o gasto', a.fonte === 'anthropic' ? 'Anthropic' : 'app', a.fonte === 'anthropic' ? 'custo real' : 'custo anotado a cada pedido') +
+    '</div>' + (a.erro ? '<div class="sub" style="color:var(--verm)">' + esc(a.erro) + '</div>' : '');
+  // 3) os gráficos: o saldo descendo e o gasto de cada dia
+  h += '<div class="graficos" style="margin-top:10px">';
   if (a.saldo_dia && a.saldo_dia.length > 1) h += graficoLinha({ titulo: 'Saldo dia a dia', destaque: usdTxt(a.saldo), cor: 'var(--verde)',
-    nota: 'compras − gasto, desde a primeira compra', pts: a.saldo_dia.map(function (x) { return { rot: nomeDia(x.dia), v: x.usd, dica: nomeDia(x.dia) + ': saldo ' + usdBrl(x.usd) }; }) });
-  h += grafico({ titulo: 'Gasto por dia na Anthropic', destaque: usdTxt(a.diario[a.diario.length - 1].usd) + ' hoje', cada: 5,
+    nota: 'quanto havia no fim de cada dia', pts: a.saldo_dia.map(function (x) { return { rot: nomeDia(x.dia), v: x.usd, dica: nomeDia(x.dia) + ': saldo ' + usdBrl(x.usd) }; }) });
+  h += grafico({ titulo: 'Gasto por dia', destaque: usdTxt(a.diario[a.diario.length - 1].usd) + ' hoje', cada: 5,
     nota: 'últimos 30 dias, em US$ (toque numa barra para ver em R$)',
     pts: a.diario.map(function (x) { return { rot: nomeDia(x.dia), v: x.usd, dica: nomeDia(x.dia) + ': ' + usdBrl(x.usd) }; }) });
   h += '</div>';
   if (a.usado_app != null && a.fonte === 'anthropic' && Math.abs(a.usado - a.usado_app) >= 0.5)
-    h += '<div class="sub" style="margin-top:6px">O app anotou ' + usdTxt(a.usado_app) + ' no mesmo período: a diferença (' + usdTxt(a.usado - a.usado_app) + ') é uso fora do app ou cálculo de preço desatualizado.</div>';
-  h += '<div class="form" style="margin-top:10px">' +
-    '<div><label>Compra (US$)</label><input id="apiUsd" inputmode="decimal" placeholder="20"></div>' +
-    '<div><label>Data da compra</label><input id="apiData" type="date" value="' + new Date().toISOString().slice(0, 10) + '"></div>' +
-    '<div><button onclick="registrarRecarga()">Registrar compra</button></div></div>';
-  if (a.recargas && a.recargas.length) h += '<div class="sub" style="margin-top:8px">' + a.recargas.map(function (r, i) {
-    return dt(r.data + 'T12:00:00') + ' · ' + usdTxt(r.usd) + ' <button class="mini" onclick="if(confirm(\'Apagar esta compra?\'))acao({acao:\'api_recarga_apagar\',i:' + i + '})">apagar</button>';
+    h += '<div class="sub" style="margin-top:6px">O app anotou ' + usdTxt(a.usado_app) + ' no mesmo período: a diferença (' + usdTxt(a.usado - a.usado_app) + ') é uso fora do app ou preço desatualizado.</div>';
+  if (a.recargas && a.recargas.length) h += '<div class="sub" style="margin-top:8px">Registros: ' + a.recargas.map(function (r, i) {
+    return dt(r.data + 'T12:00:00') + ' · ' + (r.tipo === 'saldo' ? 'saldo informado ' : 'compra ') + usdTxt(r.usd) +
+      ' <button class="mini" onclick="if(confirm(\'Apagar este registro?\'))acao({acao:\'api_recarga_apagar\',i:' + i + '})">apagar</button>';
   }).join(' &nbsp; ') + '</div>';
-  h += '<div class="sub" style="margin-top:6px">A Anthropic não informa o saldo por API (só o gasto): registre aqui cada compra ou recarga automática.</div>';
   return h;
+}
+function informarSaldo() {
+  var v = Number(String(document.getElementById('apiSaldo').value || '').replace(/\./g, '').replace(',', '.'));
+  if (!(v >= 0) || document.getElementById('apiSaldo').value.trim() === '') { alert('Digite o saldo em US$'); return; }
+  acao({ acao: 'api_saldo', usd: v });
 }
 // cores validadas para daltonismo no fundo escuro
 var COR_MOTOR = { 'Ágil (Haiku)': '#199e70', 'Padrão (Sonnet)': '#3987e5', 'Profundo (Opus)': '#c98500' };
@@ -576,41 +634,19 @@ function k(rot, val, nota, cls) {
 
 function desenhar() {
   var d = DADOS, r = d.resumo, p = r.planos;
-  var h = '<div class="topo"><h1>Easy<i>APP</i> · Gestão</h1><div><button class="lk" id="at">Atualizar</button> · <button class="lk" id="sair">Sair</button></div></div>' +
+  var aba = function (k, t) { return '<button class="' + (ABA === k ? 'on' : '') + '" onclick="trocarAba(\'' + k + '\')">' + t + '</button>'; };
+  var h = '<div class="topo"><h1><img src="img/icone-192.png" alt="">Easy<i>APP</i> · Gestão</h1><div><button class="lk" id="at">Atualizar</button> · <button class="lk" id="sair">Sair</button></div></div>' +
     '<div class="sub">atualizado ' + new Date(d.gerado_em).toLocaleString('pt-BR') + (VERSAO ? ' · app no site: versão ' + esc(VERSAO) : '') + '</div>' +
+    '<div class="abas">' + aba('geral', '📊 Visão geral') + aba('ia', '✦ IA e créditos') + aba('pessoas', '👥 Pessoas e vouchers') + '</div>';
 
-    '<h2>Inscritos</h2><div class="grade">' +
-    k('Inscritos', r.inscritos, '+' + r.novos_7d + ' na semana · +' + r.novos_30d + ' no mês') +
-    k('Entraram em 7 dias', r.ativos_7d, r.inscritos ? Math.round(r.ativos_7d / r.inscritos * 100) + '% da base' : '') +
-    k('Sem confirmar e-mail', r.sem_confirmar, '', r.sem_confirmar ? 'a' : '') +
-    k('Sem primeiro acesso', r.sem_primeiro_acesso, 'criaram e não terminaram', r.sem_primeiro_acesso ? 'a' : '') +
-    k('Com Open Finance', r.com_open_finance, r.erros_open_finance ? r.erros_open_finance + ' com erro' : '', r.erros_open_finance ? 'a' : '') +
-    '</div>' +
-
-    '<h2>Assinaturas</h2><div class="grade">' +
-    k('Pagantes', r.pagantes, p.mensal + ' mensal · ' + p.anual + ' anual', 'v') +
-    k('Receita recorrente', brl(r.mrr), 'por mês (MRR)', 'v') +
-    k('Em teste', p.teste, '14 dias grátis') +
-    k('Cortesia', p.cortesia) +
-    k('Cortesia só app', p.cortesia_app || 0) +
-    k('Vencidos', p.vencido, 'teste ou plano acabou', p.vencido ? 'r' : '') +
-    k('Recusados (30 dias)', r.pagamentos_recusados_30d, 'cartão recusado no MP', r.pagamentos_recusados_30d ? 'r' : '') +
-    '</div>' +
-
-    '<h2>Este mês</h2><div class="grade">' +
-    k('Receita bruta', brl(r.receita_mes), 'mensalidades + anual + créditos', 'v') +
-    k('Taxa do Mercado Pago', '− ' + brl(r.taxa_mp_mes), ((d.taxa_mp || 0) * 100).toLocaleString('pt-BR') + '% das compras', 'a') +
-    k('Receita líquida', brl(r.receita_liquida_mes), 'o que fica com você', 'v') +
-    k('Créditos vendidos', brl(r.creditos_mes), brl(r.creditos_total) + ' desde o início') +
-    k('Pedidos ao assistente', r.ia_pedidos_mes) +
-    k('Custo da IA', usdTxt(r.ia_custo_mes_usd), brl(r.ia_custo_mes_brl) + (d.motores && d.motores.fonte === 'anthropic' ? ' · real da Anthropic' : ' · anotado pelo app')) +
-    k('IA cobrada dos clientes', brl(r.ia_cobrado_mes), 'margem ' + brl(r.ia_margem_mes) + ' (já sem taxa MP)', r.ia_margem_mes < 0 ? 'r' : '') +
-    k('Resultado', brl(r.resultado_mes), 'receita líquida − custo da IA', r.resultado_mes < 0 ? 'r' : 'v') +
-    '</div>' +
-
-    blocoApi(d.api || {}) + blocoMeses() + blocoMotores(d.motores) +
-
-    '<h2>Vouchers</h2>' + formVoucher() +
+  if (ABA === 'ia') {
+    h += blocoApi(d.api || {}) + blocoClientesIa(d) + blocoMotores(d.motores);
+  } else if (ABA === 'pessoas') {
+    h += '<h2>Pessoas</h2><div class="filtro"><input id="busca" placeholder="buscar nome, e-mail ou WhatsApp" value="' + esc(BUSCA) + '">' +
+      [['todos', 'Todos'], ['pagantes', 'Pagantes'], ['teste', 'Em teste'], ['vencida', 'Vencidos'], ['ia', 'Usam IA']].map(function (o) {
+        return '<button data-f="' + o[0] + '"' + (FILTRO === o[0] ? ' class="on"' : '') + '>' + o[1] + '</button>';
+      }).join('') + '</div><div class="tab" id="tab">' + tabela() + '</div>' +
+      '<h2>Vouchers</h2>' + formVoucher() +
       (d.vouchers && d.vouchers.length ? '<div class="tab" style="margin-top:10px"><table><thead><tr><th>Código</th><th>Dá</th><th>Usos</th><th>Até</th><th>Nota</th><th></th></tr></thead><tbody>' +
         d.vouchers.map(function (v) {
           return '<tr style="' + (v.ativo ? '' : 'opacity:.45') + '"><td><b>' + esc(v.codigo) + '</b> <button class="mini" onclick="copiar(\'' + esc(v.codigo) + '\')">copiar</button></td>' +
@@ -618,20 +654,63 @@ function desenhar() {
             '<td class="n">' + v.usos + ' / ' + v.usos_max + '</td><td>' + (v.validade ? dt(v.validade) : '—') + '</td><td>' + esc(v.nota || '') + '</td>' +
             '<td><button class="mini" onclick="editarVoucher(\'' + esc(v.codigo) + '\')">editar</button>' +
             (v.ativo ? '<button class="mini" onclick="if(confirm(\'Desligar ' + esc(v.codigo) + '?\'))acao({acao:\'voucher_desligar\',codigo:\'' + esc(v.codigo) + '\'})">desligar</button>' : ' desligado') + '</td></tr>';
-        }).join('') + '</tbody></table></div>' : '') +
-
-    '<h2>Pessoas</h2><div class="filtro"><input id="busca" placeholder="buscar nome, e-mail ou WhatsApp" value="' + esc(BUSCA) + '">' +
-    [['todos', 'Todos'], ['pagantes', 'Pagantes'], ['teste', 'Em teste'], ['vencida', 'Vencidos'], ['ia', 'Usam IA']].map(function (o) {
-      return '<button data-f="' + o[0] + '"' + (FILTRO === o[0] ? ' class="on"' : '') + '>' + o[1] + '</button>';
-    }).join('') + '</div><div class="tab" id="tab">' + tabela() + '</div>' + rodape();
+        }).join('') + '</tbody></table></div>' : '');
+  } else {
+    var a = d.api || {};
+    h += (a.saldo != null ? '<div class="sub" style="margin-top:10px">✦ Crédito da IA: <b style="color:' + (a.saldo < 3 || (a.dias !== null && a.dias < 7) ? 'var(--verm)' : 'var(--verde)') + '">' +
+          usdTxt(a.saldo) + '</b> (' + emReais(a.saldo) + ')' + (a.dias !== null && a.dias !== undefined ? ' · dura uns ' + a.dias + ' dias' : '') +
+          ' · <a href="#" style="color:var(--azul)" onclick="trocarAba(\'ia\');return false">ver</a></div>'
+        : '<div class="sub" style="margin-top:10px">✦ Saldo da IA ainda desconhecido · <a href="#" style="color:var(--azul)" onclick="trocarAba(\'ia\');return false">informar agora</a></div>') +
+      '<h2>Inscritos</h2><div class="grade">' +
+      k('Inscritos', r.inscritos, '+' + r.novos_7d + ' na semana · +' + r.novos_30d + ' no mês') +
+      k('Entraram em 7 dias', r.ativos_7d, r.inscritos ? Math.round(r.ativos_7d / r.inscritos * 100) + '% da base' : '') +
+      k('Sem confirmar e-mail', r.sem_confirmar, '', r.sem_confirmar ? 'a' : '') +
+      k('Sem primeiro acesso', r.sem_primeiro_acesso, 'criaram e não terminaram', r.sem_primeiro_acesso ? 'a' : '') +
+      k('Com Open Finance', r.com_open_finance, r.erros_open_finance ? r.erros_open_finance + ' com erro' : '', r.erros_open_finance ? 'a' : '') +
+      '</div>' +
+      '<h2>Assinaturas</h2><div class="grade">' +
+      k('Pagantes', r.pagantes, p.mensal + ' mensal · ' + p.anual + ' anual', 'v') +
+      k('Receita recorrente', brl(r.mrr), 'por mês (MRR)', 'v') +
+      k('Em teste', p.teste, '14 dias grátis') +
+      k('Cortesia', p.cortesia) +
+      k('Cortesia só app', p.cortesia_app || 0) +
+      k('Vencidos', p.vencido, 'teste ou plano acabou', p.vencido ? 'r' : '') +
+      k('Recusados (30 dias)', r.pagamentos_recusados_30d, 'cartão recusado no MP', r.pagamentos_recusados_30d ? 'r' : '') +
+      '</div>' +
+      '<h2>Este mês</h2><div class="grade">' +
+      k('Receita bruta', brl(r.receita_mes), 'mensalidades + anual + créditos', 'v') +
+      k('Taxa do Mercado Pago', '− ' + brl(r.taxa_mp_mes), ((d.taxa_mp || 0) * 100).toLocaleString('pt-BR') + '% das compras', 'a') +
+      k('Receita líquida', brl(r.receita_liquida_mes), 'o que fica com você', 'v') +
+      k('Créditos vendidos', brl(r.creditos_mes), brl(r.creditos_total) + ' desde o início') +
+      k('Custo da IA', usdTxt(r.ia_custo_mes_usd), brl(r.ia_custo_mes_brl) + (d.motores && d.motores.fonte === 'anthropic' ? ' · real da Anthropic' : ' · anotado pelo app')) +
+      k('IA cobrada dos clientes', brl(r.ia_cobrado_mes), 'margem ' + brl(r.ia_margem_mes) + ' (já sem taxa MP)', r.ia_margem_mes < 0 ? 'r' : '') +
+      k('Resultado', brl(r.resultado_mes), 'receita líquida − custo da IA', r.resultado_mes < 0 ? 'r' : 'v') +
+      '</div>' + blocoMeses();
+  }
+  h += rodape();
   cx.innerHTML = h;
+  tirarAbertura();
 
   document.getElementById('at').onclick = carregar;
   document.getElementById('sair').onclick = function () { sessao(null); DADOS = null; telaLogin(); };
   Array.prototype.forEach.call(cx.querySelectorAll('[data-f]'), function (b) { b.onclick = function () { FILTRO = b.dataset.f; desenhar(); }; });
-  document.getElementById('busca').oninput = function (ev) { BUSCA = ev.target.value; document.getElementById('tab').innerHTML = tabela(); };
+  var bu = document.getElementById('busca');
+  if (bu) bu.oninput = function (ev) { BUSCA = ev.target.value; document.getElementById('tab').innerHTML = tabela(); };
 }
-
+// quem mais usa a IA neste mês: barras de um tom só, do maior para o menor
+function blocoClientesIa(d) {
+  var ps = (d.pessoas || []).filter(function (p) { return p.ia_pedidos_mes > 0; })
+    .sort(function (a, b) { return b.ia_custo_mes_usd - a.ia_custo_mes_usd; }).slice(0, 12);
+  if (!ps.length) return '<h2>Consumo por cliente · este mês</h2><div class="sub">Ninguém usou o assistente este mês.</div>';
+  var max = ps[0].ia_custo_mes_usd || 1, tot = ps.reduce(function (t, p) { return t + p.ia_custo_mes_usd; }, 0);
+  return '<h2>Consumo por cliente · este mês</h2><div class="sub" style="margin-bottom:8px">custo na Anthropic (US$) de cada cliente; ao lado, o que ele pagou ou usou de franquia/créditos · total ' + usdTxt(tot) + '</div>' +
+    '<div class="ranking">' + ps.map(function (p) {
+      return '<div class="lin" title="' + esc(p.ia_pedidos_mes + ' pedidos · custo ' + usdTxt(p.ia_custo_mes_usd) + ' · cobrado ' + brl(p.ia_cobrado_mes)) + '">' +
+        '<span>' + esc(p.nome || p.email) + ' <small style="color:var(--tx2)">· ' + esc(p.plano || '—') + ' · ' + p.ia_pedidos_mes + ' pedidos</small></span>' +
+        '<div class="bar"><i style="width:' + Math.max(2, p.ia_custo_mes_usd / max * 100).toFixed(1) + '%"></i></div>' +
+        '<b>' + usdTxt(p.ia_custo_mes_usd) + ' <small style="color:var(--tx2);font-weight:500">' + brl(p.ia_cobrado_mes) + '</small></b></div>';
+    }).join('') + '</div>';
+}
 function tabela() {
   var b = BUSCA.trim().toLowerCase(), bd = b.replace(/\D/g, '');
   var ps = DADOS.pessoas.filter(function (p) {

@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.1 \u00b7 06/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.2 \u00b7 06/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -891,9 +891,16 @@
   /** Devolve o uuid da linha, aceitando id novo ou id da planilha. */
   function acharLinha(id) {
     if (!id) return Promise.resolve(null);
-    var campo = ehUuid(id) ? 'id' : 'origem_id';
-    return rest('/rest/v1/lancamentos?select=id&' + campo + '=eq.' + encodeURIComponent(id) + '&limit=1')
-      .then(function (r) { return r.length ? r[0].id : null; });
+    /* O id da tela é o origem_id quando há um (paraItem). O do Open Finance
+       (Pluggy) também tem cara de uuid: buscando só por "id", o lançamento não
+       era achado e Confirmar/Ignorar não faziam nada. Agora procura nos dois. */
+    var q = ehUuid(id) ? 'or=(id.eq.' + id + ',origem_id.eq.' + id + ')' : 'origem_id=eq.' + encodeURIComponent(id);
+    return rest('/rest/v1/lancamentos?select=id,origem_id&' + q + '&limit=2')
+      .then(function (r) {
+        if (!r.length) return null;
+        var exato = r.filter(function (x) { return x.origem_id === id; })[0];
+        return (exato || r[0]).id;
+      });
   }
   function idDaCategoria(nome) {
     if (!nome) return Promise.resolve(null);
@@ -7361,7 +7368,9 @@ function confirmar(i){
   }
   el('p'+i).style.opacity=.35;
   var vezes = el('pc'+i) ? Number(el('pc'+i).value)||1 : 1;
-  google.script.run.withSuccessHandler(function(){
+  google.script.run.withSuccessHandler(function(r){
+    // falhou de verdade: avisa e devolve o cartão (antes dizia "Confirmado" e nada mudava)
+    if(r && r.ok===false){ toast('Não salvei: '+(r.erro||'tente de novo')); var c=el('p'+i); if(c) c.style.opacity=1; return; }
     if(vezes>1){
       google.script.run.withSuccessHandler(function(r){
         toast(r&&r.ok ? 'Confirmado em '+r.vezes+'x de '+moeda(r.parcela) : 'Confirmado, mas não parcelei: '+((r&&r.erro)||''));

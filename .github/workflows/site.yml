@@ -9,6 +9,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # o APK novo chega pelo build do Android (no Storage do Supabase); de hora em
+  # hora o site confere e, se mudou, publica de novo com ele
+  schedule:
+    - cron: '17 * * * *'
 
 permissions:
   contents: read
@@ -29,6 +33,22 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: APK e versão mais novos (Storage do Supabase)
+        run: |
+          B=https://nhngqhgxmrnqbcnklrwc.supabase.co/storage/v1/object/public/app
+          if curl -sSf -o /tmp/versao.json "$B/versao.json" && curl -sSf -o /tmp/app.apk "$B/EasyAPP-Financial.apk"; then
+            python3 - <<'PY'
+          import json
+          v = json.load(open('/tmp/versao.json'))
+          site = json.load(open('versao.json'))
+          site.update({k: v[k] for k in ('maior', 'menor', 'build')})
+          json.dump(site, open('versao.json', 'w'), ensure_ascii=False, indent=2)
+          print('versão', v['versao'])
+          PY
+            cp /tmp/app.apk EasyAPP-Financial.apk
+          else
+            echo "sem APK no Storage ainda: fica o do repositório"
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
