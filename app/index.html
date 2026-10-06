@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.4 \u00b7 06/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.5 \u00b7 06/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -1055,6 +1055,27 @@
     });
   }
 
+  /* Cartão múltiplo: o aviso não diz se foi crédito ou débito. Débito sai da
+     conta corrente do mesmo banco (e do mesmo titular), no mês da compra. */
+  function definirTipo(uuid, tipo) {
+    return rest('/rest/v1/lancamentos?select=id,data,dados,conta_id,contas(instituicao,nome,titular)&id=eq.' + uuid + '&limit=1')
+      .then(function (r) {
+        var l = r && r[0];
+        if (!l) return { ok: false, erro: 'não achei o lançamento' };
+        var dados = Object.assign({}, l.dados || {}); delete dados.perguntar_tipo; dados.tipo_escolhido = tipo;
+        if (tipo !== 'DEBITO') return mudar('lancamentos', 'id=eq.' + uuid, { dados: dados }).then(function () { return { ok: true }; });
+        var c = l.contas || {}, banco = String(c.instituicao || c.nome || '').trim().split(/\s+/)[0].toUpperCase();
+        return rest('/rest/v1/contas?select=id,nome,instituicao,titular,tipo&ativa=eq.true&tipo=neq.CARTAO').then(function (cs) {
+          var mesmo = (cs || []).filter(function (x) {
+            return String(x.instituicao || x.nome || '').trim().split(/\s+/)[0].toUpperCase() === banco; });
+          var conta = mesmo.filter(function (x) { return x.titular === c.titular; })[0] || mesmo[0];
+          if (!conta) return { ok: false, erro: 'não achei a conta corrente do ' + banco + ' (cadastre em Configurações → Bancos)' };
+          return mudar('lancamentos', 'id=eq.' + uuid, { meio: 'CAIXA', conta_id: conta.id,
+            mes_ref: String(l.data).slice(0, 7), dados: dados }).then(function () { return { ok: true, conta: conta.nome }; });
+        });
+      });
+  }
+
   function confirmarTodos(itens) {
     return Promise.all((itens || []).map(function (x) {
       return confirmar(x.linha, x.categoria, x.valor, x.id);
@@ -1438,9 +1459,25 @@
   }
 
   /* ------------------------------------------------------- a classificar */
+  /* A cotação do dólar do dia, para o aviso do celular converter compra no
+     exterior (o banco grava na hora em que o aviso chega). Uma vez por dia. */
+  function guardarCambio() {
+    var hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+    try { if (localStorage.getItem('easyapp:cambio') === hoje) return; } catch (e) {}
+    fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(function (r) { return r.json(); })
+      .then(function (j) {
+        var v = Number(j && j.USDBRL && j.USDBRL.ask);
+        if (!(v > 1 && v < 50)) return;
+        return rest('/rest/v1/config?on_conflict=user_id,chave', { metodo: 'POST', prefer: 'resolution=merge-duplicates,return=minimal',
+          corpo: { user_id: uid(), chave: 'CAMBIO_USD', valor: v.toFixed(4).replace('.', ',') + '|' + hoje } })
+          .then(function () { try { localStorage.setItem('easyapp:cambio', hoje); } catch (e) {} });
+      }).catch(function () {});
+  }
+
   function pendentes() {
+    guardarCambio();
     return rest('/rest/v1/lancamentos?select=id,data,valor,natureza,descricao,fornecedor,'
-                + 'meio,status,origem,origem_id,dados,criado_em,contas(nome),categorias(nome)'
+                + 'meio,status,origem,origem_id,dados,criado_em,conta_id,contas(nome,instituicao,titular),categorias(nome)'
                 + '&status=eq.PENDENTE&order=criado_em.desc&limit=60')
       .then(function (linhas) {
         /* O cartão de pendente do Index lê o formato do linhaParaObj_ do
@@ -1458,6 +1495,14 @@
           // compra no cartão não tem conta de saldo: só vira caixa na fatura
           x.faltaConta = l.meio !== 'CARTAO_CREDITO' && !x.conta;
           x.mensagem = String(((l.dados || {}).mensagem) || '').slice(0, 200);
+          var dd = l.dados || {};
+          x.uuid = l.id;
+          x.moeda = dd.moeda && dd.moeda !== 'BRL' ? dd.moeda : '';
+          x.valorOriginal = Number(dd.valor_original) || 0;
+          x.cotacao = Number(dd.cotacao) || 0;
+          x.cotacaoAprox = dd.cotacao_dia === 'aproximada';
+          x.parcelasAviso = Number(dd.parcelas_aviso) || 0;
+          x.perguntarTipo = !!dd.perguntar_tipo && l.meio === 'CARTAO_CREDITO';
           return x;
         });
       });
@@ -3404,6 +3449,7 @@
     apiApagarConta: apagarConta,
     apiConfirmar: confirmar,
     apiParcelar: parcelar,
+    apiDefinirTipo: definirTipo,
     apiEspelhoTransferencia: espelhoTransferencia,
     apiLancarTransferencia: lancarTransferencia,
     apiDistribuir: distribuir,
@@ -6552,6 +6598,8 @@
             font-size:13px;font-weight:400;color:var(--txt);text-align:left;margin-top:6px}
   .bt-mais{background:transparent;color:var(--acc);padding:4px 0;font-size:12.5px;
            font-weight:600;white-space:nowrap}
+  .pd{padding:9px 11px}
+  .pd .pd-conta .bt-conta{margin-top:0;padding:7px 10px}
   .bt-x{background:transparent;color:#5d6b85;padding:0 6px;font-size:16px;
         line-height:1;border-radius:4px;font-weight:400}
   .bt-x:hover{color:var(--bad);background:#2a1414}
@@ -7194,28 +7242,51 @@ function renderPendentes(){
     op += ST.categorias.filter(function(x){return serveParaNatureza(x, p.natureza);})
       .map(function(x){return '<option '+(x.nome===p.categoria?'selected':'')+'>'+x.nome+'</option>';}).join('');
     op += '<option value="__nova">+ criar conta nova</option>';
-    h+='<div class="card'+(p.novo?' novo':'')+'" id="p'+i+'">'+
-       '<div class="row"><div style="min-width:0">'+
-       '<div class="d" style="font-size:15px">'+p.descricao+
-         (p.novo?' <span class="tag">NOVO</span>':'')+'</div>'+
-       '<div class="m">'+p.dataHora+' · '+p.conta+' · '+p.meio.replace(/_/g,' ')+'</div></div>'+
-       '<div class="big '+(p.natureza==='RECEITA'?'pos':'')+'" style="font-size:20px">'+moeda(p.valor)+'</div></div>'+
-       (p.faltaConta?avisoFaltaConta(p,i):'')+
-       botaoConta('c'+i, p.categoria, p.natureza, 'destravar('+i+')')+
-       '<div id="nc'+i+'"></div>'+
-       (p.meio==='CARTAO_CREDITO' && p.natureza==='DESPESA'
-         ? '<div class="row" style="gap:6px;margin-top:6px;align-items:center"><span class="m" style="font-size:12px">Parcelas</span>'+
-           '<select id="pc'+i+'" style="flex:1;margin:0;padding:6px 8px;font-size:13px" onchange="mostrarParcela('+i+')">'+
-           '<option value="1">à vista (1x)</option>'+
-           [2,3,4,5,6,7,8,9,10,11,12,18,24].map(function(k){ return '<option value="'+k+'">'+k+'x</option>'; }).join('')+
-           '</select><span class="m" id="pv'+i+'" style="font-size:12px;min-width:90px;text-align:right"></span></div>'
+    /* Compacto: uma compra em ~3 linhas. Linha 1: nome e valor. Linha 2:
+       quando, onde, como (e dólar, parcelas do aviso). Linha 3: a conta e o
+       ✓. Ignorar, Distribuir e Parcelas ficam no ⋯ */
+    var cartaoCred = p.meio==='CARTAO_CREDITO' && p.natureza==='DESPESA';
+    var tipo = ST.tipoEscolhido && ST.tipoEscolhido[p.uuid];
+    var meioTxt = {CARTAO_CREDITO:'crédito',CAIXA:'conta',PIX:'pix',BOLETO:'boleto',DEBITO:'débito'}[p.meio] || String(p.meio||'').replace(/_/g,' ').toLowerCase();
+    var mais = ST.pendMais===i;
+    var parcSel = p.parcelasAviso>1 ? p.parcelasAviso : 1;
+    var catAtual = (ST.catEscolhida && ST.catEscolhida[p.uuid]) || p.categoria;
+    h+='<div class="card pd'+(p.novo?' novo':'')+'" id="p'+i+'">'+
+       '<div class="row" style="align-items:baseline;gap:8px">'+
+         '<div class="d" style="font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+p.descricao+'</div>'+
+         '<div class="big '+(p.natureza==='RECEITA'?'pos':'')+'" style="font-size:16px;white-space:nowrap">'+moeda(p.valor)+'</div></div>'+
+       '<div class="m" style="font-size:11.5px;margin-top:1px">'+p.dataHora+' · '+(p.conta||'sem conta')+' · '+meioTxt+
+         (p.novo?' · <span class="tag">NOVO</span>':'')+
+         (p.moeda?' · <b style="color:var(--warn)">'+p.moeda+' '+num(p.valorOriginal)+'</b> × '+num(p.cotacao)+(p.cotacaoAprox?' (aprox.)':''):'')+
+         (p.parcelasAviso>1?' · aviso diz <b>'+p.parcelasAviso+'x</b>':'')+'</div>'+
+       (p.perguntarTipo
+         ? '<div class="row" style="gap:6px;margin-top:6px;align-items:center"><span class="m" style="font-size:12px">Foi no</span>'+
+           '<div class="seg" style="flex:1;margin:0">'+
+           '<button style="flex:1;padding:5px" class="'+(tipo==='CREDITO'?'on':'')+'" onclick="escolherTipo('+i+',\'CREDITO\')">crédito</button>'+
+           '<button style="flex:1;padding:5px" class="'+(tipo==='DEBITO'?'on':'')+'" onclick="escolherTipo('+i+',\'DEBITO\')">débito</button></div></div>'
          : '')+
-       '<div class="row" style="margin-top:8px;gap:5px">'+
-       '<button class="bt-no" style="padding:7px 10px;font-size:12.5px" onclick="ignorar('+i+')">Ignorar</button>'+
-       '<button class="bt-no" style="padding:7px 10px;font-size:12.5px" onclick="abrirRateio('+i+')">Distribuir</button>'+
-       '<button class="bt-ok" style="flex:1;padding:7px;font-size:13px" id="b'+i+'" '+(p.novo?'disabled':'')+
-         ' onclick="confirmar('+i+')">Confirmar</button>'+
+       (p.faltaConta?avisoFaltaConta(p,i):'')+
+       '<div class="row" style="gap:5px;margin-top:6px;align-items:stretch">'+
+         '<div style="flex:1;min-width:0" class="pd-conta">'+botaoConta('c'+i, catAtual, p.natureza, 'destravar('+i+')')+'</div>'+
+         '<button class="bt-no" style="padding:0 11px;font-size:16px;flex:none" title="mais" onclick="ST.pendMais=ST.pendMais==='+i+'?null:'+i+';renderPendentes()">⋯</button>'+
+         '<button class="bt-ok" style="padding:0 14px;font-size:13px;flex:none" id="b'+i+'" '+((ST.catEscolhida&&ST.catEscolhida[p.uuid]) || (!p.novo&&catAtual)?'':'disabled')+
+           ' onclick="confirmar('+i+')">✓</button>'+
        '</div>'+
+       '<div id="nc'+i+'"></div>'+
+       // parcelas: aparece sozinho se o aviso falou em parcelas; senão fica no ⋯
+       (cartaoCred && tipo!=='DEBITO' && (mais || parcSel>1)
+         ? '<div class="row" style="gap:6px;margin-top:6px;align-items:center"><span class="m" style="font-size:12px">Parcelas</span>'+
+           '<select id="pc'+i+'" style="flex:1;margin:0;padding:5px 8px;font-size:13px" onchange="mostrarParcela('+i+')">'+
+           [1,2,3,4,5,6,7,8,9,10,11,12,18,24].concat(parcSel>1&&[1,2,3,4,5,6,7,8,9,10,11,12,18,24].indexOf(parcSel)<0?[parcSel]:[])
+             .map(function(k){ return '<option value="'+k+'"'+(k===parcSel?' selected':'')+'>'+(k===1?'à vista':k+'x')+'</option>'; }).join('')+
+           '</select><span class="m" id="pv'+i+'" style="font-size:12px;min-width:84px;text-align:right">'+
+           (parcSel>1?parcSel+' × '+moeda(Math.floor(p.valor*100/parcSel)/100):'')+'</span></div>'
+         : '')+
+       (mais
+         ? '<div class="row" style="margin-top:6px;gap:5px">'+
+           '<button class="bt-no" style="flex:1;padding:6px;font-size:12.5px" onclick="ignorar('+i+')">Ignorar</button>'+
+           '<button class="bt-no" style="flex:1;padding:6px;font-size:12.5px" onclick="abrirRateio('+i+')">Distribuir</button></div>'
+         : '')+
        (ST.rateio===i?painelRateio(p,i):'')+
        '</div>';
   });
@@ -7386,8 +7457,20 @@ function confirmar(i){
       .apiEspelhoTransferencia(p.linha, p.id, destino);
     return;
   }
+  var tipo = ST.tipoEscolhido && ST.tipoEscolhido[p.uuid];
+  if(p.perguntarTipo && !tipo){ toast('Foi no crédito ou no débito?'); return; }
+  if(p.perguntarTipo){
+    el('p'+i).style.opacity=.35;
+    google.script.run.withSuccessHandler(function(r){
+      if(r && r.ok===false){ toast('Não salvei: '+(r.erro||'')); var c=el('p'+i); if(c) c.style.opacity=1; return; }
+      p.perguntarTipo=false; if(tipo==='DEBITO'){ p.meio='CAIXA'; }
+      confirmar(i);
+    }).withFailureHandler(function(){ toast('Falhou'); var c=el('p'+i); if(c) c.style.opacity=1; })
+      .apiDefinirTipo(p.uuid, tipo);
+    return;
+  }
   el('p'+i).style.opacity=.35;
-  var vezes = el('pc'+i) ? Number(el('pc'+i).value)||1 : 1;
+  var vezes = (el('pc'+i) && p.meio==='CARTAO_CREDITO') ? Number(el('pc'+i).value)||1 : 1;
   google.script.run.withSuccessHandler(function(r){
     // falhou de verdade: avisa e devolve o cartão (antes dizia "Confirmado" e nada mudava)
     if(r && r.ok===false){ toast('Não salvei: '+(r.erro||'tente de novo')); var c=el('p'+i); if(c) c.style.opacity=1; return; }
@@ -7396,11 +7479,15 @@ function confirmar(i){
         toast(r&&r.ok ? 'Confirmado em '+r.vezes+'x de '+moeda(r.parcela) : 'Confirmado, mas não parcelei: '+((r&&r.erro)||''));
         ST.ano=null; carregar();
       }).withFailureHandler(function(){ toast('Confirmado, mas não parcelei'); carregar(); })
-        .apiParcelar(p.id, vezes);
+        .apiParcelar(p.uuid||p.id, vezes);
       return;
     }
     toast('Confirmado'); carregar();
   }).apiConfirmar(p.linha, cat, p.valor, p.id);
+}
+function escolherTipo(i, t){
+  var p=ST.pendentes[i]; ST.tipoEscolhido=ST.tipoEscolhido||{};
+  ST.tipoEscolhido[p.uuid]=t; renderPendentes();
 }
 function mostrarParcela(i){
   var p=ST.pendentes[i], v=Number(el('pc'+i).value)||1, e=el('pv'+i);
@@ -7639,6 +7726,8 @@ function pickerCriar(){
 function destravar(i){
   var cat=el('c'+i).value;
   var p=ST.pendentes[i]||{};
+  // guarda a escolha: o ⋯ e o crédito/débito redesenham o cartão
+  if(p.uuid){ ST.catEscolhida=ST.catEscolhida||{}; ST.catEscolhida[p.uuid]=cat; }
   el('nc'+i).innerHTML = (cat===CAT_TRANSFER)
     ? seletorOutraConta(i, p.natureza, p.conta) : '';
   var b=el('b'+i); if(b) b.disabled = !cat;
@@ -10242,8 +10331,10 @@ function bancosCarregar(){
   if(ST.bancos){ box.innerHTML=bancosHtml(); return; }
   Promise.all([
     ponteRest('/rest/v1/contas?select=id,nome,tipo,titular,instituicao,final,saldo_inicial,saldo_desde,pluggy_account_id,criado_em&ativa=eq.true&order=nome'),
-    ponteRest('/rest/v1/saldos_contas?select=conta_id,saldo')
+    ponteRest('/rest/v1/saldos_contas?select=conta_id,saldo'),
+    ponteRest('/rest/v1/config?select=valor&chave=eq.CARTOES_MULTIPLOS')
   ]).then(function(r){
+    ST.multiplos=String((r[2][0]||{}).valor||'').split(',').filter(Boolean);
     var sal={}; r[1].forEach(function(x){ sal[x.conta_id]=Number(x.saldo)||0; });
     r[0].forEach(function(c){ c.saldo=sal[c.id]; c.of=!!c.pluggy_account_id; });
     ST.bancos=r[0];
@@ -10308,6 +10399,11 @@ function bancosHtml(){
             '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" onclick="ST.bancoLigar=ST.bancoLigar===\''+c.id+'\'?null:\''+c.id+'\';ST.bancoEd=null;bancosCarregar()">Já conectei no Open Finance</button>'+
             '<button class="bt-no" style="padding:6px 10px;font-size:12px;color:var(--bad)" onclick="bancoExcluir(\''+c.id+'\')">Excluir</button>'+
           '</div>')+
+        (c.tipo==='CARTAO'
+          ? '<label class="row" style="gap:8px;margin-top:7px;justify-content:flex-start;font-size:12.5px;cursor:pointer">'+
+            '<input type="checkbox" style="width:auto;margin:0" '+((ST.multiplos||[]).indexOf(c.id)>=0?'checked':'')+
+            ' onchange="bancoMultiplo(\''+c.id+'\',this.checked)"> Cartão múltiplo (crédito e débito)</label>'
+          : '')+
         (ed?bancoForm(c):'')+
         (ligando?bancoLigarHtml(c):'')+
         '</div>';
@@ -10363,6 +10459,16 @@ function bancoSalvar(id){
     toast(id?'Conta salva':'Conta criada'); ST.bancoNovo=false; ST.bancoEd=null; ST.bancos=null;
     ST.cacheMes={}; ST.extras=null; ST.saldos=null; bancosCarregar();
   }).catch(function(e){ toast('Não salvei: '+e.message); });
+}
+/* Cartão múltiplo: o aviso do celular não diz se a compra foi no crédito ou
+   no débito. Marcado, toda compra dele vai ao Classificar perguntar. */
+function bancoMultiplo(id, sim){
+  var l=(ST.multiplos||[]).filter(function(x){ return x!==id; });
+  if(sim) l.push(id);
+  ponteRest('/rest/v1/config?on_conflict=user_id,chave', { metodo:'POST', prefer:'resolution=merge-duplicates,return=minimal',
+    corpo:{ user_id:window.EASYAPP_PONTE.sessao().user_id, chave:'CARTOES_MULTIPLOS', valor:l.join(',') } })
+  .then(function(){ ST.multiplos=l; toast(sim?'Marcado: as compras dele vão perguntar crédito ou débito':'Desmarcado'); })
+  .catch(function(e){ toast('Não salvei: '+e.message); bancosCarregar(); });
 }
 function bancoExcluir(id){
   var c=(ST.bancos||[]).filter(function(x){ return x.id===id; })[0]; if(!c) return;

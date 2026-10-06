@@ -164,7 +164,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.3.2 · 06/10/2026';
+var VERSAO_PAINEL = '1.4.0 · 06/10/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -642,6 +642,33 @@ function registrarRecarga() {
 }
 function copiar(t) { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () {}, function () { prompt('Copie:', t); }); }
 
+/* Mapa da qualidade do aviso do celular, por banco: o que o texto de cada
+   banco traz. Relido com o leitor de hoje (função push_qualidade, 90 dias). */
+function blocoAvisos(L) {
+  var pc = function (v, n) {
+    if (v === null || v === undefined) return '<td class="n" style="color:#8b95a8">—</td>';
+    var c = v >= 80 ? 'var(--verde)' : v >= 40 ? '#e0a526' : 'var(--verm)';
+    return '<td class="n" style="color:' + c + '"><b>' + v + '%</b>' + (n !== undefined ? '<br><small style="color:#8b95a8">' + n + '</small>' : '') + '</td>';
+  };
+  var h = '<h2>Qualidade dos avisos do celular, por banco</h2>' +
+    '<div class="sub" style="margin:-4px 0 10px">Últimos 90 dias, de todos os usuários. Cada aviso é relido com o leitor atual. ' +
+    '<b>Útil</b> = quanto do que o banco manda é movimentação (o resto é propaganda, código, fatura). As outras colunas: das movimentações, quantas trazem a informação. ' +
+    'Final do cartão e crédito/débito contam só as compras com cartão. Banco que ainda não apareceu não está aqui: entra sozinho no primeiro aviso.</div>';
+  if (!L.length) return h + '<div class="sub">Nenhum aviso ainda.</div>';
+  h += '<div class="tab"><table><thead><tr><th>Banco</th><th class="n">Avisos</th><th class="n">Útil</th><th class="n">Fornecedor</th>' +
+    '<th class="n">Data e hora</th><th class="n">Final do cartão</th><th class="n">Diz créd./déb.</th><th class="n">Em dólar</th><th class="n">Parcelas</th></tr></thead><tbody>' +
+    L.map(function (b) {
+      return '<tr><td><b>' + esc(b.banco) + '</b><br><small style="color:#8b95a8">' + b.usuarios + ' pessoa' + (b.usuarios > 1 ? 's' : '') +
+          (b.ultimo ? ' · último ' + dt(b.ultimo) : '') + '</small></td>' +
+        '<td class="n">' + b.avisos + '<br><small style="color:#8b95a8">' + b.transacoes + ' mov.</small></td>' +
+        pc(b.pct_util) + pc(b.pct_fornecedor) + pc(b.pct_data_hora) +
+        pc(b.pct_final_cartao, b.compras_cartao ? b.compras_cartao + ' compras' : undefined) + pc(b.pct_diz_tipo) +
+        '<td class="n">' + (b.moeda_estrangeira || '—') + '</td><td class="n">' + (b.parcelas || '—') + '</td></tr>' +
+        (b.exemplo ? '<tr><td colspan="9" style="padding-top:0;border-top:0"><small style="color:#8b95a8">ex.: ' + esc(b.exemplo) + '</small></td></tr>' : '');
+    }).join('') + '</tbody></table></div>';
+  return h;
+}
+
 function k(rot, val, nota, cls) {
   return '<div class="k ' + (cls || '') + '"><span>' + rot + '</span><b>' + val + '</b>' + (nota ? '<small>' + nota + '</small>' : '') + '</div>';
 }
@@ -651,9 +678,11 @@ function desenhar() {
   var aba = function (k, t) { return '<button class="' + (ABA === k ? 'on' : '') + '" onclick="trocarAba(\'' + k + '\')">' + t + '</button>'; };
   var h = '<div class="topo"><h1><img src="img/icone-192.png" alt="">Easy<i>APP</i> · Gestão</h1><div><button class="lk" id="at">Atualizar</button> · <button class="lk" id="sair">Sair</button></div></div>' +
     '<div class="sub">atualizado ' + new Date(d.gerado_em).toLocaleString('pt-BR') + (VERSAO ? ' · app no site: versão ' + esc(VERSAO) : '') + '</div>' +
-    '<div class="abas">' + aba('geral', '📊 Visão geral') + aba('ia', '✦ IA e créditos') + aba('pessoas', '👥 Pessoas e vouchers') + '</div>';
+    '<div class="abas">' + aba('geral', '📊 Visão geral') + aba('ia', '✦ IA e créditos') + aba('pessoas', '👥 Pessoas e vouchers') + aba('avisos', '🔔 Avisos dos bancos') + '</div>';
 
-  if (ABA === 'ia') {
+  if (ABA === 'avisos') {
+    h += blocoAvisos(d.avisos || []);
+  } else if (ABA === 'ia') {
     h += blocoApi(d.api || {}) + blocoClientesIa(d) + blocoMotores(d.motores);
   } else if (ABA === 'pessoas') {
     h += '<h2>Pessoas</h2><div class="filtro"><input id="busca" placeholder="buscar nome, e-mail ou WhatsApp" value="' + esc(BUSCA) + '">' +
