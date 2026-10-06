@@ -164,7 +164,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.5.0 · 06/10/2026';
+var VERSAO_PAINEL = '1.5.1 · 06/10/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -248,13 +248,20 @@ function telaMfa(erro) {
       .then(function (n) { pedirCodigo(n.id, n.totp || {}, erro); });
   }).catch(function (x) { sessao(null); telaLogin(x.message); });
 }
+// o Supabase manda o QR como "data:image/svg+xml;utf-8,<svg ...>" cru: o "#"
+// das cores corta o endereço e a imagem não aparece. Recodifica o SVG.
+function qrSrc(q) {
+  q = String(q || ''); var i = q.indexOf('<svg');
+  if (i < 0) return q;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(q.slice(i));
+}
 function pedirCodigo(fatorId, novo, erro) {
   cx.innerHTML = '<div class="login"><h1><img src="img/icone-192.png" alt="">Easy<i>APP</i> · Gestão</h1>' +
     (novo
       ? '<p><b>Ative a verificação em duas etapas</b> (uma vez só). No celular, abra um app autenticador ' +
         '(Google Authenticator, Microsoft Authenticator...), toque em <b>+</b> e leia este QR:</p>' +
         '<div style="background:#fff;border-radius:12px;padding:10px;width:200px;margin:10px auto"><img alt="QR" style="width:180px;height:180px;display:block" src="' +
-          esc(novo.qr_code || '') + '"></div>' +
+          esc(qrSrc(novo.qr_code)) + '"></div>' +
         '<p class="sub" style="word-break:break-all">Sem câmera? Digite esta chave no app: <b>' + esc(novo.secret || '') + '</b></p>' +
         '<p>Depois digite o código de 6 dígitos que aparecer:</p>'
       : '<p>Digite o código de 6 dígitos do seu app autenticador.</p>') +
