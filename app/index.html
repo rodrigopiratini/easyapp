@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.0 \u00b7 06/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.4.1 \u00b7 06/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -1012,6 +1012,39 @@
       return mudar('lancamentos', 'id=eq.' + r[0],
                    { categoria_id: r[1], status: 'CONFIRMADO' })
         .then(function () { return { ok: true }; });
+    });
+  }
+
+  /* Compra parcelada no cartão: o aviso do banco traz só o total (599,98) e não
+     diz em quantas vezes. Na hora de classificar, a pessoa escolhe "2x" e a
+     compra vira as parcelas, uma em cada fatura: a 1ª fica no lançamento do
+     aviso, as outras nascem como PARCELA nos meses seguintes. Quando o Open
+     Finance trouxer as parcelas do banco, ele as reconhece (mesmo valor e
+     mesmo número de parcela) em vez de duplicar. */
+  function parcelar(id, vezes) {
+    vezes = Math.max(2, Math.min(24, parseInt(vezes, 10) || 0));
+    return rest('/rest/v1/lancamentos?select=id,data,mes_ref,valor,natureza,descricao,fornecedor,conta_id,categoria_id,meio,status,dados,parcela_total' +
+                '&id=eq.' + id + '&limit=1').then(function (r) {
+      var l = r && r[0];
+      if (!l) return { ok: false, erro: 'não achei o lançamento' };
+      if (l.parcela_total > 1) return { ok: false, erro: 'esta compra já está parcelada' };
+      var total = Math.round(Number(l.valor) * 100), base = Math.floor(total / vezes), primeira = total - base * (vezes - 1);
+      var d0 = new Date(l.data + 'T12:00:00'), mes = l.mes_ref, novas = [];
+      for (var k = 1; k < vezes; k++) {
+        mes = mesSeguinte(mes);
+        var d = new Date(d0.getFullYear(), d0.getMonth() + k, 1, 12);
+        var dia = Math.min(d0.getDate(), new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate());
+        d.setDate(dia);
+        novas.push({ data: d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2),
+          mes_ref: mes, valor: base / 100, natureza: l.natureza, descricao: l.descricao, fornecedor: l.fornecedor,
+          conta_id: l.conta_id, categoria_id: l.categoria_id, meio: l.meio, status: 'CONFIRMADO',
+          origem: 'PARCELA', origem_id: l.id + '-p' + (k + 1), parcela_num: k + 1, parcela_total: vezes,
+          dados: { obs: 'PARCELA FUTURA', parcelado_de: l.id, total: total / 100 } });
+      }
+      var dados = Object.assign({}, l.dados || {}, { parcelado_em: vezes, total: total / 100 });
+      return mudar('lancamentos', 'id=eq.' + l.id, { valor: primeira / 100, parcela_num: 1, parcela_total: vezes, dados: dados })
+        .then(function () { return gravar('lancamentos', novas); })
+        .then(function () { return { ok: true, vezes: vezes, parcela: base / 100, primeira: primeira / 100 }; });
     });
   }
 
@@ -3363,6 +3396,7 @@
     apiNovaCategoria: novaCategoria,
     apiApagarConta: apagarConta,
     apiConfirmar: confirmar,
+    apiParcelar: parcelar,
     apiEspelhoTransferencia: espelhoTransferencia,
     apiLancarTransferencia: lancarTransferencia,
     apiDistribuir: distribuir,
@@ -4456,6 +4490,7 @@
         var pv = m.papel === 'assistant' && m.pedidos_ia && m.pedidos_ia.versao_id && vers[m.pedidos_ia.versao_id];
         if (pv && mods[pv.modulo_id]) cartaoVersao(mods[pv.modulo_id], pv);
       });
+      if (msgs.length) mostrarPropostaPendente(null);
       rolar();
     }).catch(function (e) {
       $('iaMsgs').innerHTML = '<div class="ia-vazio">Não consegui abrir o assistente.<br>' + esc(e.message) + '</div>';
@@ -4514,6 +4549,7 @@
     var espera = bolha('assistant', '');
     espera.innerHTML = barrinhas();
     rolar();
+    var desde = new Date(Date.now() - 5000).toISOString();
 
     // passa antes pela ponte: se o login venceu (vale 1 hora), ela renova
     atualizarMes().then(function () {
@@ -4529,7 +4565,7 @@
       return lerLinhas(r);
     }).then(function (fim) {
       espera.remove();
-      if (!fim) throw new Error('resposta vazia');
+      if (!fim) throw new Error('a conexão caiu antes da resposta');
       if (fim.t === 'erro') { bolha('assistant', fim.msg); return; }
       IA.hist.push({ papel: 'user', texto: (nomesAnx ? '📎 ' + nomesAnx + '\n' : '') + t },
                    { papel: 'assistant', texto: fim.resposta });
@@ -4541,6 +4577,9 @@
       atualizarMes();
     }).catch(function (e) {
       espera.remove();
+      // a conexão caiu (a pessoa saiu do app, a tela apagou, a rede piscou): o
+      // pedido continua no servidor e a resposta é gravada; o app vai buscar
+      if (!/servidor respondeu|413|anexo/i.test(e.message)) { esperarResposta(desde); return; }
       if (anexos.length && /Failed to fetch|NetworkError|413|load failed/i.test(e.message)) {
         IA.anexos = anexos; mostrarAnexos();
       }
@@ -4549,6 +4588,62 @@
       IA.ocupado = false; mostrarAnexos(); rolar();
     });
   }
+
+  // ---- a resposta que ficou para depois: o servidor termina o pedido mesmo com
+  // a conexão caída e grava em chat_mensagens; aqui se busca a cada 5 s e
+  // sempre que o app volta para a frente, por até 8 minutos
+  function esperarResposta(desde) {
+    var b = bolha('assistant', '');
+    b.innerHTML = '<div style="font-size:13px;margin-bottom:6px">A conexão caiu, mas o pedido continua no servidor. ' +
+      'Pode sair do app: a resposta aparece aqui quando ficar pronta.</div>' + barrinhas();
+    IA.aguardando = { desde: desde, b: b, fim: Date.now() + 8 * 60e3, timer: null };
+    rolar();
+    checarAguardando();
+  }
+  function checarAguardando() {
+    var a = IA.aguardando; if (!a) return;
+    clearTimeout(a.timer);
+    rest('/rest/v1/chat_mensagens?select=texto,criado_em,pedidos_ia(valor_cobrado,versao_id,modulo_id,lote,alteracoes)' +
+         '&papel=eq.assistant&criado_em=gt.' + encodeURIComponent(a.desde) + '&order=criado_em.desc&limit=1')
+      .then(function (r) {
+        if (IA.aguardando !== a) return;
+        var m = r && r[0];
+        if (!m) {
+          if (Date.now() > a.fim) {
+            IA.aguardando = null;
+            a.b.innerHTML = 'A resposta não chegou. Se o pedido mudou algo, aparece no Histórico; se não, mande de novo.';
+            return;
+          }
+          a.timer = setTimeout(checarAguardando, document.hidden ? 15000 : 5000);
+          return;
+        }
+        IA.aguardando = null; a.b.remove();
+        bolha('assistant', m.texto);
+        IA.hist.push({ papel: 'assistant', texto: m.texto });
+        var pd = m.pedidos_ia || {};
+        if (pd.valor_cobrado !== undefined && pd.valor_cobrado !== null) custo(Number(pd.valor_cobrado));
+        if (pd.versao_id) {
+          Promise.all([rest('/rest/v1/modulos?select=id,nome,icone,versao_ativa&id=eq.' + pd.modulo_id),
+                       rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado&id=eq.' + pd.versao_id)])
+            .then(function (x) { if (x[0][0] && x[1][0]) { cartaoVersao(x[0][0], x[1][0]); rolar(); } }).catch(function () {});
+        }
+        if (pd.alteracoes > 0 && pd.lote) { cartaoDados({ lote: pd.lote, alteracoes: pd.alteracoes }, pd.valor_cobrado); recarregarApp(); }
+        mostrarPropostaPendente(a.desde);
+        atualizarMes(); rolar();
+        toastIA('O assistente respondeu');
+      })
+      .catch(function () { if (IA.aguardando === a) a.timer = setTimeout(checarAguardando, 8000); });
+  }
+  // prévia de dados que ficou sem cartão (a conexão caiu antes de ela chegar)
+  function mostrarPropostaPendente(desde) {
+    funcao({ acao: 'proposta_pendente' }).then(function (r) {
+      var p = r && r.proposta;
+      if (!p || (desde && p.criado_em && p.criado_em < desde)) return;
+      if (document.querySelector('[data-proposta="' + p.id + '"]')) return;
+      cartaoProposta(p); rolar();
+    }).catch(function () {});
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && IA.aguardando) checarAguardando(); });
 
   // a função responde em linhas de JSON: "status" enquanto trabalha, o resto no fim
   function lerLinhas(r) {
@@ -4660,6 +4755,7 @@
   function cartaoProposta(p) {
     var d = document.createElement('div');
     d.className = 'ia-card';
+    d.setAttribute('data-proposta', p.id);
     var h = '<div class="nm">📋 Prévia — nada foi gravado ainda</div>' +
       '<div class="sub">' + esc(p.resumo || '') + '</div><div class="ia-prev">';
     (p.contas || []).forEach(function (c) {
@@ -5540,7 +5636,12 @@
           '<li>Em <b>Ações</b>, toque no <b>+</b> → <b>Interações Web</b> → <b>Requisição HTTP</b> (ou toque na 🔍 e busque "HTTP").<br>' +
             '• Método: <b>POST</b><br>• URL: toque em <b>copiar</b> ao lado de <i>URL</i> aqui embaixo e cole<br>' +
             '• <b>Parâmetros de cabeçalho</b>: não precisa, deixe vazio (a chave já vai na URL).<br>' +
-            '• Aba <b>Corpo da requisição</b>: tipo de conteúdo <b>application/json</b> e cole o <i>Corpo</i> daqui.</li>' +
+            '• Aba <b>Corpo da requisição</b>: tipo de conteúdo <b>application/json</b> e cole o <i>Corpo</i> daqui.<br>' +
+            '• Marque <b>Salvar resposta HTTP em uma variável</b> e crie a variável de texto <b>resposta</b> (é ela que o próximo passo lê).</li>' +
+          '<li><b>Aviso na hora para classificar</b> (recomendado): ainda em <b>Ações</b>, toque no <b>+</b> → <b>Condições/Loops</b> → <b>Se (If)</b> → ' +
+            'condição <b>Variável</b> → <b>resposta</b> → <b>contém</b> → digite <b>PENDENTE</b>. Dentro do <i>Se</i>, adicione <b>Notificação</b> → ' +
+            '<b>Exibir notificação</b>: título <b>EasyAPP · classificar</b>, texto <b>[notification]</b>, e em <i>Ao tocar</i> escolha <b>Abrir aplicativo</b> → <b>EasyAPP</b>. ' +
+            'Assim, a compra que o app ainda não conhece vira um aviso no mesmo segundo; a que ele já sabe classificar entra sozinha, sem aviso.</li>' +
           '<li>Dê um nome (ex.: <b>EasyAPP</b>) e salve no <b>✓</b>.</li>' +
           '<li><b>Importante:</b> Configurações do Android → Apps → MacroDroid → Bateria → <b>Sem restrições</b>. ' +
             'Sem isso o celular "dorme" o MacroDroid e os avisos param.</li>' +
@@ -7075,6 +7176,13 @@ function renderPendentes(){
        (p.faltaConta?avisoFaltaConta(p,i):'')+
        botaoConta('c'+i, p.categoria, p.natureza, 'destravar('+i+')')+
        '<div id="nc'+i+'"></div>'+
+       (p.meio==='CARTAO_CREDITO' && p.natureza==='DESPESA'
+         ? '<div class="row" style="gap:6px;margin-top:6px;align-items:center"><span class="m" style="font-size:12px">Parcelas</span>'+
+           '<select id="pc'+i+'" style="flex:1;margin:0;padding:6px 8px;font-size:13px" onchange="mostrarParcela('+i+')">'+
+           '<option value="1">à vista (1x)</option>'+
+           [2,3,4,5,6,7,8,9,10,11,12,18,24].map(function(k){ return '<option value="'+k+'">'+k+'x</option>'; }).join('')+
+           '</select><span class="m" id="pv'+i+'" style="font-size:12px;min-width:90px;text-align:right"></span></div>'
+         : '')+
        '<div class="row" style="margin-top:8px;gap:5px">'+
        '<button class="bt-no" style="padding:7px 10px;font-size:12.5px" onclick="ignorar('+i+')">Ignorar</button>'+
        '<button class="bt-no" style="padding:7px 10px;font-size:12.5px" onclick="abrirRateio('+i+')">Distribuir</button>'+
@@ -7252,8 +7360,22 @@ function confirmar(i){
     return;
   }
   el('p'+i).style.opacity=.35;
-  google.script.run.withSuccessHandler(function(){ toast('Confirmado'); carregar(); })
-    .apiConfirmar(p.linha, cat, p.valor, p.id);
+  var vezes = el('pc'+i) ? Number(el('pc'+i).value)||1 : 1;
+  google.script.run.withSuccessHandler(function(){
+    if(vezes>1){
+      google.script.run.withSuccessHandler(function(r){
+        toast(r&&r.ok ? 'Confirmado em '+r.vezes+'x de '+moeda(r.parcela) : 'Confirmado, mas não parcelei: '+((r&&r.erro)||''));
+        ST.ano=null; carregar();
+      }).withFailureHandler(function(){ toast('Confirmado, mas não parcelei'); carregar(); })
+        .apiParcelar(p.id, vezes);
+      return;
+    }
+    toast('Confirmado'); carregar();
+  }).apiConfirmar(p.linha, cat, p.valor, p.id);
+}
+function mostrarParcela(i){
+  var p=ST.pendentes[i], v=Number(el('pc'+i).value)||1, e=el('pv'+i);
+  if(e) e.textContent = v>1 ? v+' × '+moeda(Math.floor(p.valor*100/v)/100) : '';
 }
 
 /* O lancamento caiu numa conta que o app nao reconhece. Enquanto for assim ele
@@ -9361,6 +9483,31 @@ function atualizarPorTras(){
     renderMes(); renderCartao(); renderPendentes();
   }).withFailureHandler(function(){}).apiEstado(ST.mes, ST.filtro, 'TUDO');
 }
+
+/* Compra nova pelo aviso do celular aparece na hora: com o app aberto, a cada
+   15 s (e sempre que ele volta para a frente) olha o último aviso recebido;
+   chegou um novo, avisa e refaz o Classificar por trás, sem mexer na tela. */
+var _ultPush=null, _pushTimer=null;
+function vigiarPush(){
+  clearTimeout(_pushTimer);
+  var P=window.EASYAPP_PONTE;
+  if(!P || !P.sessao() || document.hidden){ _pushTimer=setTimeout(vigiarPush, 15000); return; }
+  P.rest('/rest/v1/push_log?select=recebido,status,lancamento&order=recebido.desc&limit=5').then(function(r){
+    r=r||[];
+    var novo=r.length?r[0].recebido:'';
+    if(_ultPush!==null && novo && novo>_ultPush){
+      var lancou=r.filter(function(x){ return x.recebido>_ultPush && x.lancamento; });
+      if(lancou.length){
+        var pend=lancou.filter(function(x){ return x.status==='PENDENTE'; }).length;
+        toast(pend ? (pend===1?'Compra nova para classificar':'Compras novas para classificar: '+pend) : 'Compra nova lançada');
+        if(ST.mes){ ST.extrato=null; atualizarPorTras(); }
+      }
+    }
+    if(novo) _ultPush=novo; else if(_ultPush===null) _ultPush='';
+  }).catch(function(){}).then(function(){ _pushTimer=setTimeout(vigiarPush, 15000); });
+}
+document.addEventListener('visibilitychange', function(){ if(!document.hidden) vigiarPush(); });
+setTimeout(vigiarPush, 4000);
 
 /* Cada cartãozinho ganha um ícone pela etiqueta: entrar é seta verde para
    cima, sair é seta vermelha para baixo - dá para ler sem ler. */
