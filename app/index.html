@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.5.0 \u00b7 06/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.5.1 \u00b7 06/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -4300,6 +4300,7 @@
       '<div class="ia-anx" id="iaAnx" hidden></div>' +
       '<div class="ia-pe" id="iaPe"><button class="ia-clip" id="iaClip" aria-label="anexar planilha, print ou PDF">📎</button>' +
       '<textarea id="iaTxt" placeholder="Peça algo ou anexe 📎" autocomplete="on" autocorrect="on" autocapitalize="sentences" spellcheck="true" enterkeyhint="send"></textarea>' +
+      '<button id="iaVoz" aria-label="ditar pedido" title="Ditar pedido">🎤</button>' +
       '<button id="iaEnvia" aria-label="enviar">↑</button></div>' +
       '<input type="file" id="iaArq" multiple hidden ' +
       'accept="image/*,.xlsx,.xls,.xlsm,.ods,.csv,.pdf,application/pdf,text/csv,' +
@@ -4318,6 +4319,7 @@
 
     $('iaFecha').onclick = function () { $('ia').hidden = true; IA.aberto = false; };
     $('iaVerFecha').onclick = fecharModulo;
+    $('iaVoz').onclick = ditar;
     $('iaEnvia').onclick = enviar;
     $('iaClip').onclick = function () { $('iaArq').click(); };
     $('iaArq').onchange = function () { anexar(this.files); this.value = ''; };
@@ -4523,7 +4525,7 @@
     $('iaMsgs').innerHTML = barrinhas();
     Promise.all([
       atualizarMes(),
-      rest('/rest/v1/chat_mensagens?select=papel,texto,criado_em,pedidos_ia(valor_cobrado,versao_id,modulo_id)' +
+      rest('/rest/v1/chat_mensagens?select=papel,texto,criado_em,pedidos_ia(valor_cobrado,versao_id,modulo_id,criado_em)' +
            '&order=criado_em.desc,papel.asc&limit=20'),
       rest('/rest/v1/modulos?select=id,nome,icone,versao_ativa').catch(function () { return []; }),
       rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado').catch(function () { return []; })
@@ -4538,7 +4540,7 @@
       if (!msgs.length) boasVindas();
       msgs.forEach(function (m) {
         bolha(m.papel, m.texto);
-        if (m.papel === 'assistant' && m.pedidos_ia) custo(Number(m.pedidos_ia.valor_cobrado));
+        if (m.papel === 'assistant' && m.pedidos_ia) custo(Number(m.pedidos_ia.valor_cobrado), m.pedidos_ia.criado_em || m.criado_em);
         // o módulo que esta resposta montou continua a um toque: ver e aplicar
         // (antes, ao reabrir o chat, sobrava só o texto e não havia como aplicar)
         var pv = m.papel === 'assistant' && m.pedidos_ia && m.pedidos_ia.versao_id && vers[m.pedidos_ia.versao_id];
@@ -4571,19 +4573,64 @@
     $('iaMsgs').appendChild(d);
     return d;
   }
-  function custo(v) {
+  function custo(v, quando) {
     var d = document.createElement('div');
     d.className = 'ia-custo';
-    d.textContent = 'este pedido: ' + reais(v);
+    var data = new Date(quando || Date.now());
+    var horario = isNaN(data.getTime()) ? '' : data.toLocaleDateString('pt-BR') + ' às ' +
+      data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    d.textContent = 'este pedido: ' + reais(v) + (horario ? ' · ' + horario : '');
     $('iaMsgs').appendChild(d);
   }
   function rolar() { var m = $('iaMsgs'); m.scrollTop = m.scrollHeight; }
 
   // ----------------------------------------------------------- enviar
+  var ouvindo = false;
+  function ditar() {
+    if (ouvindo || IA.ocupado) return;
+    var cap = window.Capacitor;
+    var nativo = cap && cap.nativePromise && cap.isNativePlatform && cap.isNativePlatform();
+    var Reconhecimento = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!nativo && !Reconhecimento) {
+      toastIA('Este navegador não oferece transcrição. Use o microfone do teclado.'); return;
+    }
+    ouvindo = true;
+    $('iaVoz').disabled = true; $('iaEnvia').disabled = true;
+    $('iaVoz').textContent = '…';
+    function terminar() {
+      ouvindo = false; $('iaVoz').disabled = false;
+      $('iaEnvia').disabled = IA.ocupado; $('iaVoz').textContent = '🎤';
+    }
+    function inserir(t) {
+      if (!t) return;
+      var campo = $('iaTxt');
+      campo.value = campo.value + (campo.value && !/\s$/.test(campo.value) ? ' ' : '') + t;
+      campo.focus();
+    }
+    if (nativo) {
+      cap.nativePromise('Voz', 'transcrever', {}).then(function (r) {
+        inserir(r.texto);
+      }).catch(function () {
+        toastIA('Não foi possível transcrever. Confira o reconhecimento de voz do celular.');
+      }).then(terminar);
+      return;
+    }
+    var voz = new Reconhecimento();
+    voz.lang = 'pt-BR'; voz.continuous = false; voz.interimResults = false;
+    voz.onresult = function (e) { inserir(e.results[0][0].transcript); };
+    voz.onerror = function (e) {
+      if (e.error !== 'aborted') toastIA(e.error === 'not-allowed' ?
+        'Permita o uso do microfone para ditar.' : 'Não consegui ouvir. Tente novamente.');
+      terminar();
+    };
+    voz.onend = terminar;
+    try { voz.start(); } catch (e) { terminar(); toastIA('Não consegui iniciar o microfone.'); }
+  }
+
   function enviar() {
     var t = $('iaTxt').value.trim();
     var anexos = IA.anexos.slice();
-    if ((!t && !anexos.length) || IA.ocupado) return;
+    if ((!t && !anexos.length) || IA.ocupado || ouvindo) return;
     if (anexos.some(function (a) { return !a.pronto; })) { toastIA('Espere terminar de ler o anexo'); return; }
     if (!t) t = 'Leia o anexo e me mostre a prévia.';
     IA.ocupado = true; $('iaEnvia').disabled = true;
@@ -4657,7 +4704,7 @@
   function checarAguardando() {
     var a = IA.aguardando; if (!a) return;
     clearTimeout(a.timer);
-    rest('/rest/v1/chat_mensagens?select=texto,criado_em,pedidos_ia(valor_cobrado,versao_id,modulo_id,lote,alteracoes)' +
+    rest('/rest/v1/chat_mensagens?select=texto,criado_em,pedidos_ia(valor_cobrado,versao_id,modulo_id,lote,alteracoes,criado_em)' +
          '&papel=eq.assistant&criado_em=gt.' + encodeURIComponent(a.desde) + '&order=criado_em.desc&limit=1')
       .then(function (r) {
         if (IA.aguardando !== a) return;
@@ -4675,7 +4722,7 @@
         bolha('assistant', m.texto);
         IA.hist.push({ papel: 'assistant', texto: m.texto });
         var pd = m.pedidos_ia || {};
-        if (pd.valor_cobrado !== undefined && pd.valor_cobrado !== null) custo(Number(pd.valor_cobrado));
+        if (pd.valor_cobrado !== undefined && pd.valor_cobrado !== null) custo(Number(pd.valor_cobrado), pd.criado_em || m.criado_em);
         if (pd.versao_id) {
           Promise.all([rest('/rest/v1/modulos?select=id,nome,icone,versao_ativa&id=eq.' + pd.modulo_id),
                        rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado&id=eq.' + pd.versao_id)])
