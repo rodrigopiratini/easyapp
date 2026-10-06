@@ -1,0 +1,37 @@
+# Publica o site (easyappfinancial.com.br) a cada push na main.
+#
+# Substitui a publicação automática "Deploy from a branch" do GitHub Pages,
+# que travou em 05/10/2026 (uma execução fantasma ficou "na fila" e segurava
+# todas as outras). Para valer: Settings -> Pages -> Source: "GitHub Actions".
+name: Site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# só a publicação mais nova importa: a que chega cancela a que está esperando
+concurrency:
+  group: site
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deploy
+        uses: actions/deploy-pages@v4
