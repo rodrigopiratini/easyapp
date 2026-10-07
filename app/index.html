@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.6.1 \u00b7 07/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.6.2 \u00b7 07/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -8516,7 +8516,9 @@ function blocoConferencia(cx){
       ? 'Lançado duas vezes? O banco já trouxe '+moeda(x.valor)+' em '+String(x.banco_data).slice(8,10)+'/'+String(x.banco_data).slice(5,7)+
         ' ('+tx(String(x.banco_descricao||'').slice(0,40))+') e você lançou à mão em '+dt+'.'
       : 'O extrato do '+tx(x.conta)+' não tem '+moeda(x.valor)+' em '+dt+' ('+tx(String(x.descricao||'').slice(0,40))+
-        '). Ele conta como '+(x.natureza==='RECEITA'?'entrada':'saída')+' até você resolver. Saiu de outra conta? Edite no extrato.';
+        (x.natureza==='RECEITA'
+          ? '). Por segurança ela não entra no saldo até você confirmar. Entrou em outra conta? Edite no extrato.'
+          : '). Ela conta como saída até você resolver. Saiu de outra conta? Edite no extrato.');
     h+='<div class="m" style="font-size:12px;margin:8px 0 4px">'+txt+'</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+
        '<button class="bt sec" style="padding:5px 10px;font-size:12px" onclick="conferirBanco(\'apagar\',\''+x.id+'\',this)">'+
          (x.situacao==='repetido'?'Apagar o meu':'Não existiu, apagar')+'</button>'+
