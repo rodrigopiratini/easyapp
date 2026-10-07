@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.6.5 \u00b7 07/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.6.6 \u00b7 07/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -961,6 +961,22 @@
   function removerDoMes(mes, categoria) {
     return salvarPrevisto(mes, categoria, 0)
       .then(function (r) { return r.ok ? { ok: true, categoria: categoria } : r; });
+  }
+
+  /* "Já resolvi" (lista de onde vêm os valores, na tela Mês): o previsto do
+     mês passa a ser o que JÁ foi pago, e a sobra sai do "ainda sai". Antes
+     zerava o previsto: mesada prevista 200 e paga 170 virava previsto 0 e
+     "-170" na linha, como se a conta não tivesse previsão. Sem nada pago
+     (não vai acontecer), aí sim fica zero. */
+  function baixarPrevisto(mes, categoria) {
+    return rest('/rest/v1/resumo_mes?select=natureza,previsto,realizado&mes_ref=eq.' + mes
+                + '&categoria=eq.' + encodeURIComponent(categoria)).then(function (r) {
+      var l = r && r[0];
+      var pago = l ? Math.max(0, Number(l.realizado) || 0) : 0;
+      var prev = l ? Number(l.previsto) || 0 : 0;
+      return salvarPrevisto(mes, categoria, Math.min(prev, pago))
+        .then(function (x) { return x.ok ? { ok: true, categoria: categoria, previsto: n(Math.min(prev, pago)) } : x; });
+    });
   }
 
   function mesesComPrevisto(mes, categoria, minimo) {
@@ -3527,6 +3543,7 @@
     apiAnosDaFC: anosDaFC,
     apiAbrirAnoNaFC: abrirAno,
     apiAuditoria: auditoria,
+    apiBaixarPrevisto: baixarPrevisto,
     apiRestaurarPrevisto: function (mes, cat) { return salvarPrevisto(mes, cat, 0); },
     apiExtras: extras,
     apiPagarFatura: pagarFatura,
@@ -8333,7 +8350,7 @@ function renderMes(){
          'de onde vêm estes valores ('+cx.itens.length+' contas)</div>';
       if(ST.abreCaixa){
         h+='<div class="m" style="font-size:11px;margin:4px 0 6px">marque o que já '+
-           'resolveu ou não vai acontecer — sai da conta na hora</div>';
+           'resolveu ou não vai acontecer — o previsto fica no que já foi pago</div>';
         cx.itens.forEach(function(x,n){
           h+='<label class="lc">'+
              '<input type="checkbox" onchange="'+(x.fatura ? 'baixarFatura(this)'
@@ -8628,7 +8645,7 @@ function baixarPrevisto(cat, box){
     ST.ano=null; carregar(ST.mes);
   }).withFailureHandler(function(e){
     box.checked=false; box.disabled=false; toast('Falhou');
-  }).apiRemoverDoMes(ST.mes, cat);
+  }).apiBaixarPrevisto(ST.mes, cat);
 }
 
 function restaurarPrevisto(cat){
