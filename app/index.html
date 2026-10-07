@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.10.1 \u00b7 07/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.10.2 \u00b7 07/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -7423,6 +7423,8 @@
   nav a{flex:1;text-align:center;color:var(--dim);text-decoration:none;font-size:11px;padding:6px 0}
   nav a.on{color:var(--acc)}
   nav a b{display:block;font-size:19px;line-height:1.1;font-weight:400}
+  /* ícones de traço: cinza como o texto, azul na aba aberta (currentColor) */
+  nav a b .ico{width:22px;height:22px;display:block;margin:0 auto 1px}
   .it{border-bottom:1px solid var(--line);padding:11px 0}
   .it:last-child{border:0}
   .it .d{font-weight:600;font-size:14px}
@@ -7707,7 +7709,7 @@
     .it{padding:8px 0}
     select,input{padding:6px 8px;font-size:12.5px}
     svg{height:120px} .dias div{font-size:8.5px}
-    nav{padding:3px 0} nav a{font-size:10px;padding:4px 0} nav a b{font-size:15px}
+    nav{padding:3px 0} nav a{font-size:10px;padding:4px 0} nav a b{font-size:15px} nav a b .ico{width:19px;height:19px}
     h1{font-size:15px}
     .filtros button{padding:4px 8px;font-size:11px}
   }
@@ -7804,12 +7806,12 @@
 <div id="tela-patrimonio" class="wrap hide"></div>
 
 <nav>
-  <a href="#" class="on" data-t="mes"><b>&#9632;</b>Mês</a>
-  <a href="#" data-t="cartao"><b>&#9635;</b>Cartão</a>
-  <a href="#" data-t="extrato"><b>&#9776;</b>Extrato</a>
-  <a href="#" data-t="analise"><b>&#9707;</b>Análise</a>
-  <a href="#" data-t="patrimonio"><b>&#9670;</b>Patrimônio</a>
-  <a href="#" data-t="config"><b>&#9881;</b>Config</a>
+  <a href="#" class="on" data-t="mes"><b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="8.5" cy="14.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="14.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="14.5" r="1" fill="currentColor" stroke="none"/></svg></b>Mês</a>
+  <a href="#" data-t="cartao"><b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M2.5 9.5h19"/><path d="M6 14.5h4"/></svg></b>Cartão</a>
+  <a href="#" data-t="extrato"><b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z"/><path d="M9 8h6M9 11.5h6M9 15h4"/></svg></b>Extrato</a>
+  <a href="#" data-t="analise"><b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><rect x="5.5" y="12" width="3" height="5.5" rx=".8"/><rect x="10.5" y="8.5" width="3" height="9" rx=".8"/><rect x="15.5" y="5" width="3" height="12.5" rx=".8"/></svg></b>Análise</a>
+  <a href="#" data-t="patrimonio"><b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5h4v5"/></svg></b>Patrimônio</a>
+  <a href="#" data-t="config"><b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></b>Config</a>
 </nav>
 <div class="toast" id="toast"></div>
 
