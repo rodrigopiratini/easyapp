@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.7.1 \u00b7 07/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.7.2 \u00b7 07/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -3628,8 +3628,24 @@
     });
   }
 
+  /* Funções do servidor (assistente, conta, Open Finance...) com o login em
+     dia. Antes cada tela chamava com o token guardado: vencido (o app parado
+     mais de 1 hora, sem nenhuma consulta que renovasse), o servidor
+     respondia 401 e o assistente dizia "Não consegui". Agora renova antes
+     e, se mesmo assim vier 401, renova e tenta mais uma vez. */
+  function chamar(nome, corpo, tentativa) {
+    return comSessao().then(emDia).then(function () {
+      return fetch(URL_BASE + '/functions/v1/' + nome, { method: 'POST',
+        headers: { 'apikey': ANON, 'Authorization': 'Bearer ' + sessao.token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo || {}) });
+    }).then(function (r) {
+      if (r.status === 401 && !tentativa) return renovar().then(function () { return chamar(nome, corpo, 1); });
+      return r;
+    });
+  }
+
   window.google = { script: { run: corredor(null, null), host: { setHeight: function () {} } } };
-  window.EASYAPP_PONTE = { entrar: entrar, rest: rest, sessao: function () { return sessao; },
+  window.EASYAPP_PONTE = { entrar: entrar, rest: rest, chamar: chamar, sessao: function () { return sessao; },
                            auth: auth, usarSessao: usarSessao, traduzErro: traduzErro,
                            tempos: tempos, zerarTempos: function () { TEMPOS = []; } };
 })();
@@ -5100,13 +5116,8 @@
 
     // passa antes pela ponte: se o login venceu (vale 1 hora), ela renova
     atualizarMes().then(function () {
-      var s = P().sessao();
-      return fetch(CFG.url + '/functions/v1/assistente', {
-        method: 'POST',
-        headers: { 'apikey': CFG.anon, 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mensagem: t, historico: IA.hist.slice(-10), motor: motor(),
-          anexos: anexos.map(function (a) { return { nome: a.nome, tipo: a.tipo, mime: a.mime, base64: a.base64 }; }) })
-      });
+      return P().chamar('assistente', { mensagem: t, historico: IA.hist.slice(-10), motor: motor(),
+          anexos: anexos.map(function (a) { return { nome: a.nome, tipo: a.tipo, mime: a.mime, base64: a.base64 }; }) });
     }).then(function (r) {
       if (!r.ok && r.status !== 200) throw new Error('o servidor respondeu ' + r.status);
       return lerLinhas(r);
@@ -5292,11 +5303,7 @@
   function funcao(corpo) {
     // passa antes pela ponte: se o login venceu, ela renova
     return atualizarMes().then(function () {
-      return fetch(CFG.url + '/functions/v1/assistente', {
-        method: 'POST',
-        headers: { 'apikey': CFG.anon, 'Authorization': 'Bearer ' + P().sessao().token, 'Content-Type': 'application/json' },
-        body: JSON.stringify(corpo)
-      });
+      return P().chamar('assistente', corpo);
     }).then(function (r) { return r.json(); });
   }
   function cartaoProposta(p) {
@@ -5786,13 +5793,7 @@
 
   // chama uma função do servidor com o login (a ponte renova o token antes)
   function fn(nome, corpo) {
-    return P.rest('/rest/v1/perfis?select=id&limit=1').then(function () {
-      return fetch(CFG.url + '/functions/v1/' + nome, {
-        method: 'POST',
-        headers: { 'apikey': CFG.anon, 'Authorization': 'Bearer ' + P.sessao().token, 'Content-Type': 'application/json' },
-        body: JSON.stringify(corpo || {})
-      });
-    }).then(function (r) { return r.json(); }).then(function (d) {
+    return P.chamar(nome, corpo).then(function (r) { return r.json(); }).then(function (d) {
       if (d && d.erro) throw new Error(d.erro);
       return d;
     });
@@ -10871,12 +10872,7 @@ var BANCOS_LISTA=['Banco do Brasil','Banrisul','Bradesco','BTG','C6','Caixa','Co
   'Neon','Nubank','PagBank','PicPay','Safra','Santander','Sicoob','Sicredi','Stone','XP'];
 function ponteRest(c,o){ return window.EASYAPP_PONTE.rest(c,o); }
 function ponteFn(nome, corpo){
-  return ponteRest('/rest/v1/perfis?select=id&limit=1').then(function(){
-    var cfg=window.EASYAPP_CFG||{};
-    return fetch(cfg.url+'/functions/v1/'+nome, { method:'POST',
-      headers:{ apikey:cfg.anon, Authorization:'Bearer '+window.EASYAPP_PONTE.sessao().token, 'Content-Type':'application/json' },
-      body:JSON.stringify(corpo||{}) });
-  }).then(function(r){ return r.json(); }).then(function(d){ if(d&&d.erro) throw new Error(d.erro); return d; });
+  return window.EASYAPP_PONTE.chamar(nome, corpo).then(function(r){ return r.json(); }).then(function(d){ if(d&&d.erro) throw new Error(d.erro); return d; });
 }
 function ofNovasLer(){ try{ return JSON.parse(localStorage.getItem('easyapp:of-novas')||'[]'); }catch(e){ return []; } }
 function ofNovasGravar(l){ try{ localStorage.setItem('easyapp:of-novas', JSON.stringify(l||[])); }catch(e){} }
