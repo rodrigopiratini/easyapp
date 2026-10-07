@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.7.5 \u00b7 07/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.8.0 \u00b7 07/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -571,7 +571,8 @@
         familias[l.grupo] = true;
         if (l.natureza === 'RECEITA') {
           receitas.push(item); tpr += item.previsto; trr += item.realizado;
-        } else if (l.natureza === 'DESPESA') {
+        } else if (l.natureza === 'DESPESA' || l.natureza === 'INVESTIMENTO') {
+          // conta de investimento (aporte, reserva) sai do caixa como despesa
           despesas.push(item);
         } else if (l.natureza === 'CONTROLE') {
           controle.push(item);
@@ -1969,7 +1970,7 @@
       }
 
       var nomes = Object.keys(info).filter(function (x) {
-        return info[x].natureza === 'RECEITA' || info[x].natureza === 'DESPESA';
+        return info[x].natureza === 'RECEITA' || info[x].natureza === 'DESPESA' || info[x].natureza === 'INVESTIMENTO';
       });
 
       var linhas = nomes.map(function (nome) {
@@ -2136,7 +2137,7 @@
       var cab = ['CONTA', 'FAMILIA', 'TIPO'].concat(d.refs.map(function (r) { return r.ref; }));
       var linhas = [cab], vazio = cab.map(function () { return ''; });
       var receitas = d.linhas.filter(function (l) { return l.natureza === 'RECEITA'; });
-      var despesas = d.linhas.filter(function (l) { return l.natureza === 'DESPESA'; });
+      var despesas = d.linhas.filter(function (l) { return l.natureza === 'DESPESA' || l.natureza === 'INVESTIMENTO'; });
 
       function bloco(titulo, conjunto) {
         linhas.push([titulo].concat(vazio.slice(1)));
@@ -2211,18 +2212,40 @@
    * meta (NASCIMENTO e IDADE_APOSENTADORIA, nos ajustes).
    */
 
+  /* O bem tem categoria (imóvel, veículo, empresa...) e a sua própria taxa
+     anual: + valoriza, − deprecia. Itens antigos, sem categoria, são
+     adivinhados pelo nome. */
+  var CATS_BEM = ['IMOVEL', 'TERRENO', 'VEICULO', 'EMPRESA', 'EQUIPAMENTO', 'OUTRO'];
+  var TAXA_PADRAO_BEM = { IMOVEL: 5, TERRENO: 5, VEICULO: -10, EMPRESA: 0, EQUIPAMENTO: -15, OUTRO: 0 };
+  function categoriaDoBem(b) {
+    var c = b && b.detalhe && b.detalhe.cat;
+    if (c && CATS_BEM.indexOf(c) >= 0) return c;
+    var d = String((b && b.descricao) || '');
+    if (/apart|apto|imov|im[oó]vel|casa|sala comercial/i.test(d)) return 'IMOVEL';
+    if (/terreno|lote|ch[aá]cara|s[ií]tio/i.test(d)) return 'TERRENO';
+    if (/carro|moto|ve[ií]culo|caminh|onix|hb20|gol|civic|corolla|jeep|renegade|compass|hilux/i.test(d)) return 'VEICULO';
+    if (/empresa|cnpj|ltda|quota|cota/i.test(d)) return 'EMPRESA';
+    return 'OUTRO';
+  }
+  function lerDetalhe(x) {
+    var d = x.detalhe;
+    if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { d = null; } }
+    return (d && typeof d === 'object') ? d : {};
+  }
+
   function patrimonio() {
     return Promise.all([
-      rest('/rest/v1/patrimonio?select=tipo,descricao,valor,fonte,atualizado'),
+      rest('/rest/v1/patrimonio?select=*'),
       rest('/rest/v1/saldos_contas?select=nome,tipo,titular,saldo')
     ]).then(function (r) {
-      var bens = [], dividas = [], investimentos = [];
+      var bens = [], dividas = [], investimentos = [], reservas = [];
       r[0].forEach(function (x) {
         var item = { descricao: x.descricao, valor: n(x.valor), fonte: x.fonte,
-                     atualizado: x.atualizado };
+                     atualizado: x.atualizado, detalhe: lerDetalhe(x) };
         if (x.tipo === 'DIVIDA') dividas.push(item);
         else if (x.tipo === 'INVESTIMENTO') investimentos.push(item);
-        else bens.push(item);
+        else if (x.tipo === 'RESERVA') reservas.push(item);
+        else { item.cat = categoriaDoBem(item); bens.push(item); }
       });
       var caixa = 0, investido = 0;
       r[1].forEach(function (c) {
@@ -2234,11 +2257,12 @@
       var tb = bens.reduce(function (a, x) { return a + x.valor; }, 0);
       var td = dividas.reduce(function (a, x) { return a + x.valor; }, 0);
       var tm = investimentos.reduce(function (a, x) { return a + x.valor; }, 0);
-      return { bens: bens, dividas: dividas, investimentos: investimentos,
+      var tr = reservas.reduce(function (a, x) { return a + x.valor; }, 0);
+      return { bens: bens, dividas: dividas, investimentos: investimentos, reservas: reservas,
                contasInvestimento: contasInv, caixa: n(caixa),
                totalBens: n(tb), totalDividas: n(td),
-               totalInvestido: n(investido + tm),
-               liquido: n(tb + caixa + investido + tm - td) };
+               totalInvestido: n(investido + tm), totalReservas: n(tr),
+               liquido: n(tb + caixa + investido + tm + tr - td) };
     });
   }
 
@@ -2266,10 +2290,10 @@
       var idade = Math.floor((hoje - NASC) / 31557600000);
 
       var taxa       = cfgNum(c, 'RENTABILIDADE_REAL', 0.08);
+      /* Valorização, depreciação e juros moram em cada bem e cada dívida
+         (Patrimônio). O que estiver gravado nos ajustes antigos só vale de
+         padrão para o item que ainda não tem o seu. */
       var valorizIm  = cfgNum(c, 'VALORIZACAO_IMOVEL', 0.05);
-      var trocaCarro = Math.max(1, cfgNum(c, 'TROCA_CARRO_ANOS', PADRAO_AJUSTE.TROCA_CARRO_ANOS));
-      var custoTroca = cfgNum(c, 'CUSTO_TROCA_CARRO', PADRAO_AJUSTE.CUSTO_TROCA_CARRO);
-      var viagemAno  = cfgNum(c, 'RESERVA_VIAGEM_ANO', PADRAO_AJUSTE.RESERVA_VIAGEM_ANO);
       var jurosImov  = cfgNum(c, 'JUROS_FINANCIAMENTO', PADRAO_AJUSTE.JUROS_FINANCIAMENTO);
       var retirada   = cfgNum(c, 'TAXA_RETIRADA', 0.06);
       /* Parcela do imóvel, do carro e o aluguel recebido saem das próprias
@@ -2295,14 +2319,39 @@
       var parcelaCarro  = mediaContas('DESPESA', /(PARCELA|FINANC).*(VE[IÍ]CULO|CARRO|MOTO)|(VE[IÍ]CULO|CARRO|MOTO).*(PARCELA|FINANC)/);
       var aluguelHoje   = mediaContas('RECEITA', /ALUGUE/);
 
+      /* Cada bem anda com a sua taxa (valoriza +, deprecia −). Imóvel e
+         terreno vão para a coluna "imóvel"; o resto (veículo, empresa,
+         equipamento) para "outros bens". */
+      var depLegado = cfgNum(c, 'DEPRECIACAO_CARRO_ANO', 0.10);
       var imovel = 0, carro = 0, dividaImovel = 0, dividaCarro = 0;
-      pat.bens.forEach(function (b) {
-        if (/apart|imov|casa/i.test(b.descricao)) imovel += b.valor; else carro += b.valor;
+      var bensSim = pat.bens.map(function (b) {
+        var cat = categoriaDoBem(b);
+        var taxa = (b.detalhe && b.detalhe.taxa !== undefined && b.detalhe.taxa !== null && b.detalhe.taxa !== '')
+          ? Number(b.detalhe.taxa) / 100
+          : (cat === 'IMOVEL' || cat === 'TERRENO' ? valorizIm : cat === 'VEICULO' ? -depLegado : (TAXA_PADRAO_BEM[cat] || 0) / 100);
+        var grupo = (cat === 'IMOVEL' || cat === 'TERRENO') ? 'imovel' : 'outros';
+        if (grupo === 'imovel') imovel += b.valor; else carro += b.valor;
+        return { valor: b.valor, grupo: grupo,
+                 fator: Math.pow(1 + Math.max(-0.9, taxa), 1 / 12) };
       });
-      pat.dividas.forEach(function (x) {
-        if (/apto|imov|cef|caixa/i.test(x.descricao)) dividaImovel += x.valor;
-        else dividaCarro += x.valor;
+      /* Dívida: com parcela e juros próprios, amortiza sozinha (Price). Sem
+         parcela, a do imóvel usa a conta de parcela do imóvel e a outra a do
+         veículo, como antes. */
+      var dividasSim = pat.dividas.map(function (x) {
+        var d = x.detalhe || {};
+        var deImovel = d.de ? (d.de === 'IMOVEL' || d.de === 'TERRENO') : /apto|imov|cef|caixa/i.test(x.descricao);
+        if (deImovel) dividaImovel += x.valor; else dividaCarro += x.valor;
+        var j = (d.juros !== undefined && d.juros !== null && d.juros !== '') ? Number(d.juros) / 100 : (deImovel ? jurosImov : 0);
+        return { saldo: x.valor, grupo: deImovel ? 'imovel' : 'outros', parcela: Number(d.parcela) || 0,
+                 iMes: Math.pow(1 + Math.max(0, j), 1 / 12) - 1 };
       });
+      /* Reservas (troca do carro, viagem, o que cada um criar): a que entra no
+         fluxo do mês já está no previsto como conta; a que não entra é
+         separada da sobra aqui, para o plano não contar com esse dinheiro. */
+      var provisaoReservas = (pat.reservas || []).reduce(function (t, r) {
+        var d = r.detalhe || {};
+        return t + (d.noFluxo ? 0 : (Number(d.mensal) || 0));
+      }, 0);
 
       /* Quanto sobra por mês. A sobra sai do FUTURO INTEIRO que o app sabe
          projetar, não de uma janela de 12 meses: uma janela curta pega um
@@ -2350,39 +2399,39 @@
       });
       var cartaoMes = gastoCartao / (Object.keys(mesesCartao).length || 1);
 
-      var provisaoCarro = custoTroca / (trocaCarro * 12);
-      var provisaoViagem = viagemAno / 12;
-      var sobraReal = sobra - provisaoCarro - provisaoViagem;
+      var sobraReal = sobra - provisaoReservas;
 
       var i = Math.pow(1 + taxa, 1 / 12) - 1;
-      var iImov = Math.pow(1 + jurosImov, 1 / 12) - 1;
-      var iVal = Math.pow(1 + valorizIm, 1 / 12) - 1;
-      // Quanto o carro perde por ano. 10% é a prática de mercado para carro
-      // usado; troque em DEPRECIACAO_CARRO_ANO se o seu for outro.
-      var depAno = cfgNum(c, 'DEPRECIACAO_CARRO_ANO', 0.10);
-      var depMes = Math.pow(1 - Math.min(0.9, Math.max(0, depAno)), 1 / 12);
+      // as parcelas que vieram das contas, divididas entre as dívidas sem parcela própria
+      var semParcela = { imovel: 0, outros: 0 };
+      dividasSim.forEach(function (d) { if (!d.parcela) semParcela[d.grupo]++; });
 
       function simular(aporte) {
-        var inv = 0, sImovel = imovel, sDivida = dividaImovel, sCarro = carro;
-        var dCarro = dividaCarro, serie = [], gastoTroca = 0;
+        var inv = 0, serie = [];
+        var bs = bensSim.map(function (b) { return b.valor; });
+        var ds = dividasSim.map(function (d) { return d.saldo; });
+        var sImovel = imovel, sCarro = carro, sDivida = dividaImovel, dCarro = dividaCarro;
         for (var m = 1; m <= nMeses; m++) {
           var a = hoje.getFullYear() + Math.floor((hoje.getMonth() + m) / 12);
           var mes = ((hoje.getMonth() + m) % 12) + 1;
 
           inv = inv * (1 + i) + aporte;
-          sImovel = sImovel * (1 + iVal);
-          // Price: a parcela é fixa; o saldo cai pela diferença entre ela e os juros
-          // sem conta de parcela, a dívida fica parada (não cresce só com juros)
-          if (sDivida > 0 && parcelaImovel > 0) {
-            sDivida = Math.max(0, sDivida + sDivida * iImov - parcelaImovel);
-          }
-          if (dCarro > 0) dCarro = Math.max(0, dCarro - parcelaCarro * 0.85);
-          sCarro = sCarro * depMes;
-          if (m % (trocaCarro * 12) === 0) {              // troca: sai do bolso
-            inv = Math.max(0, inv - custoTroca);
-            sCarro = sCarro + custoTroca;
-            gastoTroca += custoTroca;
-          }
+          sImovel = 0; sCarro = 0;
+          bensSim.forEach(function (b, k) {
+            bs[k] = bs[k] * b.fator;
+            if (b.grupo === 'imovel') sImovel += bs[k]; else sCarro += bs[k];
+          });
+          sDivida = 0; dCarro = 0;
+          dividasSim.forEach(function (d, k) {
+            if (ds[k] > 0) {
+              var parc = d.parcela || (semParcela[d.grupo]
+                ? (d.grupo === 'imovel' ? parcelaImovel : parcelaCarro * 0.85) / semParcela[d.grupo] : 0);
+              // Price: a parcela é fixa; o saldo cai pela diferença entre ela e os
+              // juros. Sem parcela nenhuma, a dívida fica parada.
+              if (parc > 0) ds[k] = Math.max(0, ds[k] + ds[k] * d.iMes - parc);
+            }
+            if (d.grupo === 'imovel') sDivida += ds[k]; else dCarro += ds[k];
+          });
           compromissos.forEach(function (k) {
             if (k.ano === a && k.mes === mes) inv -= k.valor;
           });
@@ -2397,7 +2446,8 @@
         var liq = inv + (sImovel - sDivida) + (sCarro - dCarro);
         /* Se o financiamento ainda roda na data da meta, o que o imóvel
            entrega é o aluguel MENOS a parcela. */
-        var aluguelFuturo = aluguelHoje * Math.pow(1 + valorizIm, nMeses / 12);
+        // o aluguel acompanha o que os imóveis valorizaram
+        var aluguelFuturo = aluguelHoje * (imovel > 0 ? sImovel / imovel : Math.pow(1 + valorizIm, nMeses / 12));
         var aluguelLiquido = Math.max(0, aluguelFuturo - (sDivida > 0 ? parcelaImovel : 0));
         return { investido: Math.round(inv), liquido: Math.round(liq),
                  renda: Math.round(inv * retirada / 12),
@@ -2406,7 +2456,7 @@
                  parcelaAinda: sDivida > 0 ? Math.round(parcelaImovel) : 0,
                  rendaTotal: Math.round(inv * retirada / 12 + aluguelLiquido),
                  rendaSeVenderTudo: Math.round(liq * retirada / 12),
-                 gastoTroca: Math.round(gastoTroca), serie: serie };
+                 serie: serie };
       }
 
       var cartaoProj = Math.round(cartaoMes);
@@ -2416,7 +2466,7 @@
 
       var defs = [
         { nome: 'Como está hoje', aporte: Math.round(base),
-          como: 'sobra atual, já descontadas as provisões de carro e viagem' },
+          como: provisaoReservas > 0 ? 'sobra atual, já descontadas as reservas' : 'sobra atual' },
         { nome: 'Cartão na meta', aporte: Math.round(base + folgaCartao),
           como: 'fatura em ' + Math.round(metaCartao) + ' em vez de ' + Math.round(cartaoProj) },
         { nome: 'Cartão na meta + 10% de corte',
@@ -2468,15 +2518,13 @@
       });
 
       return {
-        idade: idade, idadeMeta: IDADE_META, anoMeta: ALVO.getFullYear(), mesesAte: nMeses, anosAte: Math.round(nMeses / 12 * 10) / 10,
+        idade: idade, idadeMeta: IDADE_META, nascimento: nascTxt, anoMeta: ALVO.getFullYear(), mesesAte: nMeses, anosAte: Math.round(nMeses / 12 * 10) / 10,
         taxa: taxa, valorizacaoImovel: valorizIm, retirada: retirada,
         receitaMes: Math.round(receita), despesaMes: Math.round(despesa),
         sobraMes: Math.round(sobra), mesesDaMedia: janela,
         porAno: porAno, alavancas: alavancas,
-        provisaoCarro: Math.round(provisaoCarro), provisaoViagem: Math.round(provisaoViagem),
+        provisaoReservas: Math.round(provisaoReservas),
         sobraReal: Math.round(sobraReal),
-        trocaCarroAnos: trocaCarro, custoTroca: custoTroca, viagemAno: viagemAno,
-        depreciacaoAno: depAno,
         patrimonioDetalhe: pat,
         imovelHoje: imovel, carroHoje: carro,
         dividaImovel: dividaImovel, dividaCarro: dividaCarro,
@@ -2542,7 +2590,7 @@
       linhas.forEach(function (l) {
         var prev = n(l.previsto), real = n(l.realizado);
         if (l.natureza === 'RECEITA') { rec += Math.max(prev, real); return; }
-        if (l.natureza !== 'DESPESA') return;
+        if (l.natureza !== 'DESPESA' && l.natureza !== 'INVESTIMENTO') return;
         des += (correndo && l.sai_por === 'CARTAO') ? real : Math.max(prev, real);
       });
       return {
@@ -3060,7 +3108,12 @@
                     { receita: 0, despesa: 0, saldo: 0, acumulado: 0 };
         var fecha = { receita: linha.receita, despesa: linha.despesa, sobra: linha.saldo };
         var meta = aporte + reprog;
-        var gap = n(meta - fecha.sobra);
+        /* A conta do dono: saldo de HOJE + o que ainda entra − o que ainda sai
+           = resultado do mês (o saldo projetado no último dia). A reserva sai
+           dele, e o mês fecha no 0x0 quando o resultado cobre a reserva.
+           Antes a falta era contra o "entra − sai" do mês inteiro, que ignora
+           o que já estava na conta no dia 1. */
+        var gap = n(meta - linha.acumulado);
 
         // ---- onde agir: contas do dia a dia, no que ainda não foi gasto
         var hoje = new Date();
@@ -3192,10 +3245,8 @@
                   dividas: Math.round(pat.totalDividas || 0),
                   liquido: Math.round(pat.liquido || 0) },
           idade: p.idade, anosAte: p.anosAte, anoFinal: anoFinal,
+          nascimento: p.nascimento || '', idadeMeta: p.idadeMeta,
           anosDisponiveis: anosOrd, semAporte: semAporte, capacidade: cap,
-          // o texto do "ano a ano" explica o carro com estes dois números
-          trocaAnos: Number(p.trocaCarroAnos) || 3,
-          depreciacaoAno: Number(p.depreciacaoAno) || 0.10,
           alvo: alvo,
           aporteMes: aporte,
           viavel: (aporte === null) ? null : (aporte <= cap.mes),
@@ -3230,6 +3281,26 @@
                bastaOqueTenho: alvo <= semAporte.liquido,
                aporte: Math.round(aporte), capacidade: cap.mes,
                viavel: aporte <= cap.mes, chegada: patrimonioNoAno(r, a, aporte) };
+    });
+  }
+
+  /* O caminho inverso: a pessoa diz quanto quer guardar por mês e o app
+     diz onde isso chega no ano escolhido. */
+  function calcularPorAporte(aporte, a) {
+    return Promise.all([retaDoPlano(), capacidadeReal()]).then(function (R) {
+      var r = R[0], cap = R[1];
+      if (!r) return { ok: false, erro: 'não consegui montar a projeção' };
+      var anosOrd = Object.keys(r.anos).map(Number).sort(function (x, y) { return x - y; });
+      a = Number(a) || anosOrd[anosOrd.length - 1];
+      if (!r.anos[a]) {
+        return { ok: false, erro: 'o plano vai de ' + anosOrd[0] + ' a ' + anosOrd[anosOrd.length - 1] };
+      }
+      aporte = Math.round(Number(aporte) || 0);
+      if (!(aporte > 0)) return { ok: false, erro: 'diga quanto quer guardar por mês' };
+      var chegada = patrimonioNoAno(r, a, aporte);
+      return { ok: true, ano: a, aporte: aporte, alvo: chegada.liquido, chegada: chegada,
+               semAporte: patrimonioNoAno(r, a, 0),
+               capacidade: cap.mes, viavel: aporte <= cap.mes };
     });
   }
 
@@ -3269,19 +3340,13 @@
      'Corrige as contas que não têm reajuste próprio, ano a ano.'],
     ['REAJUSTE_CONTRATO', 'percent', 'Reajuste anual do salário', ''],
     ['MES_REAJUSTE_CONTRATO', 'inteiro', 'Mês do reajuste do salário', '1 = janeiro, 12 = dezembro.'],
-    ['RENTABILIDADE_REAL', 'percent', 'Rendimento real dos investimentos',
-     'Acima da inflação. É a taxa que o plano de aposentadoria usa.'],
-    ['VALORIZACAO_IMOVEL', 'percent', 'Valorização anual do imóvel', ''],
-    ['DEPRECIACAO_CARRO_ANO', 'percent', 'Depreciação anual do carro',
-     'Quanto o carro perde por ano. 10% é a prática de mercado para usado.'],
-    ['JUROS_FINANCIAMENTO', 'percent', 'Juros do financiamento do imóvel', ''],
-    ['TROCA_CARRO_ANOS', 'inteiro', 'Trocar de carro a cada quantos anos', ''],
-    ['CUSTO_TROCA_CARRO', 'dinheiro', 'Quanto sai do bolso em cada troca', ''],
-    ['RESERVA_VIAGEM_ANO', 'dinheiro', 'Reserva de viagem por ano', ''],
-    ['NASCIMENTO', 'texto', 'Sua data de nascimento',
-     'DD/MM/AAAA. É dela que o plano de aposentadoria tira a sua idade.'],
-    ['IDADE_APOSENTADORIA', 'inteiro', 'Com quantos anos quer parar de depender do salário',
-     'O plano de aposentadoria mira esta idade.'],
+    /* Saíram da tela de Ajustes: rendimento, valorização, depreciação e juros
+       agora moram em cada bem, dívida e investimento (Patrimônio); troca de
+       carro e viagem viraram reservas que cada um cria; nascimento e idade
+       de parar ficam no Plano. O 5º campo 'plano' esconde da tela de Ajustes
+       mas continua gravável por salvarAjuste. */
+    ['NASCIMENTO', 'texto', 'Sua data de nascimento', '', 'plano'],
+    ['IDADE_APOSENTADORIA', 'inteiro', 'Com quantos anos quer parar', '', 'plano'],
     ['AUTO_CONFIRMAR_CONHECIDOS', 'simnao', 'Confirmar sozinho fornecedor já conhecido',
      'SIM deixa o app lançar sem perguntar quando já sabe a conta do fornecedor.'],
     ['AUTO_CONFIRMAR_ABAIXO_DE', 'dinheiro', 'Confirmar sozinho abaixo de',
@@ -3341,8 +3406,8 @@
         if (bruto === '' || bruto == null) bruto = PADRAO_AJUSTE[x[0]];
         var valor = (x[1] === 'texto' || x[1] === 'simnao') ? (bruto || '')
                   : (bruto == null ? '' : Number(bruto) || 0);
-        return { chave: x[0], tipo: x[1], rotulo: x[2], ajuda: x[3] || '', valor: valor };
-      });
+        return { chave: x[0], tipo: x[1], rotulo: x[2], ajuda: x[3] || '', valor: valor, onde: x[4] || '' };
+      }).filter(function (x) { return x.onde !== 'plano'; });
 
       return { ok: true, ano: a, anos: anos, contas: contas,
                familias: Object.keys(familias).sort(), ajustes: ajustes,
@@ -3420,25 +3485,93 @@
     return salvarPrevistoEmVarios(linhas);
   }
 
-  function gravarBem(descricao, valor, tipo, fonte, parametro, renomear) {
+  /* detalhe (jsonb, migração 034): categoria, taxa anual, FIPE, compra...
+     Antes de a migração rodar a coluna não existe: grava sem ela. */
+  function gravarBem(descricao, valor, tipo, fonte, parametro, renomear, detalhe) {
     var alvo = renomear || descricao;
     return rest('/rest/v1/patrimonio?select=id&descricao=eq.' + encodeURIComponent(descricao))
       .then(function (r) {
         var campos = { descricao: alvo, valor: n(valor), tipo: tipo || 'BEM',
                        fonte: fonte || 'MANUAL', parametro: parametro || null,
                        atualizado: new Date().toISOString() };
-        if (r.length) {
-          return mudar('patrimonio', 'id=eq.' + r[0].id, campos)
-            .then(function () { return { ok: true }; });
+        if (detalhe && typeof detalhe === 'object') campos.detalhe = detalhe;
+        function vai(c) {
+          return r.length ? mudar('patrimonio', 'id=eq.' + r[0].id, c)
+                          : gravar('patrimonio', [c], 'user_id,descricao');
         }
-        return gravar('patrimonio', [campos], 'user_id,descricao')
-          .then(function () { return { ok: true }; });
+        return vai(campos).catch(function (e) {
+          if (!campos.detalhe || !/detalhe/i.test(String((e && e.message) || e))) throw e;
+          delete campos.detalhe;
+          return vai(campos);
+        }).then(function () { return { ok: true }; });
       });
   }
 
   function excluirBem(descricao) {
-    return rest('/rest/v1/patrimonio?descricao=eq.' + encodeURIComponent(descricao),
-                { metodo: 'DELETE' }).then(function () { return { ok: true }; });
+    return rest('/rest/v1/patrimonio?select=*&descricao=eq.' + encodeURIComponent(descricao))
+      .then(function (r) {
+        var x = r[0], d = x ? lerDetalhe(x) : {};
+        // reserva no fluxo: a conta dela deixa de ter previsto daqui para frente
+        var antes = (x && x.tipo === 'RESERVA' && d.conta) ? zerarPrevistoFuturo(d.conta) : Promise.resolve();
+        return antes.then(function () {
+          return rest('/rest/v1/patrimonio?descricao=eq.' + encodeURIComponent(descricao), { metodo: 'DELETE' });
+        });
+      }).then(function () { _projCache = {}; return { ok: true }; });
+  }
+
+  function zerarPrevistoFuturo(conta) {
+    return idDaCategoria(conta).then(function (cid) {
+      if (!cid) return null;
+      return rest('/rest/v1/previstos?categoria_id=eq.' + cid + '&mes_ref=gte.' + hojeRef(), { metodo: 'DELETE' })
+        .then(function () { return mudar('categorias', 'id=eq.' + cid, { ate: hojeRef() }); });
+    });
+  }
+
+  /* Reserva = dinheiro separado para um fim (troca do carro, viagem...).
+     Entrando no fluxo, ela vira uma conta "RESERVA - X" do tipo investimento
+     com o valor por mês no previsto até a data: o mês já nasce descontado e
+     o plano não conta com esse dinheiro. Fora do fluxo, o plano só separa o
+     valor da sobra. */
+  function gravarReserva(antigo, nome, valor, det) {
+    det = det || {};
+    nome = String(nome || '').trim();
+    if (!nome) return Promise.resolve({ ok: false, erro: 'dê uma descrição' });
+    if (!/^\d{4}-\d{2}$/.test(String(det.ate || ''))) return Promise.resolve({ ok: false, erro: 'diga até quando (AAAA-MM)' });
+    var conta = 'RESERVA - ' + nome.toUpperCase();
+    return rest('/rest/v1/patrimonio?select=*&descricao=eq.' + encodeURIComponent(antigo || nome))
+      .then(function (r) {
+        var velho = r[0] ? lerDetalhe(r[0]) : {};
+        // trocou o nome ou saiu do fluxo: a conta antiga para de receber previsto
+        var limpar = (velho.conta && (velho.conta !== conta || !det.noFluxo)) ? zerarPrevistoFuturo(velho.conta) : Promise.resolve();
+        return limpar.then(function () {
+          if (!det.noFluxo) { det.conta = ''; return null; }
+          det.conta = conta;
+          return idDaCategoria(conta).then(function (cid) {
+            var campos = { nome: conta, grupo: 'INVESTIMENTO', natureza: 'INVESTIMENTO', sai_por: 'CAIXA',
+                           ate: det.ate, ativa: true };
+            var cria = cid ? mudar('categorias', 'id=eq.' + cid, campos).then(function () { return cid; })
+              : gravar('categorias', [campos], 'user_id,nome').then(function (x) { return x[0].id; });
+            return cria.catch(function (e) {
+              // antes da migração 034 o tipo investimento não existe: vai como despesa
+              if (!/natureza|check/i.test(String((e && e.message) || e))) throw e;
+              campos.natureza = 'DESPESA';
+              return cid ? mudar('categorias', 'id=eq.' + cid, campos).then(function () { return cid; })
+                         : gravar('categorias', [campos], 'user_id,nome').then(function (x) { return x[0].id; });
+            });
+          }).then(function (cid) {
+            var linhas = [], m = hojeRef();
+            for (var k = 0; m <= det.ate && k < 240; k++, m = mesSeguinte(m)) {
+              linhas.push({ categoria_id: cid, mes_ref: m, valor: n(det.mensal) });
+            }
+            return linhas.length ? gravar('previstos', linhas, 'user_id,categoria_id,mes_ref') : null;
+          });
+        }).then(function () {
+          return gravarBem(antigo || nome, valor, 'RESERVA', 'MANUAL', '', antigo && antigo !== nome ? nome : '', det);
+        }).then(function () {
+          _projCache = {}; _cfgCache = null;
+          return { ok: true, conta: det.noFluxo ? conta : '' };
+        });
+      });
   }
 
   function novaContaInvestimento(nome, valor) {
@@ -3453,9 +3586,50 @@
   /* A FIPE precisa de um servidor: o navegador não consegue chamar a API
      deles por causa de CORS, e a chave de nada adianta no celular. Quando
      existir o servidor da Pluggy, esta função vira uma linha lá. */
+  /* FIPE pela API pública da Parallelum (código FIPE + ano modelo). Se ela
+     não responder, o valor continua o digitado. */
+  function consultarFipe(codigo, anoModelo) {
+    codigo = String(codigo || '').trim();
+    if (!/^\d{6}-?\d$/.test(codigo)) return Promise.resolve({ ok: false, erro: 'código FIPE no formato 001004-9' });
+    if (codigo.indexOf('-') < 0) codigo = codigo.slice(0, 6) + '-' + codigo.slice(6);
+    var base = 'https://fipe.parallelum.com.br/api/v2/';
+    function tenta(tipos) {
+      if (!tipos.length) return Promise.resolve({ ok: false, erro: 'a FIPE não achou ' + codigo });
+      var t = tipos[0];
+      return fetch(base + t + '/' + codigo + '/years').then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (anos) {
+          if (!anos || !anos.length) return tenta(tipos.slice(1));
+          var ano = anos.filter(function (a) { return String(a.code).indexOf(String(anoModelo || '')) === 0; })[0] || anos[0];
+          return fetch(base + t + '/' + codigo + '/years/' + ano.code).then(function (r) { return r.json(); })
+            .then(function (x) {
+              var v = Number(String(x.price || '').replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+              if (!v) return { ok: false, erro: 'a FIPE não trouxe o valor' };
+              return { ok: true, valor: v, modelo: x.model || '', referencia: x.referenceMonth || '', ano: ano.name };
+            });
+        });
+    }
+    return tenta(['cars', 'motorcycles', 'trucks']).catch(function () {
+      return { ok: false, erro: 'não consegui falar com a FIPE agora; edite o valor à mão' };
+    });
+  }
+
   function atualizarFipe() {
-    return Promise.resolve({ ok: false,
-      erro: 'a consulta à FIPE vai junto com o servidor; por ora, edite o valor à mão' });
+    return patrimonio().then(function (p) {
+      var vs = p.bens.filter(function (b) { return b.detalhe && b.detalhe.fipe; });
+      if (!vs.length) return { ok: false, erro: 'nenhum veículo com código FIPE' };
+      var feitos = 0;
+      return vs.reduce(function (pr, b) {
+        return pr.then(function () {
+          return consultarFipe(b.detalhe.fipe, b.detalhe.anoModelo).then(function (r) {
+            if (!r.ok) return;
+            feitos++;
+            return gravarBem(b.descricao, r.valor, 'BEM', 'FIPE', '', '', b.detalhe);
+          });
+        });
+      }, Promise.resolve()).then(function () {
+        return feitos ? { ok: true, atualizados: feitos } : { ok: false, erro: 'não consegui falar com a FIPE agora' };
+      });
+    });
   }
 
   function anosDaFC() {
@@ -3577,6 +3751,7 @@
     apiPatrimonio: patrimonio,
     apiPlanoSimples: planoSimples,
     apiCalcularAlvo: calcularAlvo,
+    apiCalcularPorAporte: calcularPorAporte,
     apiDefinirAlvo: definirAlvo,
     apiLimparAlvo: limparAlvo,
     apiConfiguracoes: configuracoes,
@@ -3587,6 +3762,8 @@
     apiExcluirBem: excluirBem,
     apiNovaContaInvestimento: novaContaInvestimento,
     apiAtualizarFipe: atualizarFipe,
+    apiConsultarFipe: consultarFipe,
+    apiGravarReserva: gravarReserva,
     apiAnosDaFC: anosDaFC,
     apiAbrirAnoNaFC: abrirAno,
     apiAuditoria: auditoria,
@@ -6892,10 +7069,11 @@
   .tg-num .meta{font-size:11px;color:var(--dim);padding-left:15px}
   .tgbar{position:relative;height:15px;border-radius:8px;background:#0b101b;margin-top:6px}
   .tgbar i{position:absolute;left:0;top:0;bottom:0;border-radius:8px}
-  /* um traço por dia do ciclo: escuro sobre o que já foi gasto, claro no resto */
-  .tgbar s.dias{position:absolute;inset:0;border-radius:8px;pointer-events:none;
-     background-image:linear-gradient(to right,rgba(0,0,0,.28) 1px,transparent 1px),
-                      linear-gradient(to right,rgba(255,255,255,.07) 1px,transparent 1px)}
+  /* uma bolinha fininha por dia do ciclo: escura sobre o que já foi gasto,
+     clara no resto (antes era um traço vertical, que pesava na barra) */
+  .tgbar s.dias,.bar s.dias{position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+     background-image:radial-gradient(circle,rgba(0,0,0,.32) 0 1px,transparent 1.4px),
+                      radial-gradient(circle,rgba(255,255,255,.16) 0 1px,transparent 1.4px)}
   .tgbar b{position:absolute;top:0;line-height:15px;font-size:10.5px;font-weight:600;
      white-space:nowrap;font-variant-numeric:tabular-nums}
   /* Resumo em cartõezinhos (Extrato e Plano) */
@@ -8177,7 +8355,8 @@ function filtrarPicker(){ montarPicker(el('pkBusca').value); }
    como classificar o credito de um PIX que voce mandou de uma conta sua para
    outra. */
 function serveParaNatureza(x, natureza){
-  return x.natureza===natureza || x.natureza==='TRANSFERENCIA';
+  return x.natureza===natureza || x.natureza==='TRANSFERENCIA' ||
+         (natureza==='DESPESA' && x.natureza==='INVESTIMENTO');
 }
 
 /* A mesma folha de escolha serve para qualquer lista, nao so para contas.
@@ -8891,11 +9070,8 @@ function barraComMarca(real, meta, marca, dias){
   var cor = real>(marca||0) ? 'var(--bad)' : 'var(--ok)';
   return '<div class="bar" style="position:relative;overflow:visible">'+
     '<i style="width:'+p.toFixed(1)+'%;background:'+cor+'"></i>'+
-    // um traço por dia do ciclo (como nas barras de cada verba)
-    (dias>1 ? '<s style="position:absolute;inset:0;border-radius:inherit;pointer-events:none;'+
-       'background-image:linear-gradient(to right,rgba(0,0,0,.28) 1px,transparent 1px),'+
-       'linear-gradient(to right,rgba(255,255,255,.07) 1px,transparent 1px);'+
-       'background-size:'+(100/dias).toFixed(3)+'% 100%"></s>' : '')+
+    // uma bolinha por dia do ciclo (como nas barras de cada verba)
+    (dias>1 ? '<s class="dias" style="background-size:'+(100/dias).toFixed(3)+'% 100%"></s>' : '')+
     '<b style="position:absolute;left:'+m.toFixed(1)+'%;top:-4px;bottom:-4px;width:3px;'+
       'background:#fff;border-radius:2px;box-shadow:0 0 0 1px #0008"></b></div>';
 }
@@ -8972,10 +9148,7 @@ function renderPainel(){
 function atualizarFipe(){
   toast('Consultando a FIPE...');
   google.script.run.withSuccessHandler(function(r){
-    if(r.atualizados && r.atualizados.length){
-      var a=r.atualizados[0];
-      toast(a.bem.split(' ')[0]+': '+moeda(a.para)+' ('+a.referencia+')');
-    } else toast('Nada para atualizar');
+    toast(r&&r.ok ? r.atualizados+' veículo(s) atualizados pela FIPE' : ((r&&r.erro)||'Nada para atualizar'));
     ST.plano=null; ST.patrimonio=null;
     if(ST.telaAtual==='analise' && ST.modoAnalise==='PATRIMONIO') carregarPatrimonio();
     else if(ST.telaAtual==='config') recarregarConfig();
@@ -9052,23 +9225,31 @@ function renderPlano(){
     ' + caixa '+mil(p.hoje.caixa)+' − dívidas '+mil(p.hoje.dividas)+'</div>'+
     '<div class="m" style="font-size:11.5px;margin-top:6px;color:var(--txt)">'+
     'Sem guardar mais nada, isso vira <b>'+mil(p.semAporte.liquido)+'</b> aos '+
-    p.semAporte.idade+' anos — o apartamento valorizando e o financiamento acabando.'+
+    p.semAporte.idade+' anos — cada bem na sua taxa e as dívidas sendo pagas.'+
     '</div></div>';
+
+  // ---------- você: nascimento e com quantos anos quer parar ----------
+  if(!p.alvo || ST.trocandoAlvo) h+=blocoVoce(p, true);
 
   // ---------- o alvo ----------
   if(!p.alvo || ST.trocandoAlvo){
-    h+='<div class="lbl" style="margin:14px 0 6px">Quanto você quer ter</div>';
+    // dois jeitos de montar: pelo patrimônio que quer ter, ou pelo quanto
+    // quer guardar por mês
+    var porAporte = ST.modoAlvo==='aporte';
+    h+='<div class="evo-tabs" style="margin:14px 0 6px">'+
+      '<button class="'+(porAporte?'':'on')+'" onclick="ST.modoAlvo=\'alvo\';renderPlano()">Quanto quero ter</button>'+
+      '<button class="'+(porAporte?'on':'')+'" onclick="ST.modoAlvo=\'aporte\';renderPlano()">Guardar por mês</button></div>';
     h+='<div class="card">'+
       '<div class="row" style="gap:8px">'+
-        '<input id="alvoV" inputmode="decimal" placeholder="2.500.000,00" style="flex:2;margin:0" '+
+        '<input id="alvoV" inputmode="decimal" placeholder="'+(porAporte?'2.000,00 por mês':'2.500.000,00')+'" style="flex:2;margin:0" '+
           'oninput="mascaraMoeda(this)">'+
         '<div style="flex:1">'+
           botaoEscolha('alvoA', String(p.anoFinal), 'ano…', 'ano',
             p.anosDisponiveis.map(function(a){
               return { valor:String(a), rotulo:String(a), grupo:'ANO' }; }), '')+
         '</div></div>'+
-      '<button class="bt-ac" style="width:100%;margin-top:9px" onclick="calcularAlvo()">'+
-      'Quanto preciso guardar?</button>'+
+      '<button class="bt-ac" style="width:100%;margin-top:9px" onclick="'+(porAporte?'calcularPorAporte()':'calcularAlvo()')+'">'+
+      (porAporte?'Onde isso me leva?':'Quanto preciso guardar?')+'</button>'+
       '<div id="alvoSaida"></div></div>';
 
     h+='<div class="lbl" style="margin:14px 0 6px">Ou comece por um destes</div>';
@@ -9122,8 +9303,8 @@ function renderPlano(){
   if(p.composicao && p.composicao.length){
     var G='grid-template-columns:44px 1fr 1fr 1fr 1.02fr';
     h+='<div class="cab-ln fica proj" style="'+G+';margin-top:8px">'+
-        '<span style="text-align:left">ano</span><span>dinheiro</span><span>imóvel</span>'+
-        '<span>carro</span><span>total</span></div>'+
+        '<span style="text-align:left">ano</span><span>dinheiro</span><span>imóveis</span>'+
+        '<span>outros bens</span><span>total</span></div>'+
       p.composicao.map(function(x){
         return '<div class="ln proj" style="'+G+'">'+
           '<span style="font-size:11.5px;color:var(--dim)">'+x.ano+'</span>'+
@@ -9133,7 +9314,7 @@ function renderPlano(){
           '<span class="n" style="font-weight:600">'+seco(x.liquido)+'</span></div>';
       }).join('');
   }
-  h+='</details>'+
+  h+=blocoVoce(p, false)+'</details>'+
     '<button class="bt-no" style="width:100%;margin-top:10px" '+
       'onclick="ST.trocandoAlvo=true;renderPlano()">Mudar o alvo</button></div>';
 
@@ -9149,44 +9330,32 @@ function renderPlano(){
 function blocoDoMes(m){
   if(!m) return '';
   var nomeMes=NOMES_MES[Number(m.mes.split('-')[1])];
-  /* Dois números diferentes, cada um com o seu nome:
-     - "fim do mês" é o dinheiro em conta no último dia: o MESMO da tela Mês;
-     - "resultado" é o que o mês entrega (entra - sai), e é ele que paga a
-       reserva. Antes os dois se chamavam "saldo" e não batiam entre telas. */
-  var falta=n2(m.meta-m.sobra);                  // quanto o resultado não cobre da reserva
-  /* Lê-se de cima para baixo: hoje na conta + ainda entra - ainda sai = fim
-     do mês. Depois a meta: para guardar a reserva o mês precisa terminar com
-     o que começou + a reserva. A diferença é o tamanho do buraco. */
-  var cv=m.curva||{}, inicio=n2((m.saldoFim||0)-(m.sobra||0));
-  var hojeS = cv.saldoHoje!==undefined ? cv.saldoHoje : inicio;
+  /* A conta, de cima para baixo, como o dono faz de cabeça:
+       saldo de HOJE + o que ainda entra − o que ainda sai = resultado do mês
+       reserva prevista − resultado = o que falta para fechar no 0x0
+     O resultado é o mesmo "fim do mês" da tela Mês. */
+  var cv=m.curva||{};
+  var hojeS = cv.saldoHoje!==undefined ? cv.saldoHoje : n2((m.saldoFim||0)-(m.sobra||0));
   var entraR = cv.aindaEntra!==undefined ? cv.aindaEntra : m.receita;
   var saiR = cv.aindaSai!==undefined ? cv.aindaSai : m.despesa;
-  var precisa = n2(inicio + m.meta);
+  var resultado = n2(m.saldoFim);
+  var falta = n2(m.meta-resultado);
+  var ln=function(rot, v, cls, forte){
+    return '<div class="row" style="padding:4px 0;font-size:'+(forte?'14px':'13px')+(forte?';font-weight:700':'')+'">'+
+      '<span'+(forte?'':' style="color:var(--dim)"')+'>'+rot+'</span><span class="num '+(cls||'')+'">'+v+'</span></div>';
+  };
   var h='<div class="lbl" style="margin:2px 0 6px">'+nomeMes+'</div>'+
-    '<div class="mini" style="grid-template-columns:repeat(2,1fr)">'+
-      miniCard('hoje', num(hojeS), hojeS>=0?'':'neg')+
-      miniCard('fim do mês', num(m.saldoFim), m.saldoFim>=0?'pos':'neg')+
-      miniCard('ainda entra', '+'+num(entraR), 'pos')+
-      miniCard('ainda sai', '−'+num(saiR), 'neg')+
-    '</div>'+
     '<div class="card" style="border-left:3px solid '+(falta>0?'var(--bad)':'var(--ok)')+'">'+
-      '<div class="row"><div><div class="lbl">🐷 Meta do mês</div>'+
-        '<div style="font-size:19px;font-weight:700">guardar '+num(m.meta)+'</div></div>'+
-      '<div style="text-align:right"><div class="lbl">'+(falta>0?'🎯 Buraco':'✓ Sobra')+'</div>'+
-        '<div style="font-size:22px;font-weight:800" class="'+(falta>0?'neg':'pos')+'">'+num(Math.abs(falta))+'</div></div></div>'+
-      /* A conta por extenso: guardar é o mês ENTREGAR dinheiro novo (entra − sai),
-         não só terminar com a meta na conta. Quem terminar com 2.150 tendo
-         começado com 1.467 guardou 683, não 2.150. */
-      '<div class="m" style="font-size:11.5px;margin-top:6px;line-height:1.5">'+
-        'começou com '+num(inicio)+' → projeção '+'<b class="'+(m.saldoFim>=0?'pos':'neg')+'">'+num(m.saldoFim)+'</b>: '+
-        (m.sobra<0 ? 'o mês gasta <b class="neg">'+num(-m.sobra)+'</b> a mais do que entra'
-                   : 'o mês entrega <b class="pos">'+num(m.sobra)+'</b> (entra − sai)')+'.<br>'+
-        'Guardar '+num(m.meta)+' é o mês entregar +'+num(m.meta)+', ou seja, terminar com <b>'+num(precisa)+'</b>.'+
-        (falta>0 ? '<br>Buraco = '+(m.sobra<0 ? num(-m.sobra)+' (o que o mês consome) + ' : '')+num(m.meta)+' (a meta)'+
-                   (m.sobra>0 ? ' − '+num(m.sobra)+' (o que o mês já entrega)' : '')+' = <b class="neg">'+num(falta)+'</b>.' : '')+
-        (falta>0 && m.saldoFim<m.meta ? '<br><span style="color:var(--dim)">Só para ter '+num(m.meta)+' na conta no fim do mês faltariam '+
-           num(n2(m.meta-m.saldoFim))+' — mas aí parte da "reserva" seria o dinheiro que já estava lá no dia 1.</span>' : '')+
-      '</div>'+
+      ln('Saldo de hoje', num(hojeS), hojeS>=0?'':'neg')+
+      ln('+ ainda entra', num(entraR), 'pos')+
+      ln('− ainda sai', num(saiR), 'neg')+
+      '<div style="border-top:1px solid var(--line);margin:4px 0"></div>'+
+      ln('= Resultado do mês', num(resultado), resultado>=0?'pos':'neg', true)+
+      ln('🐷 Reserva prevista', num(m.meta))+
+      '<div style="border-top:1px solid var(--line);margin:4px 0"></div>'+
+      '<div class="row" style="padding:4px 0">'+
+        '<span style="font-size:13px;font-weight:600">'+(falta>0?'Falta para fechar no 0x0 com a reserva feita':'Sobra depois da reserva')+'</span>'+
+        '<span class="num '+(falta>0?'neg':'pos')+'" style="font-size:20px;font-weight:800">'+num(Math.abs(falta))+'</span></div>'+
     '</div>';
 
   var contas=(m.contas||[]).filter(function(x){ return x.economia>0; });
@@ -9478,6 +9647,57 @@ function calcularAlvo(){
     .apiCalcularAlvo(v, a);
 }
 
+/* Nascimento e idade de parar moram no Plano (saíram dos Ajustes): é daqui
+   que sai até quando a projeção vai. */
+function blocoVoce(p, card){
+  var nasc=String(p.nascimento||'');
+  if(/^\d{4}-\d{2}-\d{2}$/.test(nasc)) nasc=nasc.split('-').reverse().join('/');
+  var h='<div class="row" style="gap:6px;align-items:flex-end;margin-top:'+(card?'0':'10px')+'">'+
+    '<div style="flex:1.4;min-width:0"><div class="lbl" style="font-size:10px">Nascimento</div>'+
+      '<input id="pvNasc" value="'+nasc+'" placeholder="DD/MM/AAAA" inputmode="numeric" maxlength="10" style="margin:0;padding:7px 8px;font-size:13px"></div>'+
+    '<div style="flex:1;min-width:0"><div class="lbl" style="font-size:10px">Parar aos</div>'+
+      '<input id="pvIdade" value="'+(p.idadeMeta||60)+'" inputmode="numeric" maxlength="3" style="margin:0;padding:7px 8px;font-size:13px"></div>'+
+    '<button class="bt-no" style="padding:7px 11px;font-size:12.5px" onclick="salvarVoce()">Salvar</button></div>';
+  return card ? '<div class="card" style="padding:10px 11px">'+h+'</div>' : h;
+}
+function salvarVoce(){
+  var nasc=(el('pvNasc').value||'').trim(), idade=parseInt(el('pvIdade').value,10)||0;
+  if(idade<30||idade>100){ toast('Idade entre 30 e 100'); return; }
+  toast('Salvando...');
+  var erro=function(e){ toast('Falhou: '+((e&&e.message)||e)); };
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
+    google.script.run.withSuccessHandler(function(r2){
+      if(!r2||!r2.ok){ toast((r2&&r2.erro)||'Não consegui'); return; }
+      toast('Salvo — refazendo o plano');
+      ST.plano=null; ST.projLonga=null; ST.ano=null; ST.extras=null; ST.cacheMes={};
+      carregarPlano();
+    }).withFailureHandler(erro).apiSalvarAjuste('IDADE_APOSENTADORIA', idade);
+  }).withFailureHandler(erro).apiSalvarAjuste('NASCIMENTO', nasc);
+}
+
+function calcularPorAporte(){
+  var v=parseFloat(String(el('alvoV').value||'0').replace(/\./g,'').replace(',','.'))||0;
+  var a=Number(el('alvoA').value)||0;
+  if(!v){ toast('Digite quanto quer guardar por mês'); return; }
+  el('alvoSaida').innerHTML='<div class="m" style="margin-top:8px">Calculando…</div>';
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok){ el('alvoSaida').innerHTML='<div class="m neg" style="margin-top:8px">'+
+      ((r&&r.erro)||'')+'</div>'; return; }
+    ST.alvoCalc=r;
+    el('alvoSaida').innerHTML='<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:9px">'+
+      '<div class="lbl">Em '+r.ano+' você chega a</div>'+
+      '<div class="big" style="font-size:28px;color:var(--ok)">'+mil(r.alvo)+'</div>'+
+      '<div class="m" style="font-size:12px;margin-top:4px">guardando '+moeda(r.aporte)+' por mês'+
+        (r.chegada&&r.chegada.idade?' · aos '+r.chegada.idade+' anos':'')+'. '+
+        (r.viavel ? 'Cabe — a projeção diz que sobram '+mil(r.capacidade)+' por mês.'
+                  : '<span class="neg">Não cabe: sobram só '+mil(r.capacidade)+' por mês.</span>')+'</div>'+
+      '<button class="'+(r.viavel?'bt-ok':'bt-no')+'" style="width:100%;margin-top:9px" '+
+        'onclick="usarAlvo()">Seguir este plano</button></div>';
+  }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
+    .apiCalcularPorAporte(v, a);
+}
+
 function gravarAlvo(dados){
   toast('Guardando…');
   google.script.run.withSuccessHandler(function(r){
@@ -9518,13 +9738,14 @@ function blocoProximos(){
   garantirProjecaoLonga();
   var p=ST.projLonga || ST.projecaoAnual;
   if(!p || !p.meses) return '';
+  // parte do saldo projetado no fim deste mês (o que a tela do Mês mostra),
+  // não do saldo de hoje: o mês corrente ainda tem o que entra e o que sai
+  var fimMes = p.meses[0] || { acumulado: p.saldoInicial, mes: new Date().getMonth()+1 };
   var h='<div class="card"><div class="row" style="margin-bottom:6px">'+
     '<div class="lbl">Caixa projetado</div>'+
     '<span class="num" style="font-weight:700;font-size:13px">parte de '+
-      moeda(p.saldoInicial)+'</span></div>'+
-    '<div class="m" style="font-size:11px;margin-bottom:8px">cada mês começa com o que '+
-    'sobrou do anterior. <b>no mês</b> é o que ele próprio produziu (entra menos sai); '+
-    '<b>fecha com</b> é o saldo em conta no último dia dele. Valores em reais.</div>';
+      moeda(fimMes.acumulado)+' <span style="font-weight:400;color:var(--dim);font-size:11px">fim de '+
+      CURTO[fimMes.mes]+'</span></span></div>';
 
   var anoAgora = Number((ST.mes||'').split('-')[0]) || new Date().getFullYear();
   h+='<div class="lbl" style="margin:10px 0 2px">'+anoAgora+', mês a mês</div>'+
@@ -9547,18 +9768,18 @@ function blocoProximos(){
        '<div class="lbl" style="margin-bottom:6px">Ano a ano</div>'+
        '<div class="m" style="font-size:11px;margin-bottom:6px">toque num ano para '+
        'abrir mês a mês</div>'+
-       '<div class="cab-ln fica proj" style="grid-template-columns:46px 1fr 1fr 1fr 1.02fr">'+
+       '<div class="cab-ln fica proj" style="grid-template-columns:60px 1fr 1fr 1fr 1.02fr">'+
        '<span style="text-align:left">ano</span><span>entra</span><span>sai</span>'+
        '<span>no ano</span><span>fecha com</span></div>';
     ST.anoAberto = ST.anoAberto || 0;
     // o ano corrente nao repete: ele ja esta aberto mes a mes aqui em cima
     p.anos.filter(function(a){ return a.ano!==anoAgora; }).forEach(function(a){
       var aberto = ST.anoAberto===a.ano;
-      h+='<div class="ln proj" style="grid-template-columns:46px 1fr 1fr 1fr 1.02fr;cursor:pointer" '+
+      h+='<div class="ln proj" style="grid-template-columns:60px 1fr 1fr 1fr 1.02fr;cursor:pointer" '+
          'onclick="ST.anoAberto=(ST.anoAberto===' +a.ano+ '?0:' +a.ano+ ');renderPainel()">'+
-         '<span><span class="seta'+(aberto?' aberta':'')+'">&#9656;</span>'+a.ano+
-           '<br><span style="font-size:9px;color:var(--dim)">'+
-           a.meses+' meses</span></span>'+
+         // ano incompleto: o número de meses vai miúdo ao lado do ano, sem abrir outra linha
+         '<span style="white-space:nowrap"'+(a.meses<12?' title="'+a.meses+' meses"':'')+'><span class="seta'+(aberto?' aberta':'')+'">&#9656;</span>'+a.ano+
+           (a.meses<12?'<sup style="font-size:8px;color:var(--dim)">'+a.meses+'m</sup>':'')+'</span>'+
          '<span class="n pos">'+seco(a.receita)+'</span>'+
          '<span class="n neg">'+seco(a.despesa)+'</span>'+
          '<span class="n '+(a.saldo>=0?'pos':'neg')+'">'+
@@ -9794,7 +10015,7 @@ function renderCartao(){
       // o traço branco: onde esta conta deveria estar hoje (como na barra de cima)
       var mk=(temMeta && x.metaAteHoje!==null && x.metaAteHoje!==undefined)
         ? '<em class="marca" style="left:'+Math.min(100,Math.max(0,x.metaAteHoje/x.meta*100)).toFixed(1)+'%"></em>' : '';
-      // traços de dia: cada um vale um dia de verba (meta ÷ dias do ciclo)
+      // bolinhas de dia: cada uma vale um dia de verba (meta ÷ dias do ciclo)
       var tr=(temMeta && k.dias>1 && !k.fechada)
         ? '<s class="dias" style="background-size:'+(100/k.dias).toFixed(3)+'% 100%"></s>' : '';
       h+='<div class="tgbar"><i style="width:'+p+'%;background:'+(temMeta?corBar:'#334155')+'"></i>'+tr+mk+
@@ -10608,19 +10829,20 @@ function renderMetas(){
     return;
   }
   var nomeMes=NOMES_MES[Number(m.mes.split('-')[1])];
-  var ok=m.sobra>=m.meta;
-  var pct=m.meta>0?Math.max(0,Math.min(100,m.sobra/m.meta*100)):0;
+  // resultado do mês = saldo de hoje + ainda entra − ainda sai (o mesmo do
+  // Plano e do "fim do mês" da tela Mês); falta = reserva − resultado
+  var res=n2(m.saldoFim);
+  var ok=res>=m.meta;
+  var pct=m.meta>0?Math.max(0,Math.min(100,res/m.meta*100)):0;
 
   h+='<div class="lbl" style="margin:2px 0 6px">'+nomeMes+'</div>'+
     '<div class="mini">'+
-      miniCard('meta', num(m.meta))+
-      miniCard('resultado do mês', num(m.sobra), m.sobra>=0?'pos':'neg')+
-      miniCard(ok?'folga':'falta', num(Math.abs(m.sobra-m.meta)), ok?'pos':'neg')+
+      miniCard('reserva', num(m.meta))+
+      miniCard('resultado', num(res), res>=0?'pos':'neg')+
+      miniCard(ok?'folga':'falta', num(Math.abs(res-m.meta)), ok?'pos':'neg')+
     '</div>'+
-    '<div class="bar" style="margin:-4px 0 4px"><i style="width:'+pct.toFixed(0)+'%;background:'+
+    '<div class="bar" style="margin:-4px 0 6px"><i style="width:'+pct.toFixed(0)+'%;background:'+
       (ok?'var(--ok)':'var(--bad)')+'"></i></div>'+
-    '<div class="m" style="font-size:11.5px;margin-bottom:6px">resultado = o que entra − o que sai no mês (pela projeção). '+
-      (m.sobra<0?'Negativo: o mês usa '+num(-m.sobra)+' do que já estava na conta. ':'')+'É dele que sai a reserva.</div>'+
     (!ok?'<div class="m" style="font-size:12px;margin-bottom:12px">o que fazer: '+
       '<a href="#" onclick="trocarAnalise(\'PLANO\');return false" style="color:var(--acc)">'+
       'ações no Plano</a></div>':'<div style="height:12px"></div>');
@@ -10632,11 +10854,18 @@ function renderMetas(){
     h+='<div class="m" style="font-size:12px">o plano começou em '+
       NOMES_MES[Number(m.inicio.split('-')[1])].toLowerCase()+' — ainda não há mês fechado</div>';
   } else {
+    // por mês: o que guardou contra a reserva do plano, com a barrinha do quanto cumpriu
+    h+='<div class="tg-cab" style="grid-template-columns:38px 1fr 1fr 1fr"><span></span><span>guardou</span><span>reserva</span><span>diferença</span></div>';
     hist.forEach(function(x){
-      var bom=x.sobra>=m.aporte;
-      h+='<div class="row" style="padding:5px 0;font-size:13px">'+
+      var bom=x.sobra>=m.aporte, dif=n2(x.sobra-m.aporte);
+      var pc=m.aporte>0?Math.max(0,Math.min(100,x.sobra/m.aporte*100)):0;
+      h+='<div style="padding:6px 0;border-bottom:1px solid var(--line)">'+
+        '<div class="tg-num" style="grid-template-columns:38px 1fr 1fr 1fr;font-size:13px">'+
         '<span style="color:var(--dim)">'+CURTO[Number(x.mes.split('-')[1])]+'</span>'+
-        '<span class="num '+(bom?'pos':'neg')+'">'+num(x.sobra)+'</span></div>';
+        '<span class="'+(bom?'pos':'neg')+'" style="font-weight:600">'+num(x.sobra)+'</span>'+
+        '<span style="color:var(--dim)">'+num(m.aporte)+'</span>'+
+        '<span class="'+(dif>=0?'pos':'neg')+'">'+(dif>=0?'+':'')+num(dif)+'</span></div>'+
+        '<div class="bar" style="height:4px;margin-top:5px"><i style="width:'+pc.toFixed(0)+'%;background:'+(bom?'var(--ok)':'var(--bad)')+'"></i></div></div>';
     });
   }
   h+='</div>';
@@ -10689,6 +10918,8 @@ function renderPatrimonio(){
       '<span>Bens</span><span class="n">'+moeda(p.totalBens)+'</span></div>'+
     '<div class="ln" style="grid-template-columns:1fr auto;border:0;padding:6px 0">'+
       '<span>Investimentos</span><span class="n pos">'+moeda(p.totalInvestido||0)+'</span></div>'+
+    (p.totalReservas?'<div class="ln" style="grid-template-columns:1fr auto;border:0;padding:6px 0">'+
+      '<span>Reservas</span><span class="n pos">'+moeda(p.totalReservas)+'</span></div>':'')+
     '<div class="ln" style="grid-template-columns:1fr auto;border:0;padding:6px 0">'+
       '<span>Caixa hoje</span><span class="n">'+moeda(p.caixa)+'</span></div>'+
     '<div class="ln" style="grid-template-columns:1fr auto;border:0;padding:6px 0">'+
@@ -10699,17 +10930,19 @@ function renderPatrimonio(){
                moeda(p.totalBens - p.totalDividas), ST.abrePatBens);
   if(ST.abrePatBens){
     h+=patLista(p.bens, 'BEM');
+    if(ST.patNovo && ST.patNovo.tipo==='BEM') h+=patForm('BEM');
     h+='<div class="lbl" style="margin:12px 0 6px">Dívidas</div>';
     h+=patLista(p.dividas, 'DIVIDA');
-    if(ST.patNovo && ST.patNovo.tipo!=='INVESTIMENTO') h+=patForm(ST.patNovo.tipo);
+    if(ST.patNovo && ST.patNovo.tipo==='DIVIDA') h+=patForm('DIVIDA');
+    var temFipe=(p.bens||[]).some(function(b){ return b.detalhe && b.detalhe.fipe; });
     h+='<div class="row" style="gap:8px;margin:10px 0 4px">'+
        '<button class="bt-no" style="flex:1" onclick="patAbrirNovo(\'BEM\')">+ bem</button>'+
        '<button class="bt-no" style="flex:1" onclick="patAbrirNovo(\'DIVIDA\')">+ dívida</button>'+
-       '<button class="bt-no" style="flex:1" onclick="atualizarFipe()">FIPE</button></div>';
+       (temFipe?'<button class="bt-no" style="flex:1" onclick="atualizarFipe()">atualizar FIPE</button>':'')+'</div>';
   }
 
   // ---------- investimentos ----------
-  h+=patTitulo('INV', 'Investimentos', moeda(p.totalInvestido||0), ST.abrePatInv);
+  h+=patTitulo('INV', 'Investimentos e reservas', moeda((p.totalInvestido||0)+(p.totalReservas||0)), ST.abrePatInv);
   if(ST.abrePatInv){
     var contas=p.contasInvestimento||[];
     if(contas.length){
@@ -10727,12 +10960,18 @@ function renderPatrimonio(){
     h+=patLista(p.investimentos||[], 'INVESTIMENTO');
     if(ST.patNovo && ST.patNovo.tipo==='INVESTIMENTO') h+=patForm('INVESTIMENTO');
     if(ST.patContaNova) h+=patFormConta();
-    h+='<div class="row" style="gap:8px;margin:10px 0 4px">'+
-       '<button class="bt-ok" style="flex:1" '+
+    // reservas: troca do carro, viagem... cada um cria as suas
+    h+='<div class="lbl" style="margin:12px 0 6px">Reservas</div>';
+    h+=patLista(p.reservas||[], 'RESERVA');
+    if(ST.patNovo && ST.patNovo.tipo==='RESERVA') h+=patForm('RESERVA');
+    h+='<div class="row" style="gap:6px;margin:10px 0 4px">'+
+       '<button class="bt-ok" style="flex:1;font-size:12.5px" '+
          'onclick="ST.patContaNova=!ST.patContaNova;ST.patNovo=null;renderPatrimonio()">'+
-         '+ conta de investimento</button>'+
-       '<button class="bt-no" style="flex:1" onclick="patAbrirNovo(\'INVESTIMENTO\')">'+
-         '+ valor manual</button></div>';
+         '+ conta</button>'+
+       '<button class="bt-no" style="flex:1;font-size:12.5px" onclick="patAbrirNovo(\'INVESTIMENTO\')">'+
+         '+ valor manual</button>'+
+       '<button class="bt-no" style="flex:1;font-size:12.5px" onclick="patAbrirNovo(\'RESERVA\')">'+
+         '+ reserva</button></div>';
   }
   h+='<div style="height:20px"></div>';
   c.innerHTML=h;
@@ -10754,89 +10993,195 @@ function patAbrirNovo(t){
   ST.patContaNova=false; renderPatrimonio();
 }
 
+/* ---------- itens do patrimônio ----------
+   Lista enxuta (ícone, nome, uma linha de detalhe, valor) e um formulário só,
+   que muda conforme o tipo: bem (com categoria, taxa anual própria e FIPE no
+   veículo), dívida (juros, parcela, até quando) e reserva (para quê, meta,
+   até quando e se entra no fluxo do mês). */
+var PAT_CATS=[['IMOVEL','🏠','Imóvel',5],['TERRENO','🌳','Terreno',5],['VEICULO','🚗','Veículo',-10],
+  ['EMPRESA','💼','Empresa',0],['EQUIPAMENTO','🛠️','Equipamento',-15],['OUTRO','📦','Outro',0]];
+var PAT_RESERVAS=[['CARRO','🚗','Troca do carro'],['VIAGEM','✈️','Viagem'],['EMERGENCIA','🛟','Emergência'],
+  ['REFORMA','🔨','Reforma'],['ESTUDO','🎓','Estudo'],['OUTRO','🎯','Outro']];
+var PAT_DIV=[['IMOVEL','🏠','Imóvel'],['VEICULO','🚗','Veículo'],['OUTRO','📄','Outra']];
+function patCat(lista, k){ for(var i=0;i<lista.length;i++) if(lista[i][0]===k) return lista[i]; return lista[lista.length-1]; }
+function patNum(id){ var e=el(id); if(!e) return 0; return parseFloat(String(e.value||'0').replace(/\./g,'').replace(',','.'))||0; }
+function patPct(id){ var e=el(id); if(!e||String(e.value).trim()==='') return ''; return parseFloat(String(e.value).replace(',','.'))||0; }
+function patMesTxt(r){ return /^\d{4}-\d{2}$/.test(r||'') ? r.substring(5)+'/'+r.substring(2,4) : ''; }
+
 function patLista(lista, tipo){
-  if(!lista.length){
-    return '<div class="card"><div class="m">nada por aqui ainda</div></div>';
-  }
-  return lista.map(function(b){
-    var ed = ST.patEdit===b.descricao;
-    return '<div class="card" style="padding:9px 11px'+(ed?';border-color:var(--acc)':'')+'">'+
-      '<div class="row"><div style="min-width:0">'+
-        '<div class="d" style="font-size:13.5px">'+tx(b.descricao)+'</div>'+
-        '<div class="m" style="font-size:11px">'+String(b.fonte||'').toLowerCase()+
-          (b.atualizado?' · '+b.atualizado:'')+'</div></div>'+
-        '<div class="big '+(tipo==='DIVIDA'?'neg':'')+'" style="font-size:16px">'+
-          moeda(b.valor)+'</div></div>'+
-      '<div class="row" style="gap:6px;margin-top:8px">'+
-        '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" onclick="patEditar('+
-          JSON.stringify(b.descricao).replace(/"/g,'&quot;')+')">'+(ed?'Fechar':'Editar')+'</button>'+
-        '<button class="bt-no" style="padding:6px 10px;font-size:12px;color:var(--bad)" '+
-          'onclick="patExcluir('+JSON.stringify(b.descricao).replace(/"/g,'&quot;')+
-          ')">Excluir</button></div>'+
-      (ed?'<div style="border-top:1px solid var(--line);margin-top:9px;padding-top:9px">'+
-        '<div class="lbl">Descrição</div><input id="pbNome" value="'+
-          b.descricao.replace(/"/g,'&quot;')+'">'+
-        '<div class="lbl" style="margin-top:8px">Valor</div>'+
-        '<input id="pbVal" inputmode="decimal" value="'+num(b.valor)+'" oninput="mascaraMoeda(this)">'+
-        '<div class="row" style="margin-top:10px;gap:8px">'+
-          '<button class="bt-no" style="flex:1" onclick="ST.patEdit=null;renderPatrimonio()">Cancelar</button>'+
-          '<button class="bt-ok" style="flex:2" onclick="patSalvar('+
-            JSON.stringify(b.descricao).replace(/"/g,'&quot;')+',\''+tipo+'\')">Salvar</button>'+
-        '</div></div>':'')+
-      '</div>';
-  }).join('');
+  if(!lista.length) return '<div class="card" style="padding:9px 11px"><div class="m">nada por aqui ainda</div></div>';
+  return '<div class="card" style="padding:2px 11px">'+lista.map(function(b){
+    var d=b.detalhe||{}, ic='', sub=[];
+    if(tipo==='BEM'){
+      var c=patCat(PAT_CATS, b.cat||d.cat); ic=c[1]; sub.push(c[2].toLowerCase());
+      var t=(d.taxa!==undefined&&d.taxa!=='') ? Number(d.taxa) : null;
+      sub.push(t===null ? (c[3]?(c[3]>0?'+':'')+num(c[3])+'%/ano (padrão)':'sem variação')
+                        : (t>0?'+':'')+num(t)+'%/ano');
+      if(d.fipe) sub.push('FIPE '+d.fipe);
+    } else if(tipo==='DIVIDA'){
+      ic=patCat(PAT_DIV, d.de)[1];
+      if(d.juros!==undefined&&d.juros!=='') sub.push(num(d.juros)+'% a.a.');
+      if(d.parcela) sub.push(num(d.parcela)+'/mês');
+      if(d.ate) sub.push('até '+patMesTxt(d.ate));
+    } else if(tipo==='RESERVA'){
+      ic=patCat(PAT_RESERVAS, d.para)[1];
+      if(d.meta) sub.push('meta '+mil(d.meta)+(d.ate?' em '+patMesTxt(d.ate):''));
+      if(d.mensal) sub.push(num(d.mensal)+'/mês');
+      sub.push(d.noFluxo?'no fluxo do mês':'fora do fluxo');
+    } else {
+      ic='📈'; sub.push(String(b.fonte||'').toLowerCase());
+    }
+    var ed=ST.patEdit===b.descricao;
+    var pctMeta=(tipo==='RESERVA'&&d.meta>0)?Math.min(100,b.valor/d.meta*100):null;
+    return '<div style="padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer" '+
+        'onclick="patEditar('+JSON.stringify(b.descricao).replace(/"/g,'&quot;')+')">'+
+      '<div class="row" style="gap:8px"><span style="font-size:17px;width:22px;text-align:center">'+ic+'</span>'+
+        '<div style="min-width:0;flex:1"><div class="d" style="font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+tx(b.descricao)+'</div>'+
+        '<div class="m" style="font-size:11px">'+sub.join(' · ')+'</div></div>'+
+        '<div class="num '+(tipo==='DIVIDA'?'neg':'')+'" style="font-size:14.5px;font-weight:700;white-space:nowrap">'+moeda(b.valor)+'</div></div>'+
+      (pctMeta!==null?'<div class="bar" style="margin:6px 0 0 30px;height:5px"><i style="width:'+pctMeta.toFixed(0)+'%;background:var(--ok)"></i></div>':'')+
+      '</div>'+(ed?patForm(tipo, b):'');
+  }).join('')+'</div>';
 }
 
 function patEditar(d){ ST.patEdit=(ST.patEdit===d)?null:d; ST.patNovo=null; renderPatrimonio(); }
 
-function patSalvar(antigo, tipo){
-  var nome=(el('pbNome').value||'').trim();
-  var v=parseFloat(String(el('pbVal').value||'0').replace(/\./g,'').replace(',','.'))||0;
+function patChips(id, valor, lista, aoMudar){
+  return '<input type="hidden" id="'+id+'" value="'+(valor||'')+'"><div class="chips" id="ch_'+id+'" '+
+    'style="display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 8px">'+
+    lista.map(function(o){
+      return '<button type="button" data-v="'+o[0]+'" class="bt-no'+(o[0]===valor?' on':'')+'" '+
+        'style="padding:5px 8px;font-size:12px;border-radius:16px'+(o[0]===valor?';background:var(--acc);color:#fff':'')+'" '+
+        'onclick="event.stopPropagation();patChip(\''+id+'\',\''+o[0]+'\''+(aoMudar?','+aoMudar:'')+')">'+o[1]+' '+o[2]+'</button>';
+    }).join('')+'</div>';
+}
+function patChip(id, v, depois){
+  el(id).value=v;
+  Array.prototype.forEach.call(el('ch_'+id).querySelectorAll('button'), function(b){
+    var on=b.getAttribute('data-v')===v;
+    b.classList.toggle('on', on); b.style.background=on?'var(--acc)':''; b.style.color=on?'#fff':'';
+  });
+  if(depois) depois(v);
+}
+// trocar a categoria do bem mostra/esconde a FIPE e sugere a taxa padrão
+function patMudouCat(v){
+  var f=el('pfFipeBox'); if(f) f.style.display=(v==='VEICULO')?'':'none';
+  var t=el('pfTaxa'); if(t) t.placeholder='padrão '+num(patCat(PAT_CATS,v)[3])+'%';
+  var r=el('pfTaxaRot'); if(r) r.textContent=patCat(PAT_CATS,v)[3]<0?'deprecia % ao ano (use −)':'valoriza % ao ano';
+}
+
+function patForm(tipo, b){
+  b=b||{}; var d=b.detalhe||{}, novo=!b.descricao;
+  var campo=function(rot, html, flex){ return '<div style="flex:'+(flex||1)+';min-width:0"><div class="lbl" style="font-size:10px">'+rot+'</div>'+html+'</div>'; };
+  var inp=function(id, v, ph, modo, extra){ return '<input id="'+id+'" value="'+String(v===undefined||v===null?'':v).replace(/"/g,'&quot;')+'" placeholder="'+(ph||'')+'"'+
+      (modo?' inputmode="'+modo+'"':'')+(extra||'')+' style="margin:0;padding:7px 8px;font-size:13px" onclick="event.stopPropagation()">'; };
+  var dinheiro=function(id,v,ph){ return inp(id, v?num(v):'', ph||'0,00', 'decimal', ' oninput="mascaraMoeda(this)"'); };
+  var linha=function(){ return '<div class="row" style="gap:8px;margin-bottom:8px;align-items:flex-end">'+Array.prototype.join.call(arguments,'')+'</div>'; };
+  var h='<div class="card" style="border-color:var(--acc);margin:6px 0 8px;padding:10px 11px" onclick="event.stopPropagation()">';
+  if(novo) h+='<div class="lbl" style="margin-bottom:6px">'+({BEM:'Bem novo',DIVIDA:'Dívida nova',RESERVA:'Reserva nova',INVESTIMENTO:'Investimento (valor digitado)'})[tipo]+'</div>';
+
+  if(tipo==='BEM'){
+    var cat=b.cat||d.cat||'IMOVEL', pc=patCat(PAT_CATS,cat);
+    h+=patChips('pfCat', cat, PAT_CATS, 'patMudouCat')+
+      linha(campo('Descrição', inp('pfNome', b.descricao, 'ex.: Apartamento Centro'), 2))+
+      linha(campo('Valor hoje', dinheiro('pfVal', b.valor)),
+            campo('<span id="pfTaxaRot">'+(pc[3]<0?'deprecia % ao ano (use −)':'valoriza % ao ano')+'</span>',
+                  inp('pfTaxa', d.taxa!==undefined&&d.taxa!==''?num(d.taxa):'', 'padrão '+num(pc[3])+'%', 'decimal')))+
+      linha(campo('Comprado em', inp('pfCompra', d.compra, 'AAAA-MM', 'numeric', ' maxlength="7"')),
+            campo('Valor pago', dinheiro('pfPago', d.valorCompra, 'opcional')))+
+      '<div id="pfFipeBox" style="'+(cat==='VEICULO'?'':'display:none')+'">'+
+        linha(campo('Código FIPE', inp('pfFipe', d.fipe, '001004-9')),
+              campo('Ano modelo', inp('pfAno', d.anoModelo, '2022', 'numeric', ' maxlength="4"')),
+              '<button class="bt-no" style="padding:7px 9px;font-size:12px" onclick="event.stopPropagation();patConsultarFipe()">Consultar</button>')+
+      '</div>';
+  } else if(tipo==='DIVIDA'){
+    h+=patChips('pfDe', d.de||'IMOVEL', PAT_DIV)+
+      linha(campo('Descrição', inp('pfNome', b.descricao, 'ex.: Financiamento CEF'), 2))+
+      linha(campo('Saldo devedor', dinheiro('pfVal', b.valor)), campo('Juros % ao ano', inp('pfJuros', d.juros!==undefined&&d.juros!==''?num(d.juros):'', '10', 'decimal')))+
+      linha(campo('Parcela por mês', dinheiro('pfParc', d.parcela, 'opcional')), campo('Última parcela', inp('pfAte', d.ate, 'AAAA-MM', 'numeric', ' maxlength="7"')));
+  } else if(tipo==='RESERVA'){
+    h+=patChips('pfPara', d.para||'VIAGEM', PAT_RESERVAS)+
+      linha(campo('Descrição', inp('pfNome', b.descricao, 'ex.: Viagem de férias 2027'), 2))+
+      linha(campo('Quanto quer juntar', dinheiro('pfMeta', d.meta)), campo('Até quando', inp('pfAte', d.ate, 'AAAA-MM', 'numeric', ' maxlength="7" oninput="patSugerirMensal()"')))+
+      linha(campo('Já guardado', dinheiro('pfVal', b.valor)), campo('Guardar por mês', dinheiro('pfMensal', d.mensal, 'calculado sozinho')))+
+      '<div class="lbl" style="font-size:10px">Considerar no fluxo do mês?</div>'+
+      segEscolha('pfFluxo', d.noFluxo===false?'NAO':'SIM', ['SIM','NAO'])+
+      '<div class="m" style="font-size:11px;margin-top:5px">Sim: cria a conta <b>RESERVA - '+tx((b.descricao||'…').toUpperCase())+'</b> '+
+        '(investimento) com o valor por mês no previsto, até a data. Não: o plano só separa esse dinheiro da sobra.</div>';
+  } else {
+    h+=linha(campo('Descrição', inp('pfNome', b.descricao, 'ex.: Previdência PGBL'), 2), campo('Valor', dinheiro('pfVal', b.valor)));
+  }
+  h+='<div class="row" style="margin-top:10px;gap:6px">'+
+      (novo?'':'<button class="bt-no" style="padding:7px 10px;font-size:12px;color:var(--bad)" onclick="event.stopPropagation();patExcluir('+
+        JSON.stringify(b.descricao).replace(/"/g,'&quot;')+')">Excluir</button>')+
+      '<button class="bt-no" style="flex:1" onclick="event.stopPropagation();ST.patNovo=null;ST.patEdit=null;renderPatrimonio()">Cancelar</button>'+
+      '<button class="bt-ok" style="flex:2" onclick="event.stopPropagation();patGravar(\''+tipo+'\','+
+        (novo?'\'\'':JSON.stringify(b.descricao).replace(/"/g,'&quot;'))+')">'+(novo?'Adicionar':'Salvar')+'</button>'+
+    '</div></div>';
+  return h;
+}
+
+// a reserva sugere o "por mês": (meta − já guardado) ÷ meses até a data
+function patSugerirMensal(){
+  var ate=(el('pfAte').value||'').trim(), m=el('pfMensal');
+  if(!/^\d{4}-\d{2}$/.test(ate) || !m || m.value) return;
+  var h=mesDeHoje(), meses=(Number(ate.slice(0,4))-Number(h.slice(0,4)))*12+(Number(ate.slice(5))-Number(h.slice(5)))+1;
+  var falta=patNum('pfMeta')-patNum('pfVal');
+  if(meses>0 && falta>0) m.placeholder=num(Math.ceil(falta/meses))+' sugerido';
+}
+
+function patGravar(tipo, antigo){
+  var nome=(el('pfNome').value||'').trim();
   if(!nome){ toast('Dê uma descrição'); return; }
-  google.script.run.withSuccessHandler(function(r){
-    toast(r&&r.ok?'Salvo':'Não consegui');
-    ST.patEdit=null; recarregarPatrimonio();
-  }).withFailureHandler(function(){ toast('Falhou'); })
-    .apiGravarBem(antigo, v, tipo, '', '', nome!==antigo?nome:'');
+  var v=patNum('pfVal'), det=null;
+  var mesOk=function(x){ return !x || /^\d{4}-\d{2}$/.test(x); };
+  if(tipo==='BEM'){
+    det={ cat:el('pfCat').value, taxa:patPct('pfTaxa'), compra:(el('pfCompra').value||'').trim(),
+          valorCompra:patNum('pfPago')||'', fipe:(el('pfFipe').value||'').trim(), anoModelo:(el('pfAno').value||'').trim() };
+    if(!mesOk(det.compra)){ toast('Em "comprado em", use AAAA-MM'); return; }
+    if(det.cat!=='VEICULO'){ det.fipe=''; det.anoModelo=''; }
+  } else if(tipo==='DIVIDA'){
+    det={ de:el('pfDe').value, juros:patPct('pfJuros'), parcela:patNum('pfParc')||'', ate:(el('pfAte').value||'').trim() };
+    if(!mesOk(det.ate)){ toast('Em "última parcela", use AAAA-MM'); return; }
+  } else if(tipo==='RESERVA'){
+    var ate=(el('pfAte').value||'').trim();
+    if(!/^\d{4}-\d{2}$/.test(ate)){ toast('Diga até quando (AAAA-MM)'); return; }
+    var mensal=patNum('pfMensal');
+    if(!mensal){
+      var h0=mesDeHoje(), meses=(Number(ate.slice(0,4))-Number(h0.slice(0,4)))*12+(Number(ate.slice(5))-Number(h0.slice(5)))+1;
+      mensal=meses>0 ? Math.ceil(Math.max(0, patNum('pfMeta')-v)/meses) : 0;
+    }
+    det={ para:el('pfPara').value, meta:patNum('pfMeta'), ate:ate, mensal:mensal, noFluxo:el('pfFluxo').value==='SIM' };
+  }
+  toast('Salvando...');
+  var fim=function(r){
+    if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
+    toast(r.conta ? 'Salvo · conta '+r.conta+' no previsto' : 'Salvo');
+    ST.patEdit=null; ST.patNovo=null; ST.plano=null; ST.cacheMes={}; ST.extras=null; ST.ano=null; ST.projLonga=null;
+    recarregarPatrimonio();
+  };
+  var run=google.script.run.withSuccessHandler(fim).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); });
+  if(tipo==='RESERVA') run.apiGravarReserva(antigo||nome, nome, v, det);
+  else run.apiGravarBem(antigo||nome, v, tipo, antigo?'':'MANUAL', '', antigo&&nome!==antigo?nome:'', det);
 }
 
 function patExcluir(d){
   if(!confirm('Excluir "'+d+'" do patrimônio?')) return;
   google.script.run.withSuccessHandler(function(r){
     toast(r&&r.ok?'Excluído':'Não consegui');
-    recarregarPatrimonio();
+    ST.patEdit=null; recarregarPatrimonio();
   }).withFailureHandler(function(){ toast('Falhou'); }).apiExcluirBem(d);
 }
 
-function patForm(tipo){
-  var rot = tipo==='DIVIDA' ? 'Dívida nova'
-          : (tipo==='INVESTIMENTO' ? 'Investimento (valor digitado)' : 'Bem novo');
-  var dica = tipo==='DIVIDA' ? 'ex.: Financiamento do carro'
-          : (tipo==='INVESTIMENTO' ? 'ex.: Previdência PGBL' : 'ex.: Moto 2019');
-  return '<div class="card" style="border-color:var(--acc);margin-top:10px">'+
-    '<div class="lbl" style="margin-bottom:8px">'+rot+'</div>'+
-    '<input id="pbnNome" placeholder="'+dica+'">'+
-    '<input id="pbnVal" placeholder="valor" inputmode="decimal" style="margin-top:8px" '+
-      'oninput="mascaraMoeda(this)">'+
-    (tipo==='INVESTIMENTO'
-      ? '<div class="m" style="font-size:11px;margin-top:7px">use isto para o que não '+
-        'tem extrato aqui. Para receber a sobra do mês por transferência, crie uma '+
-        '<b>conta de investimento</b>.</div>' : '')+
-    '<div class="row" style="margin-top:10px;gap:8px">'+
-      '<button class="bt-no" style="flex:1" onclick="ST.patNovo=null;renderPatrimonio()">Cancelar</button>'+
-      '<button class="bt-ok" style="flex:2" onclick="patCriar(\''+tipo+'\')">Adicionar</button>'+
-    '</div></div>';
-}
-
-function patCriar(tipo){
-  var nome=(el('pbnNome').value||'').trim();
-  var v=parseFloat(String(el('pbnVal').value||'0').replace(/\./g,'').replace(',','.'))||0;
-  if(!nome){ toast('Dê uma descrição'); return; }
+function patConsultarFipe(){
+  var cod=(el('pfFipe').value||'').trim(), ano=(el('pfAno').value||'').trim();
+  if(!cod){ toast('Digite o código FIPE'); return; }
+  toast('Consultando a FIPE...');
   google.script.run.withSuccessHandler(function(r){
-    toast(r&&r.ok?'Adicionado':'Não consegui');
-    ST.patNovo=null; recarregarPatrimonio();
-  }).withFailureHandler(function(){ toast('Falhou'); })
-    .apiGravarBem(nome, v, tipo, 'MANUAL', '', '');
+    if(!r||!r.ok){ toast((r&&r.erro)||'Não achei'); return; }
+    el('pfVal').value=num(r.valor);
+    toast('FIPE '+r.referencia+': '+moeda(r.valor)+(r.modelo?' · '+r.modelo:''));
+  }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); }).apiConsultarFipe(cod, ano);
 }
 
 function patFormConta(){
@@ -10992,39 +11337,52 @@ function bancosHtml(){
       '<button class="bt-no" style="width:100%;margin-top:6px" onclick="bancoNaoE(\''+o.id+'\')">Não, é uma conta nova</button></div>';
   });
   // 2) nova conta manual
-  h+='<div class="card" style="padding:8px 10px"><div class="row" style="gap:6px">'+
-     '<div class="m" style="font-size:12px;flex:1">Contas e cartões. As do Open Finance chegam sozinhas; as outras, lance aqui com o saldo.</div>'+
-     '<button class="bt-no" style="padding:7px 11px;font-size:12.5px;background:var(--acc);color:#fff;flex:none" onclick="ST.bancoNovo=!ST.bancoNovo;ST.bancoEd=null;bancosCarregar()">'+(ST.bancoNovo?'Fechar':'+&nbsp;conta manual')+'</button></div>'+
-     (ST.bancoNovo?bancoForm(null):'')+'</div>';
-  // 3) a lista, em dois blocos (PJ e PF), em ordem de banco
-  [['PJ','Pessoa jurídica (PJ)'],['PF','Pessoa física (PF)'],['INV','Investimento']].forEach(function(bl){
-    var doBloco=L.filter(function(c){ return c.titular===bl[0]; })
-      .sort(function(a,b){ return bancoDe(a).localeCompare(bancoDe(b),'pt-BR') || (a.tipo==='CARTAO')-(b.tipo==='CARTAO') || a.nome.localeCompare(b.nome,'pt-BR'); });
-    if(!doBloco.length) return;
-    h+='<div class="lbl" style="margin:14px 0 6px">'+bl[1]+'</div>';
-    doBloco.forEach(function(c){
-      var ed=ST.bancoEd===c.id, ligando=ST.bancoLigar===c.id;
-      h+='<div class="card" style="padding:9px 11px'+(ed||ligando?';border-color:var(--acc)':'')+'"><div class="row"><div style="min-width:0">'+
-        '<div style="font-size:13.5px;font-weight:600">'+(c.tipo==='CARTAO'?'💳 ':'🏦 ')+tx(c.nome)+'</div>'+
-        '<div class="m" style="font-size:11px">'+(c.of?'Open Finance':'manual')+(c.final?' · final '+c.final:'')+
-          (!c.of && c.saldo_desde?' · saldo de '+moeda(c.saldo_inicial)+' em '+c.saldo_desde.split('-').reverse().join('/'):'')+'</div></div>'+
-        (c.tipo==='CARTAO'?'':'<div style="text-align:right;white-space:nowrap;padding-left:8px"><div class="lbl">hoje</div>'+
-          '<div class="'+((c.saldo||0)<0?'neg':'')+'" style="font-size:14px">'+moeda(c.saldo||0)+'</div></div>')+'</div>'+
-        (c.of?'' :
-          '<div class="row" style="gap:6px;margin-top:8px">'+
-            '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" onclick="ST.bancoEd=ST.bancoEd===\''+c.id+'\'?null:\''+c.id+'\';ST.bancoLigar=null;ST.bancoNovo=false;bancosCarregar()">'+(ed?'Fechar':'Editar')+'</button>'+
-            '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" onclick="ST.bancoLigar=ST.bancoLigar===\''+c.id+'\'?null:\''+c.id+'\';ST.bancoEd=null;bancosCarregar()">Já conectei no Open Finance</button>'+
-            '<button class="bt-no" style="padding:6px 10px;font-size:12px;color:var(--bad)" onclick="bancoExcluir(\''+c.id+'\')">Excluir</button>'+
-          '</div>')+
-        (c.tipo==='CARTAO'
-          ? '<label class="row" style="gap:8px;margin-top:7px;justify-content:flex-start;font-size:12.5px;cursor:pointer">'+
-            '<input type="checkbox" style="width:auto;margin:0" '+((ST.multiplos||[]).indexOf(c.id)>=0?'checked':'')+
-            ' onchange="bancoMultiplo(\''+c.id+'\',this.checked)"> Cartão múltiplo (crédito e débito)</label>'
-          : '')+
-        (ed?bancoForm(c):'')+
-        (ligando?bancoLigarHtml(c):'')+
-        '</div>';
+  h+='<div class="row" style="gap:6px;margin-bottom:6px">'+
+     '<div class="m" style="font-size:11.5px;flex:1">🔗 Open Finance &nbsp;·&nbsp; ✍️ manual</div>'+
+     '<button class="bt-no" style="padding:7px 11px;font-size:12.5px;background:var(--acc);color:#fff;flex:none" onclick="ST.bancoNovo=!ST.bancoNovo;ST.bancoEd=null;ST.bancoAberto=null;bancosCarregar()">'+(ST.bancoNovo?'Fechar':'+&nbsp;conta manual')+'</button></div>'+
+     (ST.bancoNovo?'<div class="card" style="padding:8px 10px;border-color:var(--acc)">'+bancoForm(null)+'</div>':'');
+  /* 3) um cartão por banco, uma linha por conta/cartão. Toque na linha para
+     ver o que dá para fazer com ela - as opções não ficam todas abertas. */
+  var porBanco={};
+  L.forEach(function(c){ (porBanco[bancoDe(c)]=porBanco[bancoDe(c)]||[]).push(c); });
+  Object.keys(porBanco).sort(function(a,b){ return a.localeCompare(b,'pt-BR'); }).forEach(function(bk){
+    var lst=porBanco[bk].sort(function(a,b){ return (a.tipo==='CARTAO')-(b.tipo==='CARTAO') || String(a.titular).localeCompare(String(b.titular)) || a.nome.localeCompare(b.nome,'pt-BR'); });
+    var tot=lst.reduce(function(t,c){ return t+(c.tipo==='CARTAO'?0:(c.saldo||0)); },0);
+    h+='<div class="card" style="padding:4px 11px">'+
+      '<div class="row" style="padding:6px 0 4px"><span class="lbl" style="margin:0">'+tx(bk)+'</span>'+
+        '<span class="num" style="font-size:12px;color:var(--dim)">'+moeda(tot)+'</span></div>';
+    lst.forEach(function(c){
+      var aberto=ST.bancoAberto===c.id, ed=ST.bancoEd===c.id, ligando=ST.bancoLigar===c.id;
+      var rot=(c.tipo==='CARTAO'?'Cartão':(c.titular==='INV'?'Investimento':'Conta'))+(c.titular&&c.titular!=='INV'?' '+c.titular:'')+(c.final?' ·'+c.final:'');
+      h+='<div style="border-top:1px solid var(--line)">'+
+        '<div class="row" style="padding:7px 0;cursor:pointer;gap:8px" onclick="ST.bancoAberto=ST.bancoAberto===\''+c.id+'\'?null:\''+c.id+'\';ST.bancoEd=null;ST.bancoLigar=null;bancosCarregar()">'+
+          '<span style="width:18px">'+(c.tipo==='CARTAO'?'💳':'🏦')+'</span>'+
+          '<div style="flex:1;min-width:0"><div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+rot+'</div>'+
+            '<div class="m" style="font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(c.of?'🔗 ':'✍️ ')+tx(c.nome)+'</div></div>'+
+          (c.tipo==='CARTAO'?'':'<span class="num '+((c.saldo||0)<0?'neg':'')+'" style="font-size:13.5px">'+moeda(c.saldo||0)+'</span>')+
+          '<span class="seta'+(aberto?' aberta':'')+'" style="margin-left:4px">&#9656;</span></div>';
+      if(aberto){
+        var temOf=(ST.bancos||[]).some(function(o){ return o.of && (o.tipo==='CARTAO')===(c.tipo==='CARTAO'); });
+        h+='<div style="padding:0 0 9px 26px">'+
+          (!c.of && c.saldo_desde?'<div class="m" style="font-size:11px;margin-bottom:6px">saldo de '+moeda(c.saldo_inicial)+' em '+c.saldo_desde.split('-').reverse().join('/')+'</div>':'')+
+          (c.of?'<div class="m" style="font-size:11px;margin-bottom:6px">vem do banco pelo Open Finance: saldo e lançamentos chegam sozinhos</div>':
+            '<div class="row" style="gap:6px">'+
+              '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" onclick="ST.bancoEd=ST.bancoEd===\''+c.id+'\'?null:\''+c.id+'\';ST.bancoLigar=null;bancosCarregar()">'+(ed?'Fechar':'Editar saldo')+'</button>'+
+              (temOf?'<button class="bt-no" style="flex:1.4;padding:6px;font-size:12px" onclick="ST.bancoLigar=ST.bancoLigar===\''+c.id+'\'?null:\''+c.id+'\';ST.bancoEd=null;bancosCarregar()">Juntar com a do Open Finance</button>':'')+
+              '<button class="bt-no" style="padding:6px 10px;font-size:12px;color:var(--bad)" onclick="bancoExcluir(\''+c.id+'\')">Excluir</button>'+
+            '</div>')+
+          (c.tipo==='CARTAO'
+            ? '<label class="row" style="gap:8px;margin-top:7px;justify-content:flex-start;font-size:12px;cursor:pointer">'+
+              '<input type="checkbox" style="width:auto;margin:0" '+((ST.multiplos||[]).indexOf(c.id)>=0?'checked':'')+
+              ' onchange="bancoMultiplo(\''+c.id+'\',this.checked)"> crédito e débito no mesmo cartão</label>'
+            : '')+
+          (ed?bancoForm(c):'')+
+          (ligando?bancoLigarHtml(c):'')+
+          '</div>';
+      }
+      h+='</div>';
     });
+    h+='</div>';
   });
   if(!L.length) h+='<div class="vazio">Nenhuma conta ainda. Conecte o Open Finance em Minha conta ou lance uma conta manual.</div>';
   return h;
@@ -11098,7 +11456,7 @@ function bancoLigarHtml(m){
   var ofs=(ST.bancos||[]).filter(function(o){ return o.of && (o.tipo==='CARTAO')===(m.tipo==='CARTAO'); })
     .sort(function(a,b){ return (bancoDe(b)===bancoDe(m))-(bancoDe(a)===bancoDe(m)) || a.nome.localeCompare(b.nome,'pt-BR'); });
   if(!ofs.length) return '<div class="m" style="font-size:12px;margin-top:8px">Nenhuma conta do Open Finance ainda. Conecte o banco em Configurações → Minha conta → Open Finance e volte aqui.</div>';
-  return '<div style="border-top:1px solid var(--line);margin-top:9px;padding-top:9px"><div class="m" style="font-size:12px">Qual conta do Open Finance é esta? A manual sai e fica a do banco, com o saldo do banco.</div>'+
+  return '<div style="border-top:1px solid var(--line);margin-top:9px;padding-top:9px"><div class="m" style="font-size:12px">Se você já conectou este banco, escolha qual conta do Open Finance é esta. A manual some e fica só a do banco (sem lançamento repetido).</div>'+
     ofs.map(function(o){ return '<button class="bt-no" style="width:100%;margin-top:6px;text-align:left" onclick="bancoVincular(\''+m.id+'\',\''+o.id+'\')">'+
       o.nome+' <span style="color:var(--dim)">· saldo '+moeda(o.saldo||0)+'</span></button>'; }).join('')+'</div>';
 }
@@ -11194,7 +11552,7 @@ function cfgFormEditar(x){
         botaoEscolha('cfFam', x.grupo, 'escolher…', 'família', fams, '', '+ criar família nova')+
         '</div></div>'+
     '<div class="lbl" style="margin-top:8px">Tipo</div>'+
-    segEscolha('cfNat', x.natureza, ['DESPESA','RECEITA','TRANSFERENCIA'])+
+    segEscolha('cfNat', x.natureza, ['DESPESA','RECEITA','TRANSFERENCIA','INVESTIMENTO'])+
     '<div class="lbl" style="margin-top:10px">Esta verba tem reajuste todo ano?</div>'+
     '<div class="row" style="gap:8px">'+
       '<input id="cfReaj" style="flex:1" inputmode="decimal" placeholder="% ao ano (0 = não)" '+
@@ -11205,13 +11563,9 @@ function cfgFormEditar(x){
                        return { valor:String(i+1), rotulo:nm, grupo:'MES' }; }), '')+
       '</div>'+
     '</div>'+
-    '<div class="m" style="font-size:11px;margin-top:5px">É o que a projeção usa para os anos '+
-    'seguintes. Sem reajuste próprio, a conta sobe pela inflação dos Ajustes.</div>'+
     '<div class="lbl" style="margin-top:10px">Até quando esta conta existe?</div>'+
     '<input id="cfAte" inputmode="numeric" placeholder="AAAA-MM (vazio = não acaba)" '+
       'value="'+(x.ate||'')+'">'+
-    '<div class="m" style="font-size:11px;margin-top:5px">Último mês em que ela entra na '+
-    'projeção — a última parcela do financiamento, o fim da festa. Depois dele, vale zero.</div>'+
     '<div class="row" style="margin-top:10px;gap:8px">'+
       '<button class="bt-no" style="flex:1" onclick="ST.cfgEditando=null;renderConfig()">Cancelar</button>'+
       '<button class="bt-ok" style="flex:2" onclick="cfgSalvarConta('+
@@ -11230,16 +11584,18 @@ function segEscolha(id, valor, opcoes){
   return '<input type="hidden" id="'+id+'" value="'+valor+'">'+
     '<div class="seg" style="width:100%" id="seg_'+id+'">'+
     opcoes.map(function(o){
-      return '<button style="flex:1" class="'+(o===valor?'on':'')+'" '+
+      return '<button style="flex:1;min-width:0;padding-left:2px;padding-right:2px'+(opcoes.length>3?';font-size:11.5px':'')+'" '+
+        'data-v="'+o+'" class="'+(o===valor?'on':'')+'" '+
         'onclick="escolherSeg(\''+id+'\',\''+o+'\')">'+
-        o.charAt(0)+o.slice(1).toLowerCase()+'</button>';
+        (SEG_ROTULO[o] || o.charAt(0)+o.slice(1).toLowerCase())+'</button>';
     }).join('')+'</div>';
 }
+var SEG_ROTULO={ TRANSFERENCIA:'Transferência', INVESTIMENTO:'Investimento', NAO:'Não' };
 function escolherSeg(id, valor){
   el(id).value=valor;
   var box=el('seg_'+id);
   Array.prototype.forEach.call(box.querySelectorAll('button'), function(b){
-    b.classList.toggle('on', normaliza(b.textContent)===normaliza(valor));
+    b.classList.toggle('on', b.getAttribute('data-v')===valor);
   });
 }
 
@@ -11399,7 +11755,7 @@ function cfgFormNova(){
     '<div class="lbl" style="margin-top:9px">Família</div>'+
     botaoEscolha('cnFam', '', 'escolher a família…', 'família', fams, '', '+ criar família nova')+
     '<div class="lbl" style="margin-top:9px">Tipo</div>'+
-    segEscolha('cnNat', 'DESPESA', ['DESPESA','RECEITA'])+
+    segEscolha('cnNat', 'DESPESA', ['DESPESA','RECEITA','TRANSFERENCIA','INVESTIMENTO'])+
     '<div class="lbl" style="margin-top:9px">Previsto por mês</div>'+
     '<input id="cnPrev" placeholder="0,00" inputmode="decimal" oninput="mascaraMoeda(this)">'+
     '<div class="row" style="margin-top:10px;gap:8px">'+
@@ -11426,10 +11782,7 @@ function cfgCriarConta(){
 
 /* ---------- AJUSTES ---------- */
 function cfgAjustes(){
-  var h='<div class="card"><div class="m" style="font-size:12px">'+
-    'São estes números que a projeção e o plano de aposentadoria usam. Mudou aqui, '+
-    'muda em todas as telas no próximo refresh.</div></div>'+
-    // o roteiro do primeiro acesso, para rever como um cliente novo vê (não grava nada)
+  var h=// o roteiro do primeiro acesso, para rever como um cliente novo vê (não grava nada)
     '<button class="bt-no" style="width:100%;margin-bottom:10px;font-size:12.5px" '+
     'onclick="window.EASYAPP_ENTRADA&&window.EASYAPP_ENTRADA.primeiroAcesso(true)">▶ Ver o primeiro acesso (simulação, não grava nada)</button>';
   ST.config.ajustes.forEach(function(a,i){
