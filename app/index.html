@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.10.2 \u00b7 07/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.0 \u00b7 07/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -6290,6 +6290,12 @@
   var APK_BASE = 'https://nhngqhgxmrnqbcnklrwc.supabase.co/storage/v1/object/public/app/';
   var cap = window.Capacitor;
   var nativo = !!(cap && cap.nativePromise && cap.isNativePlatform && cap.isNativePlatform());
+  /* Versão das LOJAS (App Store e Google Play): sem compra dentro do app (a
+     assinatura é feita no site - regra das lojas: compra digital dentro do app
+     só pelo pagamento delas) e sem baixar APK (a loja atualiza sozinha). O
+     iPhone nativo é sempre loja; no Android, o pacote da Play traz
+     window.EASYAPP_LOJA (o APK do site, não). */
+  var loja = !!window.EASYAPP_LOJA || !!(nativo && cap.getPlatform && cap.getPlatform() === 'ios');
   var iniciado = false;
 
   function $(id) { return document.getElementById(id); }
@@ -6464,12 +6470,13 @@
         try { visto = localStorage.getItem('easyapp:aviso-teste'); } catch (e) {}
         if (dias <= 3 && visto !== hoje) {
           try { localStorage.setItem('easyapp:aviso-teste', hoje); } catch (e) {}
-          setTimeout(function () { aviso('Seu teste grátis termina em ' + dias + (dias === 1 ? ' dia' : ' dias') + '. Assine em Config → Minha conta.'); }, 2500);
+          setTimeout(function () { aviso('Seu teste grátis termina em ' + dias + (dias === 1 ? ' dia' : ' dias') + (loja ? '.' : '. Assine em Config → Minha conta.')); }, 2500);
         }
       }
     }).catch(function () {});
   }
   function botoesPlanos() {
+    if (loja) return '';
     return '<div class="c-plano"><b>Mensal · R$ 39,90</b><small>no cartão, renova sozinho; cancele quando quiser</small>' +
       '<button class="c-bt" data-p="mensal">Assinar mensal</button></div>' +
       '<div class="c-plano"><b>Anual · R$ 399</b><small>12 meses por R$ 33,25/mês · Pix, cartão ou boleto</small>' +
@@ -6499,7 +6506,7 @@
     var d = document.createElement('div');
     d.id = 'cPlano';
     d.innerHTML = '<div class="cx"><h2>' + (a.plano === 'teste' ? 'Seu teste grátis terminou' : 'Seu plano venceu') + '</h2>' +
-      '<p>Seus dados continuam guardados. Escolha um plano para continuar usando o app.</p>' + botoesPlanos() +
+      '<p>Seus dados continuam guardados.' + (loja ? '' : ' Escolha um plano para continuar usando o app.') + '</p>' + botoesPlanos() +
       '<p style="font-size:12.5px">Já pagou? Pode levar um minuto para liberar. <a href="#" id="cConferir">Conferir de novo</a></p>' +
       '<button class="c-bt lk" id="cExcluirP">Não quero continuar: excluir minha conta</button>' +
       '<button class="c-bt lk" id="cSairP">Sair</button></div>';
@@ -6643,6 +6650,11 @@
                  (a && a.valido_ate ? ' · ' + (a.status === 'cancelada' ? 'vale até ' : a.plano === 'mensal' ? 'renova em ' : 'vale até ') + data(a.valido_ate) : '') + '</div>'
               : (botao ? '<button class="c-bt" data-p="' + chave + '">' + botao + '</button>' : '')) + '</div>';
       };
+      if (loja) {
+        // na versão das lojas: só o plano atual, sem preço nem botão de compra
+        h += '<div class="card"><div class="lbl">Plano</div>' +
+          (a ? opc(atual, nome, '', atual === 'teste' ? '14 dias para usar tudo' : 'acesso completo ao app', '') : '<div class="m">—</div>') + '</div>';
+      } else
       h += '<div class="card"><div class="lbl">Plano</div>' +
         (atual === 'teste' ? opc('teste', '🎁 Teste grátis', 'R$ 0', '14 dias para usar tudo, sem cartão', '') : '') +
         (atual === 'cortesia_app' ? opc('cortesia_app', '⭐ Cortesia (só o app)', 'R$ 0', 'app liberado sem cobrança; o assistente usa créditos comprados', '')
@@ -6658,13 +6670,13 @@
         '<div class="c-lin"><span>Usado este mês</span><b>' + reais(ia.gasto_mes) + '</b></div>' +
         '<div class="c-lin"><span>Créditos comprados</span><b>' + reais(ia.creditos) + '</b></div>' +
         '<div class="c-lin"><span>Disponível agora</span><b class="' + (ia.disponivel > 0 ? 'pos' : 'neg') + '">' + reais(ia.disponivel) + '</b></div>' +
-        '<div class="m" style="font-size:11.5px;margin-top:6px">Créditos são pré-pagos e não vencem. Passou do incluído, o assistente usa os créditos.</div>' +
+        (loja ? '</div>' : '<div class="m" style="font-size:11.5px;margin-top:6px">Créditos são pré-pagos e não vencem. Passou do incluído, o assistente usa os créditos.</div>' +
         '<div class="c-cred"><button class="c-bt" data-p="creditos20">+ R$ 20</button><button class="c-bt" data-p="creditos50">+ R$ 50</button>' +
         '<button class="c-bt" data-p="creditos100">+ R$ 100</button></div>' +
         '<div class="c-cred2"><input id="cCredV" inputmode="decimal" placeholder="outro valor: R$ 0,00">' +
         '<button class="c-bt" id="cCredOutro">Comprar</button></div>' +
         '<div class="c-cred2" style="margin-top:8px"><input id="cVoucher" placeholder="tem um código? ex.: AMIGOS30" autocapitalize="characters" style="text-transform:uppercase">' +
-        '<button class="c-bt" id="cVoucherOk">Resgatar</button></div></div>';
+        '<button class="c-bt" id="cVoucherOk">Resgatar</button></div></div>');
 
       // ---- compras automáticas: um menu com os logos, cada um abre o seu guia
       var android = nativo || /Android/i.test(navigator.userAgent);
@@ -6752,7 +6764,7 @@
       }
 
       // open finance: o guia e, depois de ligado, os bancos
-      h += '<div class="c-guia" id="guia-of" hidden><div class="c-gt"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAIKADAAQAAAABAAAAIAAAAACshmLzAAAEeklEQVRYCe2WXWxURRTHZ+9utx/ULQVZC0iFUKpoLFajUQOKhIBoMMiDr1QlfkSjxkRCwpuJMVGi0Qc1ikI0vEFQI5AQqBKCojFGKbRaK5C64aOsFGlLu233Xn7/zZ1luNvyIm/2JL+dmXPPnTkz58y5a8yE/N9PIHa1A+id/6gey6YsxKfNgVpT27FTjQnt1I1DEjwYhhEo2qkflRIHnEVnYLwI7oO5kAJNeBp+hf1wGLRYMzwITZCGBJyHLjgYovdKnCk64OxiGnYtsAZuBk02lpxD+R3odB6AGhhL5HQ7fApfgBwrOlJwwFl8Ac/ehiWg47yWMspku2Ad/KGJFcKYs/id6D4DOTGuxILABLHiwY1rd5UHP/DsaeiQjT1exftdiC4eoDsJbXDK97zqc+nUklRv/9SKwRHjeyWOnMHuWxiCmXA73ACuoXJqIyjEWTmghy+A4uhKL4NPYAscW9r+fq7hz8zdydzIwsa2brNi2yHT0J6JnsYAtq+DdlcBjbAWWuA6sPIwnafgrfj6aY3K4DdgMlj5h87L8B70tOzZkE9dGPDyifiGXGXyocyctOlonm3Sp86buoxysSi19P6FVlDMdSJ7IQvaYDlItOlZsEdXaDXUgxWfzjuwFfKFRCEQscDcxHi5ciCe983ZulqzvWVx53B54jh6V1YyqJMirBO6BboBH0rnSAP9lXJgGbgx0pX5HAJbaOhLlB/yuiCe7/sn5k3fWNWf+8DqwnYu7a1WF86h09gEx6yeVuFfJgcUJ1cOMshYxaru721XNaHMDmjPDE4q358YzbfSV75YqaIzTwPnhmmok/pJHUfmy4EaR6HuX5GxHV5vO2GbzSe8LNFRnK9IBMZTI7Ya5sE9AemmyAHmuELGK0DKDVdivKmKoDmEK1Fb+yw6d6AX3eOToUISnVD6Hv04kk6M+ko23ffojs86drar8BVCYxW0WS2kpHNlEYM5VvFl/f22+zsdfQmtpKv6h5YPJxMrUKSskrYPOjWOJPEtqO6R3pE2ObAbFB8ruh7PQVkkiX5DV7xyftwzjUe6X6UuPGtfDFvV+eKmwjlUlFTsbgxt1AzDbjmwA7rAFTnwIlRoApXcvpqqDN+ArwP6Wry+67R5YlPrTCqjSq0r2xmokNlbMInua7BGOkeO0t9lP0brGLwJbuwHGW8D3d8jkzsO9L2yb3MTO95x2y/HZy396mczvTtr5JAj2v0qULYrLAtAJ/QYlIMVFaeX4CPrwBQGm0GGUVFp1YQ9QcxUXqyuvKNyYCgVH/Wji+s9JbRCpePVyagoVUNUtqJ4HvqsAzJQ7PXxWQzjyjX4HO9kci3+txbxnExVHjwJ8s7NdoaX5T/8F7jILNrgM1BYXGsXA+hkvJLmcVgLd8FYR6hbo0m+gSQ8AjPAzSGGBbnA74/wMWj3g86mLzvAg4I4jtSgaAbdXYVHYyXPSVCcD8EJ0CYU63uhCVScEqB86AQtfhhUH6K1odQBGbniOKTdqWyLkokidjIplGN3t1JOyMQJRE/gEiRdQ2K8noRVAAAAAElFTkSuQmCC" alt=""> Open Finance · sua conta Pluggy</div>';
+      h += '<div class="c-guia" id="guia-of" hidden><div class="c-gt"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAIKADAAQAAAABAAAAIAAAAACshmLzAAAEeklEQVRYCe2WXWxURRTHZ+9utx/ULQVZC0iFUKpoLFajUQOKhIBoMMiDr1QlfkSjxkRCwpuJMVGi0Qc1ikI0vEFQI5AQqBKCojFGKbRaK5C64aOsFGlLu233Xn7/zZ1luNvyIm/2JL+dmXPPnTkz58y5a8yE/N9PIHa1A+id/6gey6YsxKfNgVpT27FTjQnt1I1DEjwYhhEo2qkflRIHnEVnYLwI7oO5kAJNeBp+hf1wGLRYMzwITZCGBJyHLjgYovdKnCk64OxiGnYtsAZuBk02lpxD+R3odB6AGhhL5HQ7fApfgBwrOlJwwFl8Ac/ehiWg47yWMspku2Ad/KGJFcKYs/id6D4DOTGuxILABLHiwY1rd5UHP/DsaeiQjT1exftdiC4eoDsJbXDK97zqc+nUklRv/9SKwRHjeyWOnMHuWxiCmXA73ACuoXJqIyjEWTmghy+A4uhKL4NPYAscW9r+fq7hz8zdydzIwsa2brNi2yHT0J6JnsYAtq+DdlcBjbAWWuA6sPIwnafgrfj6aY3K4DdgMlj5h87L8B70tOzZkE9dGPDyifiGXGXyocyctOlonm3Sp86buoxysSi19P6FVlDMdSJ7IQvaYDlItOlZsEdXaDXUgxWfzjuwFfKFRCEQscDcxHi5ciCe983ZulqzvWVx53B54jh6V1YyqJMirBO6BboBH0rnSAP9lXJgGbgx0pX5HAJbaOhLlB/yuiCe7/sn5k3fWNWf+8DqwnYu7a1WF86h09gEx6yeVuFfJgcUJ1cOMshYxaru721XNaHMDmjPDE4q358YzbfSV75YqaIzTwPnhmmok/pJHUfmy4EaR6HuX5GxHV5vO2GbzSe8LNFRnK9IBMZTI7Ya5sE9AemmyAHmuELGK0DKDVdivKmKoDmEK1Fb+yw6d6AX3eOToUISnVD6Hv04kk6M+ko23ffojs86drar8BVCYxW0WS2kpHNlEYM5VvFl/f22+zsdfQmtpKv6h5YPJxMrUKSskrYPOjWOJPEtqO6R3pE2ObAbFB8ruh7PQVkkiX5DV7xyftwzjUe6X6UuPGtfDFvV+eKmwjlUlFTsbgxt1AzDbjmwA7rAFTnwIlRoApXcvpqqDN+ArwP6Wry+67R5YlPrTCqjSq0r2xmokNlbMInua7BGOkeO0t9lP0brGLwJbuwHGW8D3d8jkzsO9L2yb3MTO95x2y/HZy396mczvTtr5JAj2v0qULYrLAtAJ/QYlIMVFaeX4CPrwBQGm0GGUVFp1YQ9QcxUXqyuvKNyYCgVH/Wji+s9JbRCpePVyagoVUNUtqJ4HvqsAzJQ7PXxWQzjyjX4HO9kci3+txbxnExVHjwJ8s7NdoaX5T/8F7jILNrgM1BYXGsXA+hkvJLmcVgLd8FYR6hbo0m+gSQ8AjPAzSGGBbnA74/wMWj3g86mLzvAg4I4jtSgaAbdXYVHYyXPSVCcD8EJ0CYU63uhCVScEqB86AQtfhhUH6K1odQBGbniOKTdqWyLkokidjIplGN3t1JOyMQJRE/gEiRdQ2K8noRVAAAAAElFTkSuQmCC" alt=""> Open Finance' + (of && of.modo === 'easyapp' ? '' : ' · sua conta Pluggy') + '</div>';
       // o passo a passo (e o vídeo) aparece antes de ligar e, recolhido, depois de ligado
       var passos =
           '<button class="c-bt" id="cOfVideo" style="width:100%;margin:6px 0 4px">▶ Ver o passo a passo (1 min)</button><ol>' +
@@ -6766,6 +6778,19 @@
           'pelo MeuPluggy, os seus próprios dados são grátis e sem prazo. O Client Secret fica cifrado no nosso servidor e nunca volta para o app.</div>';
       if (!of) {
         h += '<div class="m" style="font-size:12px">Indisponível no momento.</div>';
+      } else if (of.modo === 'easyapp') {
+        // contrato do EasyAPP: é só escolher o banco na janela oficial
+        (of.itens || []).forEach(function (i) {
+          h += '<div class="c-lin"><span>🏦 ' + esc(i.banco || 'Banco') + (i.ultimo_erro ? '<br><small class="neg">' + esc(i.ultimo_erro) + '</small>' : '') + '</span><b style="font-weight:500;font-size:12px">' +
+            (i.ultima_sync ? 'atualizado ' + dataHora(i.ultima_sync) : 'aguardando') + '</b></div>';
+        });
+        h += '<div class="m" style="font-size:12px;margin:4px 0 6px">' + ((of.itens || []).length
+            ? 'As transações chegam sozinhas, com 1 a 3 dias de atraso (o tempo do banco).'
+            : 'Traz as transações direto do banco, pelo sistema oficial do Banco Central. Você escolhe o banco e autoriza no próprio banco; a senha nunca passa pelo EasyAPP.') + '</div>' +
+          '<div class="c-bts">' + ((of.itens || []).length ? '<button class="c-bt" id="cOfSync">↻ Atualizar agora</button>' : '') +
+          '<button class="c-bt' + ((of.itens || []).length ? ' sec' : '') + '" id="cOfConectar">+ conectar banco</button></div>' +
+          ((of.itens || []).length ? '<div class="c-bts"><button class="c-bt sec" id="cOfRemover">Desconectar os bancos</button></div>' : '') +
+          '<div class="c-erro" id="cOfErro"></div>';
       } else if (!of.configurado) {
         h += '<div class="m" style="font-size:12px;margin:2px 0 6px">Traz as transações direto do banco, pelo sistema oficial do Banco Central. ' +
           'Pega também o que não gera aviso no celular: tarifas, IOF, débitos automáticos.</div>' +
@@ -6819,7 +6844,7 @@
         '<div class="c-lin"><span>Termos de Uso</span><a href="#" data-l="termos.html">abrir</a></div>' +
         '<div class="c-lin"><span>Política de Privacidade</span><a href="#" data-l="privacidade.html">abrir</a></div>' +
         '<div class="c-lin"><span>Versão do app</span><b style="font-weight:500">' + esc(CFG.versao || '—') +
-          (nativo && versaoSite && numVersao(versaoSite) > numVersao(CFG.versao)
+          (nativo && !loja && versaoSite && numVersao(versaoSite) > numVersao(CFG.versao)
             ? ' · <a href="#" id="cAtualizarApp" style="color:var(--acc)">atualizar para ' + esc(versaoSite) + '</a>'
             : (nativo && versaoSite ? ' · a mais nova' : '')) + '</b></div>' +
         '<div class="c-bts"><button class="bt-no" id="cSairC">Sair do app</button><button class="bt-no" style="color:var(--bad)" id="cExcluir">Excluir minha conta</button></div></div>';
@@ -6910,7 +6935,7 @@
           .catch(function (e) { erro(e.message); });
       });
       b('cOfRemover', function () {
-        if (!confirm('Remover a conta Pluggy do app? Os lançamentos que já vieram ficam.')) return;
+        if (!confirm('Desconectar o Open Finance? Os lançamentos que já vieram ficam.')) return;
         fn('openfinance', { acao: 'remover' }).then(re).catch(function (e) { erro(e.message); });
       });
       b('cSairC', function () { if (confirm('Sair do app neste celular?')) sair(); });
@@ -6944,8 +6969,8 @@
   }
   function checarVersao() {
     if (!nativo) { checarVersaoWeb(); return; }
-    // no iPhone a atualização vem pela App Store: nada de APK
-    if (cap.getPlatform && cap.getPlatform() !== 'android') return;
+    // no iPhone e na versão da Play a atualização vem pela loja: nada de APK
+    if (loja || (cap.getPlatform && cap.getPlatform() !== 'android')) return;
     var minha = numVersao(CFG.versao);
     if (!minha) return;
     ultimaChecagem = Date.now();
