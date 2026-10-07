@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.8.0 \u00b7 07/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.9.0 \u00b7 07/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -1082,7 +1082,7 @@
       if (!r[1]) return { ok: false, erro: 'não achei a conta ' + categoria };
       return mudar('lancamentos', 'id=eq.' + r[0],
                    { categoria_id: r[1], status: 'CONFIRMADO' })
-        .then(function () { return { ok: true }; });
+        .then(function () { return { ok: true, lancamento: r[0] }; });
     });
   }
 
@@ -2236,8 +2236,10 @@
   function patrimonio() {
     return Promise.all([
       rest('/rest/v1/patrimonio?select=*'),
-      rest('/rest/v1/saldos_contas?select=nome,tipo,titular,saldo')
+      rest('/rest/v1/saldos_contas?select=nome,tipo,titular,saldo'),
+      investimentos().catch(function () { return { ok: false, posicoes: [] }; })
     ]).then(function (r) {
+      var inv = r[2] || { posicoes: [] };
       var bens = [], dividas = [], investimentos = [], reservas = [];
       r[0].forEach(function (x) {
         var item = { descricao: x.descricao, valor: n(x.valor), fonte: x.fonte,
@@ -2257,12 +2259,24 @@
       var tb = bens.reduce(function (a, x) { return a + x.valor; }, 0);
       var td = dividas.reduce(function (a, x) { return a + x.valor; }, 0);
       var tm = investimentos.reduce(function (a, x) { return a + x.valor; }, 0);
+      /* As aplicações ligadas a uma reserva passam a ser o "já guardado" dela;
+         as outras somam em investimentos. */
+      var porReserva = {}, posLongo = 0;
+      (inv.posicoes || []).forEach(function (x) {
+        if (x.objetivo === 'RESERVA' && x.reserva) porReserva[x.reserva] = (porReserva[x.reserva] || 0) + x.valor;
+        else posLongo += x.valor;
+      });
+      reservas.forEach(function (x) {
+        if (porReserva[x.descricao] !== undefined) { x.valor = n(porReserva[x.descricao]); x.pelasAplicacoes = true; delete porReserva[x.descricao]; }
+      });
+      // aplicação de reserva que não existe mais no Patrimônio: conta como investimento
+      Object.keys(porReserva).forEach(function (k) { posLongo += porReserva[k]; });
       var tr = reservas.reduce(function (a, x) { return a + x.valor; }, 0);
       return { bens: bens, dividas: dividas, investimentos: investimentos, reservas: reservas,
-               contasInvestimento: contasInv, caixa: n(caixa),
+               contasInvestimento: contasInv, caixa: n(caixa), inv: inv,
                totalBens: n(tb), totalDividas: n(td),
-               totalInvestido: n(investido + tm), totalReservas: n(tr),
-               liquido: n(tb + caixa + investido + tm + tr - td) };
+               totalInvestido: n(investido + tm + posLongo), totalReservas: n(tr),
+               liquido: n(tb + caixa + investido + tm + posLongo + tr - td) };
     });
   }
 
@@ -2289,7 +2303,12 @@
                  + (ALVO.getMonth() - hoje.getMonth());
       var idade = Math.floor((hoje - NASC) / 31557600000);
 
-      var taxa       = cfgNum(c, 'RENTABILIDADE_REAL', 0.08);
+      /* O rendimento real vem das aplicações (média ponderada pelo valor);
+         sem nenhuma com taxa conhecida, o ajuste antigo (padrão 8%). */
+      var taxa       = (pat.inv && pat.inv.taxaRealMedia !== null && pat.inv.taxaRealMedia !== undefined)
+                       ? pat.inv.taxaRealMedia : cfgNum(c, 'RENTABILIDADE_REAL', 0.08);
+      // o que já está investido entra no começo da conta (antes partia do zero)
+      var investidoHoje = Math.max(0, Number(pat.totalInvestido) || 0);
       /* Valorização, depreciação e juros moram em cada bem e cada dívida
          (Patrimônio). O que estiver gravado nos ajustes antigos só vale de
          padrão para o item que ainda não tem o seu. */
@@ -2407,7 +2426,7 @@
       dividasSim.forEach(function (d) { if (!d.parcela) semParcela[d.grupo]++; });
 
       function simular(aporte) {
-        var inv = 0, serie = [];
+        var inv = investidoHoje, serie = [];
         var bs = bensSim.map(function (b) { return b.valor; });
         var ds = dividasSim.map(function (d) { return d.saldo; });
         var sImovel = imovel, sCarro = carro, sDivida = dividaImovel, dCarro = dividaCarro;
@@ -3198,14 +3217,25 @@
 
   function planoSimples() {
     return Promise.all([retaDoPlano(), capacidadeReal(), alvoGuardado(),
-                        projetarPorConta(0), gastoRecentePorConta()])
+                        projetarPorConta(0), gastoRecentePorConta(),
+                        investimentos().catch(function () { return null; })])
       .then(function (R) {
         // o mês corrente precisa do alvo, que só chega aqui
         return planoDoMes(R[2]).catch(function () { return null; })
           .then(function (m) { R.push(m); return R; });
       })
       .then(function (R) {
-        var r = R[0], cap = R[1], alvo = R[2], doMes = R[5];
+        var r = R[0], cap = R[1], alvo = R[2], inv = R[5], doMes = R[6];
+        // o que foi aportado de verdade neste mês (aportes − resgates das aplicações)
+        var mesIni = hojeRef() + '-01', aportadoMes = null;
+        if (inv && inv.posicoes && inv.posicoes.length) {
+          aportadoMes = 0;
+          inv.posicoes.forEach(function (x) {
+            if (x.objetivo === 'RESERVA') return;
+            x.movimentos.forEach(function (m) { if (m.data >= mesIni) aportadoMes += m.tipo === 'RESGATE' ? -m.valor : m.valor; });
+          });
+          aportadoMes = n(aportadoMes);
+        }
         var diag = diagnosticoPlano(cap, R[3], R[4]);
         if (!r) return { ok: false, erro: 'não consegui montar a projeção' };
         var p = r.plano;
@@ -3253,7 +3283,7 @@
           chegada: chegada, composicao: composicao,
           ritmo: ritmo, aporteRitmo: aporteRitmo, chegadaRitmo: chegadaRitmo,
           diagnostico: diag,
-          doMes: doMes,
+          doMes: doMes, aportadoMes: aportadoMes,
           // so cenarios positivos, cada um dizendo de onde sai o dinheiro
           sugestoes: montarCenarios(cap.mes, diag).map(function (c) {
             var x = patrimonioNoAno(r, anoFinal, c.aporte);
@@ -3527,6 +3557,262 @@
     });
   }
 
+  /* ===================================================== INVESTIMENTOS =====
+   * Cada aplicação é uma posição (tabela investimentos, migração 035) com os
+   * seus aportes e resgates. O valor de hoje é calculado com os índices que a
+   * rotina diária grava (tabela indices): CDI e Selic dia a dia, IPCA mês a
+   * mês, cotação para ação/FII/ETF/cripto. Quem informa o valor do extrato
+   * (valor_manual) cria um ponto de partida: dali para frente o índice anda.
+   */
+  var INV_ISENTO = { LCI: 1, LCA: 1, POUPANCA: 1 };
+  var INV_RV = { ACAO: 1, FII: 1, ETF: 1, CRIPTO: 1 };
+  var INV_SEM_IR = { ACAO: 1, FII: 1, ETF: 1, CRIPTO: 1, PREVIDENCIA: 1, CONSORCIO: 1 };
+
+  function aliquotaIR(dias) {
+    return dias <= 180 ? 0.225 : dias <= 360 ? 0.20 : dias <= 720 ? 0.175 : 0.15;
+  }
+  function diasEntre(a, b) { return Math.round((new Date(b) - new Date(a)) / 864e5); }
+
+  function lerInvestimentos() {
+    return Promise.all([
+      rest('/rest/v1/investimentos?select=*&ativa=is.true&order=nome'),
+      lerTudo('/rest/v1/investimento_movimentos?select=id,investimento_id,data,tipo,valor,lancamento_id&order=data')
+    ]).catch(function (e) {
+      // migração 035 ainda não rodou: o app segue sem a parte nova
+      if (/PGRST20|42P01|does not exist|schema cache/i.test(String((e && e.message) || e))) return null;
+      throw e;
+    });
+  }
+
+  function investimentos() {
+    return Promise.all([lerInvestimentos(), config()]).then(function (R) {
+      if (!R[0]) return { ok: true, semTabela: true, posicoes: [], total: 0 };
+      var pos = R[0][0], movs = R[0][1], c = R[1];
+      var porInv = {};
+      movs.forEach(function (m) { (porInv[m.investimento_id] = porInv[m.investimento_id] || []).push(m); });
+      var hoje = new Date().toISOString().slice(0, 10);
+      var desde = hoje;
+      pos.forEach(function (p) {
+        (porInv[p.id] || []).forEach(function (m) { if (m.data < desde) desde = m.data; });
+        if (p.valor_manual_em && p.valor_manual_em < desde) desde = p.valor_manual_em;
+      });
+      var series = {};
+      pos.forEach(function (p) { if (p.indexador === 'VARIAVEL' && p.ativo) series[(p.tipo === 'CRIPTO' ? 'CRIPTO:' + String(p.ativo).trim().toLowerCase() : p.tipo + ':' + String(p.ativo).trim().toUpperCase())] = 1; });
+      var nomesSerie = Object.keys(series);
+      return Promise.all([
+        lerTudo('/rest/v1/indices?select=serie,data,valor&serie=in.(CDI,SELIC)&data=gte.' + desde + '&order=data'),
+        lerTudo('/rest/v1/indices?select=data,valor&serie=eq.IPCA&order=data'),
+        nomesSerie.length ? rest('/rest/v1/indices?select=serie,data,valor&serie=in.' + encodeURIComponent('(' +
+          nomesSerie.map(function (s) { return '"' + s + '"'; }).join(',') + ')') + '&order=data.desc&limit=' + (nomesSerie.length * 10)) : [],
+        rest('/rest/v1/indices?select=serie,valor&serie=in.(CDI,SELIC)&order=data.desc&limit=2')
+      ]).then(function (I) {
+        return montarInvestimentos(pos, porInv, I, c, hoje);
+      }).catch(function () {
+        // sem a tabela de índices: tudo pelo valor aplicado / manual
+        return montarInvestimentos(pos, porInv, [[], [], [], []], c, hoje);
+      });
+    });
+  }
+
+  function montarInvestimentos(pos, porInv, I, c, hoje) {
+    var cdi = [], selic = [];
+    I[0].forEach(function (x) { (x.serie === 'CDI' ? cdi : selic).push({ d: x.data, v: n4(x.valor) }); });
+    var ipca = I[1].map(function (x) { return { m: String(x.data).slice(0, 7), v: Number(x.valor) || 0 }; });
+    var cot = {};
+    (I[2] || []).forEach(function (x) { if (cot[x.serie] === undefined) cot[x.serie] = { v: Number(x.valor), d: x.data }; });
+    var ult = {};
+    (I[3] || []).forEach(function (x) { if (ult[x.serie] === undefined) ult[x.serie] = Number(x.valor); });
+    var cdiAno = ult.CDI !== undefined ? Math.pow(1 + ult.CDI / 100, 252) - 1 : null;
+    var selicAno = ult.SELIC !== undefined ? Math.pow(1 + ult.SELIC / 100, 252) - 1 : null;
+    var infl = cfgNum(c, 'INFLACAO', 0.045);
+    var temIndices = cdi.length > 0;
+
+    function n4(v) { return Number(v) || 0; }
+    function diasUteis(de, ate) {
+      if (!cdi.length) return diasEntre(de, ate) * 252 / 365;
+      var k = 0; cdi.forEach(function (x) { if (x.d >= de && x.d < ate) k++; }); return k;
+    }
+    // quanto 1 real aplicado em `de` vale em `ate`, pelo indexador da posição
+    function fator(p, de, ate) {
+      if (de >= ate) return 1;
+      var t = Number(p.taxa), f = 1;
+      if (p.indexador === 'CDI') {
+        var pc = (isNaN(t) || !t ? 100 : t) / 100;
+        cdi.forEach(function (x) { if (x.d >= de && x.d < ate) f *= 1 + x.v / 100 * pc; });
+        return f;
+      }
+      if (p.indexador === 'SELIC') {
+        selic.forEach(function (x) { if (x.d >= de && x.d < ate) f *= 1 + x.v / 100; });
+        return f * Math.pow(1 + (t || 0) / 100, diasUteis(de, ate) / 252);
+      }
+      if (p.indexador === 'IPCA') {
+        var m0 = de.slice(0, 7), m1 = ate.slice(0, 7);
+        // o IPCA do mês da aplicação só conta inteiro se ela foi no dia 1
+        var dia1 = de.slice(8, 10) === '01';
+        ipca.forEach(function (x) { if ((dia1 ? x.m >= m0 : x.m > m0) && x.m < m1) f *= 1 + x.v / 100; });
+        return f * Math.pow(1 + (t || 0) / 100, diasEntre(de, ate) / 365);
+      }
+      if (p.indexador === 'PRE') return Math.pow(1 + (t || 0) / 100, diasUteis(de, ate) / 252);
+      if (p.indexador === 'POUPANCA') {
+        var a = new Date(de), b = new Date(ate);
+        var meses = (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth() - (b.getDate() < a.getDate() ? 1 : 0);
+        return Math.pow(1.005, Math.max(0, meses));
+      }
+      return 1;   // MANUAL e VARIAVEL sem cotação
+    }
+
+    function valorEm(p, ate) {
+      var movs = porInv[p.id] || [];
+      var fim = (p.vencimento && p.vencimento < ate) ? p.vencimento : ate;
+      if (p.indexador === 'VARIAVEL') {
+        var s = p.tipo === 'CRIPTO' ? 'CRIPTO:' + String(p.ativo || '').trim().toLowerCase()
+                                    : p.tipo + ':' + String(p.ativo || '').trim().toUpperCase();
+        if (cot[s] && Number(p.quantidade) > 0) return { v: Number(p.quantidade) * cot[s].v, cotacao: cot[s].v, cotEm: cot[s].d };
+      }
+      var base = 0, desde = '';
+      if (p.valor_manual !== null && p.valor_manual !== undefined && p.valor_manual_em && p.valor_manual_em <= ate) {
+        base = Number(p.valor_manual) * fator(p, p.valor_manual_em, fim); desde = p.valor_manual_em;
+      }
+      movs.forEach(function (m) {
+        if (m.data > ate || (desde && m.data <= desde)) return;
+        var v = Number(m.valor) * fator(p, m.data, fim);
+        base += m.tipo === 'RESGATE' ? -v : v;
+      });
+      return { v: Math.max(0, base) };
+    }
+
+    // a taxa esperada ao ano (nominal), para o plano de aposentadoria
+    function taxaAno(p) {
+      var t = Number(p.taxa) || 0;
+      if (p.indexador === 'CDI' && cdiAno !== null) return cdiAno * (t || 100) / 100;
+      if (p.indexador === 'SELIC' && selicAno !== null) return selicAno + t / 100;
+      if (p.indexador === 'IPCA') return (1 + infl) * (1 + t / 100) - 1;
+      if (p.indexador === 'PRE') return t / 100;
+      if (p.indexador === 'POUPANCA') return Math.pow(1.005, 12) - 1;
+      return null;
+    }
+
+    var mesIni = hoje.slice(0, 8) + '01';
+    var lista = pos.map(function (p) {
+      var movs = porInv[p.id] || [];
+      var aplicado = movs.reduce(function (t, m) { return t + (m.tipo === 'RESGATE' ? -1 : 1) * Number(m.valor); }, 0);
+      var primeira = movs.length ? movs[0].data : (p.aplicado_em || hoje);
+      var agora = valorEm(p, hoje), inicioMes = valorEm(p, mesIni);
+      var aportesMes = movs.filter(function (m) { return m.data >= mesIni; })
+        .reduce(function (t, m) { return t + (m.tipo === 'RESGATE' ? -1 : 1) * Number(m.valor); }, 0);
+      var bruto = agora.v, ganho = bruto - aplicado;
+      var ir = (!INV_ISENTO[p.tipo] && !INV_SEM_IR[p.tipo] && ganho > 0) ? ganho * aliquotaIR(diasEntre(primeira, hoje)) : 0;
+      var ta = taxaAno(p);
+      var venceEm = p.vencimento ? diasEntre(hoje, p.vencimento) : null;
+      return {
+        id: p.id, nome: p.nome, instituicao: p.instituicao, tipo: p.tipo, indexador: p.indexador,
+        taxa: p.taxa === null ? '' : Number(p.taxa), ativo: p.ativo || '', aplicadoEm: p.aplicado_em || primeira,
+        vencimento: p.vencimento || '', liquidez: p.liquidez, quantidade: p.quantidade, precoMedio: p.preco_medio,
+        objetivo: p.objetivo, reserva: p.reserva || '', titular: p.titular,
+        valorManual: p.valor_manual, valorManualEm: p.valor_manual_em || '',
+        aplicado: n(aplicado), valor: n(bruto), rendimento: n(ganho), ir: n(ir), liquido: n(bruto - ir),
+        rendeuMes: (p.indexador === 'VARIAVEL' || p.indexador === 'MANUAL') ? null : n(bruto - inicioMes.v - aportesMes),
+        cotacao: agora.cotacao || null, cotacaoEm: agora.cotEm || null,
+        taxaAno: ta, taxaReal: ta === null ? null : (1 + ta) / (1 + infl) - 1,
+        venceEm: venceEm, vencendo: venceEm !== null && venceEm >= 0 && venceEm <= 30, vencido: venceEm !== null && venceEm < 0,
+        movimentos: movs.map(function (m) { return { id: m.id, data: m.data, tipo: m.tipo, valor: n(m.valor), lancamento: m.lancamento_id }; }),
+        semIndice: !temIndices && /CDI|SELIC|PRE/.test(p.indexador)
+      };
+    });
+    var tot = function (f, filtro) { return n(lista.filter(filtro || function () { return true; }).reduce(function (t, x) { return t + (Number(x[f]) || 0); }, 0)); };
+    var longo = function (x) { return x.objetivo !== 'RESERVA'; };
+    // rendimento real médio (ponderado pelo valor) do que é para o longo prazo
+    var peso = 0, soma = 0;
+    lista.filter(longo).forEach(function (x) { if (x.taxaReal !== null && x.valor > 0) { peso += x.valor; soma += x.valor * x.taxaReal; } });
+    var porTipo = {};
+    lista.forEach(function (x) {
+      var g = INV_RV[x.tipo] ? 'Renda variável' : x.tipo === 'PREVIDENCIA' ? 'Previdência' : x.tipo === 'CONSORCIO' || x.tipo === 'OUTRO' ? 'Outros' : 'Renda fixa';
+      porTipo[g] = n((porTipo[g] || 0) + x.valor);
+    });
+    return {
+      ok: true, posicoes: lista, total: tot('valor'), aplicado: tot('aplicado'), rendimento: tot('rendimento'),
+      liquido: tot('liquido'), rendeuMes: tot('rendeuMes'),
+      totalLongo: tot('valor', longo),
+      diaria: tot('valor', function (x) { return x.liquidez === 'DIARIA'; }),
+      porTipo: porTipo, taxaRealMedia: peso ? soma / peso : null,
+      cdiAno: cdiAno, selicAno: selicAno,
+      indicesEm: cdi.length ? cdi[cdi.length - 1].d : null
+    };
+  }
+
+  function gravarInvestimento(d) {
+    d = d || {};
+    var nome = String(d.nome || '').trim();
+    if (!nome) return Promise.resolve({ ok: false, erro: 'dê um nome ao investimento' });
+    var num = function (v) { return (v === '' || v === null || v === undefined || isNaN(Number(v))) ? null : Number(v); };
+    var data = function (v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v : null; };
+    var campos = {
+      nome: nome, instituicao: String(d.instituicao || '').trim(), tipo: d.tipo || 'CDB',
+      indexador: d.indexador || 'CDI', taxa: num(d.taxa), ativo: String(d.ativo || '').trim() || null,
+      aplicado_em: data(d.aplicadoEm), vencimento: data(d.vencimento), liquidez: d.liquidez || 'DIARIA',
+      quantidade: num(d.quantidade), preco_medio: num(d.precoMedio), objetivo: d.objetivo || 'APOSENTADORIA',
+      reserva: d.objetivo === 'RESERVA' ? (d.reserva || null) : null, titular: d.titular || 'PF',
+      valor_manual: num(d.valorManual), valor_manual_em: num(d.valorManual) === null ? null : (data(d.valorManualEm) || new Date().toISOString().slice(0, 10))
+    };
+    var feito = d.id ? mudar('investimentos', 'id=eq.' + Number(d.id), campos).then(function () { return Number(d.id); })
+                     : gravar('investimentos', [campos]).then(function (r) { return r[0].id; });
+    return feito.then(function (id) {
+      // investimento novo com valor aplicado: vira o primeiro aporte
+      var v = Number(d.aplicado) || 0;
+      if (d.id || !(v > 0)) return id;
+      return gravar('investimento_movimentos', [{ investimento_id: id, data: campos.aplicado_em || new Date().toISOString().slice(0, 10),
+                                                  tipo: 'APORTE', valor: n(v), lancamento_id: d.lancamento || null }])
+        .then(function () { return id; });
+    }).then(function (id) { _projCache = {}; return { ok: true, id: id }; })
+      .catch(function (e) {
+        var t = String((e && e.message) || e);
+        if (/duplicate|23505/.test(t)) return { ok: false, erro: 'já existe um investimento com esse nome' };
+        if (/PGRST20|42P01|does not exist|schema cache/i.test(t)) return { ok: false, erro: 'falta rodar a migração 035 no Supabase' };
+        throw e;
+      });
+  }
+
+  function excluirInvestimento(id) {
+    return rest('/rest/v1/investimentos?id=eq.' + Number(id), { metodo: 'DELETE' })
+      .then(function () { _projCache = {}; return { ok: true }; });
+  }
+
+  function movimentoInvestimento(id, tipo, valor, data, lancamento) {
+    valor = n(valor);
+    if (!(valor > 0)) return Promise.resolve({ ok: false, erro: 'diga o valor' });
+    var linha = { investimento_id: Number(id), tipo: tipo === 'RESGATE' ? 'RESGATE' : 'APORTE', valor: valor,
+                  data: /^\d{4}-\d{2}-\d{2}$/.test(String(data || '')) ? data : new Date().toISOString().slice(0, 10),
+                  lancamento_id: lancamento ? Number(lancamento) : null };
+    return gravar('investimento_movimentos', [linha])
+      .then(function () { _projCache = {}; return { ok: true }; })
+      .catch(function (e) {
+        if (/duplicate|23505/.test(String((e && e.message) || e))) return { ok: false, erro: 'esse lançamento já foi apontado para um investimento' };
+        throw e;
+      });
+  }
+
+  function excluirMovimento(id) {
+    return rest('/rest/v1/investimento_movimentos?id=eq.' + Number(id), { metodo: 'DELETE' })
+      .then(function () { _projCache = {}; return { ok: true }; });
+  }
+
+  /* O lançamento do mês que foi para uma conta de investimento: pergunta para
+     qual aplicação foi. Devolve os dados do lançamento e se ele já está apontado. */
+  function lancamentoParaInvestir(id) {
+    return rest('/rest/v1/lancamentos?select=id,data,valor,natureza,descricao,categorias(nome,natureza,grupo)&id=eq.' + Number(id) + '&limit=1')
+      .then(function (r) {
+        var l = r[0]; if (!l) return { ok: false };
+        var cat = l.categorias || {};
+        var ehInv = cat.natureza === 'INVESTIMENTO' || cat.grupo === 'INVESTIMENTO';
+        if (!ehInv) return { ok: true, perguntar: false };
+        return rest('/rest/v1/investimento_movimentos?select=id&lancamento_id=eq.' + l.id + '&limit=1')
+          .then(function (m) {
+            return { ok: true, perguntar: !m.length, id: l.id, data: l.data, valor: n(l.valor),
+                     tipo: l.natureza === 'RECEITA' ? 'RESGATE' : 'APORTE', descricao: l.descricao, conta: cat.nome };
+          }).catch(function () { return { ok: true, perguntar: false }; });
+      });
+  }
+
   /* Reserva = dinheiro separado para um fim (troca do carro, viagem...).
      Entrando no fluxo, ela vira uma conta "RESERVA - X" do tipo investimento
      com o valor por mês no previsto até a data: o mês já nasce descontado e
@@ -3764,6 +4050,12 @@
     apiAtualizarFipe: atualizarFipe,
     apiConsultarFipe: consultarFipe,
     apiGravarReserva: gravarReserva,
+    apiInvestimentos: investimentos,
+    apiGravarInvestimento: gravarInvestimento,
+    apiExcluirInvestimento: excluirInvestimento,
+    apiMovimentoInvestimento: movimentoInvestimento,
+    apiExcluirMovimento: excluirMovimento,
+    apiLancamentoParaInvestir: lancamentoParaInvestir,
     apiAnosDaFC: anosDaFC,
     apiAbrirAnoNaFC: abrirAno,
     apiAuditoria: auditoria,
@@ -8252,6 +8544,7 @@ function confirmar(i){
       return;
     }
     toast('Confirmado'); carregar();
+    perguntarInvestimento(r && r.lancamento);
   }).apiConfirmar(p.linha, cat, p.valor, p.id);
 }
 function escolherTipo(i, t){
@@ -10584,8 +10877,9 @@ function catNatureza(nome){
 }
 
 function mudarCat(linha, categoria, i){
-  google.script.run.withSuccessHandler(function(){
+  google.script.run.withSuccessHandler(function(r){
     toast('Reclassificado');
+    perguntarInvestimento(r && r.lancamento);
     if(ST.extrato && ST.extrato.itens[i]) ST.extrato.itens[i].categoria=categoria;
     ST.ano=null;
     google.script.run.withSuccessHandler(function(d){
@@ -10782,6 +11076,7 @@ function salvarNovo(){
     toast(ehTransf ? ('Saiu de '+r.de+', entrou em '+r.para) : ('Lançado em '+(r.mes||'')));
     el('nv').value=''; el('nd').value='';
     carregar();
+    if(!ehTransf) perguntarInvestimento(r.id);
   }).withFailureHandler(function(e){
     solta(); toast('Falhou: '+((e&&e.message)||e));
   });
@@ -10843,6 +11138,11 @@ function renderMetas(){
     '</div>'+
     '<div class="bar" style="margin:-4px 0 6px"><i style="width:'+pct.toFixed(0)+'%;background:'+
       (ok?'var(--ok)':'var(--bad)')+'"></i></div>'+
+    // aportado de verdade nas aplicações (Patrimônio → Investimentos) contra a reserva
+    (p.aportadoMes!==null && p.aportadoMes!==undefined
+      ? '<div class="row" style="font-size:12.5px;margin:2px 0 6px"><span style="color:var(--dim)">aportado nas aplicações este mês</span>'+
+        '<span class="num '+(p.aportadoMes>=m.meta?'pos':'')+'" style="font-weight:600">'+num(p.aportadoMes)+
+        ' <span style="color:var(--dim);font-weight:400">de '+num(m.meta)+'</span></span></div>' : '')+
     (!ok?'<div class="m" style="font-size:12px;margin-bottom:12px">o que fazer: '+
       '<a href="#" onclick="trocarAnalise(\'PLANO\');return false" style="color:var(--acc)">'+
       'ações no Plano</a></div>':'<div style="height:12px"></div>');
@@ -10944,34 +11244,32 @@ function renderPatrimonio(){
   // ---------- investimentos ----------
   h+=patTitulo('INV', 'Investimentos e reservas', moeda((p.totalInvestido||0)+(p.totalReservas||0)), ST.abrePatInv);
   if(ST.abrePatInv){
-    var contas=p.contasInvestimento||[];
-    if(contas.length){
-      h+='<div class="card" style="padding:10px 11px">'+
-        contas.map(function(x){
-          return '<div class="ln" style="grid-template-columns:1fr auto">'+
-            '<span style="font-size:13px">'+tx(x.conta)+
-              '<i class="sub">saldo pelos aportes</i></span>'+
-            '<span class="n pos" style="font-weight:600">'+moeda(x.saldo)+'</span></div>';
-        }).join('')+
-        '<div class="m" style="font-size:11px;margin-top:8px">estas são contas de '+
-        'verdade: transfira a sobra para elas e o saldo sobe sozinho, sem virar '+
-        'despesa no mês</div></div>';
-    }
-    h+=patLista(p.investimentos||[], 'INVESTIMENTO');
-    if(ST.patNovo && ST.patNovo.tipo==='INVESTIMENTO') h+=patForm('INVESTIMENTO');
-    if(ST.patContaNova) h+=patFormConta();
+    h+=blocoAplicacoes(p);
+    h+='<div class="row" style="gap:6px;margin:8px 0 4px">'+
+       '<button class="bt-ok" style="flex:1.3;font-size:12.5px" onclick="ST.invEdit=ST.invEdit===\'novo\'?null:\'novo\';ST.invNovo=null;ST.patNovo=null;renderPatrimonio()">+ aplicação</button>'+
+       '<button class="bt-no" style="flex:1;font-size:12.5px" onclick="ST.invEdit=null;patAbrirNovo(\'RESERVA\')">+ reserva</button></div>';
     // reservas: troca do carro, viagem... cada um cria as suas
     h+='<div class="lbl" style="margin:12px 0 6px">Reservas</div>';
     h+=patLista(p.reservas||[], 'RESERVA');
     if(ST.patNovo && ST.patNovo.tipo==='RESERVA') h+=patForm('RESERVA');
-    h+='<div class="row" style="gap:6px;margin:10px 0 4px">'+
-       '<button class="bt-ok" style="flex:1;font-size:12.5px" '+
-         'onclick="ST.patContaNova=!ST.patContaNova;ST.patNovo=null;renderPatrimonio()">'+
-         '+ conta</button>'+
-       '<button class="bt-no" style="flex:1;font-size:12.5px" onclick="patAbrirNovo(\'INVESTIMENTO\')">'+
-         '+ valor manual</button>'+
-       '<button class="bt-no" style="flex:1;font-size:12.5px" onclick="patAbrirNovo(\'RESERVA\')">'+
-         '+ reserva</button></div>';
+    // o jeito antigo: conta de investimento (saldo pelos aportes) e valor digitado
+    var contas=p.contasInvestimento||[], manuais=p.investimentos||[];
+    h+='<div class="lbl" style="margin:12px 0 6px">Contas e valores digitados</div>';
+    if(contas.length){
+      h+='<div class="card" style="padding:4px 11px">'+
+        contas.map(function(x){
+          return '<div class="row" style="padding:7px 0;gap:8px"><span style="width:22px;text-align:center">🏦</span>'+
+            '<span style="flex:1;font-size:13px">'+tx(x.conta)+'<i class="sub">conta · saldo pelos aportes</i></span>'+
+            '<span class="num pos" style="font-weight:600">'+moeda(x.saldo)+'</span></div>';
+        }).join('')+'</div>';
+    }
+    if(manuais.length) h+=patLista(manuais, 'INVESTIMENTO');
+    if(ST.patNovo && ST.patNovo.tipo==='INVESTIMENTO') h+=patForm('INVESTIMENTO');
+    if(ST.patContaNova) h+=patFormConta();
+    h+='<div class="row" style="gap:6px;margin:6px 0 4px">'+
+       '<button class="bt-no" style="flex:1;font-size:12px;padding:6px" '+
+         'onclick="ST.patContaNova=!ST.patContaNova;ST.patNovo=null;renderPatrimonio()">+ conta de investimento</button>'+
+       '<button class="bt-no" style="flex:1;font-size:12px;padding:6px" onclick="patAbrirNovo(\'INVESTIMENTO\')">+ valor digitado</button></div>';
   }
   h+='<div style="height:20px"></div>';
   c.innerHTML=h;
@@ -11047,12 +11345,13 @@ function patLista(lista, tipo){
 function patEditar(d){ ST.patEdit=(ST.patEdit===d)?null:d; ST.patNovo=null; renderPatrimonio(); }
 
 function patChips(id, valor, lista, aoMudar){
-  return '<input type="hidden" id="'+id+'" value="'+(valor||'')+'"><div class="chips" id="ch_'+id+'" '+
+  return '<input type="hidden" id="'+id+'" value="'+String(valor||'').replace(/"/g,'&quot;')+'"><div class="chips" id="ch_'+id+'" '+
     'style="display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 8px">'+
     lista.map(function(o){
-      return '<button type="button" data-v="'+o[0]+'" class="bt-no'+(o[0]===valor?' on':'')+'" '+
+      var vj=String(o[0]).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      return '<button type="button" data-v="'+String(o[0]).replace(/"/g,'&quot;')+'" class="bt-no'+(o[0]===valor?' on':'')+'" '+
         'style="padding:5px 8px;font-size:12px;border-radius:16px'+(o[0]===valor?';background:var(--acc);color:#fff':'')+'" '+
-        'onclick="event.stopPropagation();patChip(\''+id+'\',\''+o[0]+'\''+(aoMudar?','+aoMudar:'')+')">'+o[1]+' '+o[2]+'</button>';
+        'onclick="event.stopPropagation();patChip(\''+id+'\',\''+vj+'\''+(aoMudar?','+aoMudar:'')+')">'+(o[1]?o[1]+' ':'')+tx(o[2])+'</button>';
     }).join('')+'</div>';
 }
 function patChip(id, v, depois){
@@ -11182,6 +11481,246 @@ function patConsultarFipe(){
     el('pfVal').value=num(r.valor);
     toast('FIPE '+r.referencia+': '+moeda(r.valor)+(r.modelo?' · '+r.modelo:''));
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); }).apiConsultarFipe(cod, ano);
+}
+
+/* ---------- APLICAÇÕES (investimentos com histórico) ----------
+   Cada aplicação: banco, tipo, indexador e taxa, aplicação, vencimento,
+   liquidez, objetivo. O valor de hoje vem dos índices (CDI, Selic, IPCA,
+   cotação) que a rotina diária grava; o extrato da corretora corrige. */
+var INV_TIPOS=[['CDB','🏦','CDB','CDI'],['LCI','🏠','LCI','CDI'],['LCA','🌾','LCA','CDI'],
+  ['TESOURO_SELIC','🇧🇷','Tesouro Selic','SELIC'],['TESOURO_IPCA','🇧🇷','Tesouro IPCA+','IPCA'],['TESOURO_PRE','🇧🇷','Tesouro Pré','PRE'],
+  ['POUPANCA','🐖','Poupança','POUPANCA'],['FUNDO_DI','📊','Fundo DI','CDI'],['FUNDO_MULTI','📊','Multimercado','MANUAL'],
+  ['ACAO','📈','Ação','VARIAVEL'],['FII','🏢','FII','VARIAVEL'],['ETF','🧺','ETF','VARIAVEL'],
+  ['PREVIDENCIA','🛡️','Previdência','MANUAL'],['CRIPTO','🪙','Cripto','VARIAVEL'],['CONSORCIO','🤝','Consórcio','MANUAL'],['OUTRO','💰','Outro','MANUAL']];
+var INV_IDX=[['CDI','','% do CDI'],['SELIC','','Selic'],['IPCA','','IPCA +'],['PRE','','Prefixado'],
+  ['POUPANCA','','Poupança'],['VARIAVEL','','Cotação'],['MANUAL','','Valor do extrato']];
+var INV_LIQ=[['DIARIA','','Diária'],['VENCIMENTO','','No vencimento'],['D30','','D+30'],['OUTRA','','Outra']];
+var INV_OBJ=[['APOSENTADORIA','🏁','Aposentadoria'],['EMERGENCIA','🛟','Emergência'],['RESERVA','🎯','Uma reserva'],['OUTRO','💡','Outro']];
+var INV_CORRETORAS=['XP','BTG','Rico','Clear','NuInvest','Inter','Itaú','Bradesco','Banco do Brasil','Caixa','Santander','C6','Nubank','Mercado Pago','PicPay','Sicredi','Sicoob','Warren','Toro','Binance','Mercado Bitcoin'];
+function invTipo(k){ return patCat(INV_TIPOS,k); }
+function invTaxaTxt(x){
+  var t=(x.taxa===''||x.taxa===null||x.taxa===undefined)?null:Number(x.taxa);
+  if(x.indexador==='CDI') return num(t||100).replace(',00','')+'% CDI';
+  if(x.indexador==='SELIC') return 'Selic'+(t?' + '+num(t)+'%':'');
+  if(x.indexador==='IPCA') return 'IPCA + '+num(t||0)+'%';
+  if(x.indexador==='PRE') return num(t||0)+'% a.a.';
+  if(x.indexador==='POUPANCA') return 'poupança';
+  if(x.indexador==='VARIAVEL') return (x.ativo||'cotação')+(x.quantidade?' · '+String(x.quantidade).replace('.',',')+' un.':'');
+  return 'valor do extrato';
+}
+function invData(d){ return d ? d.split('-').reverse().join('/') : ''; }
+
+function blocoAplicacoes(p){
+  var inv=p.inv||{posicoes:[]}, h='';
+  if(inv.semTabela){
+    return '<div class="card" style="padding:9px 11px"><div class="m" style="font-size:12px">As aplicações (CDB, Tesouro, ações...) '+
+      'ficam disponíveis depois que a migração <b>035</b> rodar no Supabase.</div></div>';
+  }
+  var L=inv.posicoes||[];
+  if(L.length){
+    var pct=inv.aplicado>0?inv.rendimento/inv.aplicado*100:0;
+    h+='<div class="mini" style="margin-bottom:8px">'+
+      miniCard('aplicações', mil(inv.total))+
+      miniCard('rendeu', (inv.rendimento>=0?'+':'')+mil(inv.rendimento).replace('R$ ',''), inv.rendimento>=0?'pos':'neg')+
+      miniCard('no mês', inv.rendeuMes?(inv.rendeuMes>=0?'+':'')+num(inv.rendeuMes):'—', inv.rendeuMes>=0?'pos':'neg')+'</div>'+
+      '<div class="m" style="font-size:11px;margin:-4px 0 8px">'+
+        Object.keys(inv.porTipo||{}).map(function(k){ return k.toLowerCase()+' '+mil(inv.porTipo[k]); }).join(' · ')+
+        ' · liquidez diária '+mil(inv.diaria)+
+        (inv.rendimento?' · '+num(pct)+'% sobre o aplicado':'')+
+        (inv.ir>0||inv.liquido<inv.total?' · líquido de IR '+mil(inv.liquido):'')+
+        (inv.cdiAno?'<br>CDI hoje '+num(inv.cdiAno*100)+'% a.a. · índices de '+invData(inv.indicesEm):'<br>os índices (CDI, IPCA) chegam pela rotina diária')+'</div>';
+    var vencendo=L.filter(function(x){ return x.vencendo; });
+    vencendo.forEach(function(x){
+      h+='<div class="card" style="padding:8px 11px;border-color:var(--warn)"><div class="m" style="font-size:12px;color:var(--txt)">⏰ <b>'+tx(x.nome)+
+        '</b> vence em '+invData(x.vencimento)+' ('+x.venceEm+' dias): '+mil(x.liquido)+' líquido. Já pense para onde vai.</div></div>';
+    });
+    h+='<div class="card" style="padding:2px 11px">';
+    L.forEach(function(x){
+      var aberto=ST.invAberto===x.id, rp=x.aplicado>0?x.rendimento/x.aplicado*100:0;
+      h+='<div style="border-bottom:1px solid var(--line)">'+
+        '<div class="row" style="padding:8px 0;gap:8px;cursor:pointer" onclick="ST.invAberto=ST.invAberto==='+x.id+'?null:'+x.id+';ST.invEdit=null;renderPatrimonio()">'+
+        '<span style="font-size:17px;width:22px;text-align:center">'+invTipo(x.tipo)[1]+'</span>'+
+        '<div style="flex:1;min-width:0"><div class="d" style="font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+
+          (x.instituicao?'<span style="color:var(--dim)">'+tx(x.instituicao)+' · </span>':'')+tx(x.nome)+'</div>'+
+          '<div class="m" style="font-size:11px">'+invTaxaTxt(x)+(x.vencimento?' · vence '+patMesTxt(x.vencimento.slice(0,7)):'')+
+            (x.objetivo==='RESERVA'&&x.reserva?' · 🎯 '+tx(x.reserva):x.objetivo==='EMERGENCIA'?' · 🛟 emergência':'')+
+            (x.vencido?' · <span class="neg">vencido</span>':'')+'</div></div>'+
+        '<div style="text-align:right;white-space:nowrap"><div class="num" style="font-size:14.5px;font-weight:700">'+moeda(x.valor)+'</div>'+
+          '<div class="m '+(x.rendimento>=0?'pos':'neg')+'" style="font-size:11px">'+(x.rendimento>=0?'+':'')+num(rp)+'%</div></div></div>'+
+        (aberto?invDetalhe(x, p):'')+'</div>';
+    });
+    h+='</div>';
+  }
+  if(ST.invEdit==='novo') h+=invForm(ST.invNovo||{}, p);
+  return h;
+}
+
+function invDetalhe(x, p){
+  if(ST.invEdit===x.id) return invForm(x, p);
+  var linha=function(a,b,c){ return '<div class="row" style="font-size:12px;padding:2px 0"><span style="color:var(--dim)">'+a+'</span><span class="num '+(c||'')+'">'+b+'</span></div>'; };
+  var h='<div style="padding:0 0 10px 30px" onclick="event.stopPropagation()">'+
+    linha('aplicado (aportes − resgates)', moeda(x.aplicado))+
+    linha('rendimento bruto', (x.rendimento>=0?'+':'')+moeda(x.rendimento), x.rendimento>=0?'pos':'neg')+
+    (x.ir>0?linha('IR estimado se resgatar hoje', '−'+moeda(x.ir), 'neg')+linha('líquido', moeda(x.liquido)):'')+
+    (x.rendeuMes!==null?linha('rendeu neste mês', (x.rendeuMes>=0?'+':'')+moeda(x.rendeuMes), x.rendeuMes>=0?'pos':'neg'):'')+
+    (x.cotacao?linha('cotação ('+invData(x.cotacaoEm)+')', moeda(x.cotacao)+(x.precoMedio?' · PM '+moeda(x.precoMedio):'')):'')+
+    (x.taxaAno!==null?linha('rende ao ano (estimado)', num(x.taxaAno*100)+'% · real '+num(x.taxaReal*100)+'%'):'')+
+    linha('liquidez', patCat(INV_LIQ,x.liquidez)[2].toLowerCase()+(x.vencimento?' · vence '+invData(x.vencimento):''))+
+    (x.semIndice?'<div class="m" style="font-size:11px;color:var(--warn)">sem índice ainda: mostrando o valor aplicado</div>':'')+
+    '<div class="lbl" style="font-size:10px;margin:8px 0 2px">Movimentos</div>'+
+    (x.movimentos.length ? x.movimentos.slice().reverse().map(function(m){
+      return '<div class="row" style="font-size:12px;padding:3px 0;gap:6px"><span style="color:var(--dim)">'+invData(m.data)+'</span>'+
+        '<span style="flex:1">'+(m.tipo==='APORTE'?'aporte':'resgate')+(m.lancamento?' · 🔗 do mês':'')+'</span>'+
+        '<span class="num '+(m.tipo==='APORTE'?'pos':'neg')+'">'+(m.tipo==='APORTE'?'+':'−')+num(m.valor)+'</span>'+
+        '<span style="color:var(--bad);cursor:pointer;padding:0 4px" onclick="invApagarMov('+m.id+')">×</span></div>';
+    }).join('') : '<div class="m" style="font-size:11.5px">nenhum ainda</div>')+
+    (ST.invMov && ST.invMov.id===x.id ? invFormMov(x) : '')+
+    '<div class="row" style="gap:6px;margin-top:8px">'+
+      '<button class="bt-ok" style="flex:1;padding:6px;font-size:12px" onclick="ST.invMov={id:'+x.id+',tipo:\'APORTE\'};renderPatrimonio()">+ aporte</button>'+
+      '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" onclick="ST.invMov={id:'+x.id+',tipo:\'RESGATE\'};renderPatrimonio()">− resgate</button>'+
+      '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" onclick="ST.invEdit='+x.id+';ST.invMov=null;renderPatrimonio()">Editar</button>'+
+    '</div></div>';
+  return h;
+}
+
+function invFormMov(x){
+  var t=ST.invMov.tipo, hoje=new Date().toISOString().slice(0,10);
+  return '<div class="row" style="gap:6px;margin-top:8px;align-items:flex-end">'+
+    '<div style="flex:1.2"><div class="lbl" style="font-size:10px">'+(t==='APORTE'?'Aporte':'Resgate')+'</div>'+
+      '<input id="imVal" inputmode="decimal" placeholder="0,00" oninput="mascaraMoeda(this)" style="margin:0;padding:7px 8px;font-size:13px"></div>'+
+    '<div style="flex:1.2"><div class="lbl" style="font-size:10px">Dia</div>'+
+      '<input id="imData" type="date" value="'+hoje+'" style="margin:0;padding:6px 6px;font-size:12.5px"></div>'+
+    '<button class="bt-ok" style="padding:7px 10px;font-size:12.5px" onclick="invSalvarMov('+x.id+')">OK</button></div>';
+}
+function invSalvarMov(id){
+  var v=patNum('imVal'); if(!v){ toast('Diga o valor'); return; }
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
+    toast('Lançado'); ST.invMov=null; invRecarregar();
+  }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
+    .apiMovimentoInvestimento(id, ST.invMov.tipo, v, el('imData').value, null);
+}
+function invApagarMov(id){
+  if(!confirm('Apagar este movimento?')) return;
+  google.script.run.withSuccessHandler(function(){ toast('Apagado'); invRecarregar(); })
+    .withFailureHandler(function(){ toast('Falhou'); }).apiExcluirMovimento(id);
+}
+function invRecarregar(){ ST.plano=null; ST.projLonga=null; recarregarPatrimonio(); }
+
+function invForm(x, p){
+  var novo=!x.id, tipo=x.tipo||'CDB', idx=x.indexador||invTipo(tipo)[3];
+  var campo=function(rot, html, flex, id){ return '<div'+(id?' id="'+id+'"':'')+' style="flex:'+(flex||1)+';min-width:0"><div class="lbl" style="font-size:10px">'+rot+'</div>'+html+'</div>'; };
+  var inp=function(id, v, ph, modo, extra){ return '<input id="'+id+'" value="'+String(v===undefined||v===null?'':v).replace(/"/g,'&quot;')+'" placeholder="'+(ph||'')+'"'+
+      (modo?' inputmode="'+modo+'"':'')+(extra||'')+' style="margin:0;padding:7px 8px;font-size:13px">'; };
+  var dinheiro=function(id,v,ph){ return inp(id, v?num(v):'', ph||'0,00', 'decimal', ' oninput="mascaraMoeda(this)"'); };
+  var data=function(id,v){ return '<input id="'+id+'" type="date" value="'+(v||'')+'" style="margin:0;padding:6px 6px;font-size:12.5px">'; };
+  var linha=function(){ return '<div class="row" style="gap:8px;margin-bottom:8px;align-items:flex-end">'+Array.prototype.join.call(arguments,'')+'</div>'; };
+  var reservas=(p.reservas||[]).map(function(r){ return r.descricao; });
+  var h='<div class="card" style="border-color:var(--acc);margin:6px 0 8px;padding:10px 11px" onclick="event.stopPropagation()">'+
+    (novo?'<div class="lbl" style="margin-bottom:6px">Aplicação nova</div>':'')+
+    '<div class="lbl" style="font-size:10px">Tipo</div>'+patChips('ifTipo', tipo, INV_TIPOS, 'invMudouTipo')+
+    linha(campo('Instituição', '<input id="ifInst" list="ifInstL" value="'+tx(x.instituicao||'').replace(/"/g,'&quot;')+'" placeholder="XP, Nubank..." style="margin:0;padding:7px 8px;font-size:13px">'+
+                '<datalist id="ifInstL">'+INV_CORRETORAS.concat(BANCOS_LISTA).filter(function(v,i,a){ return a.indexOf(v)===i; }).map(function(b){ return '<option value="'+b+'">'; }).join('')+'</datalist>'),
+          campo('Nome', inp('ifNome', x.nome, 'CDB Banco X 2028'), 1.4))+
+    '<div class="lbl" style="font-size:10px">Rende por</div>'+patChips('ifIdx', idx, INV_IDX, 'invMudouIdx')+
+    linha(campo('<span id="ifTaxaRot">'+invRotTaxa(idx)+'</span>', inp('ifTaxa', x.taxa!==''&&x.taxa!==undefined&&x.taxa!==null?num(x.taxa):'', '', 'decimal'), 1, 'ifTaxaBox'),
+          campo('Aplicado em', data('ifData', x.aplicadoEm)), campo('Vencimento', data('ifVenc', x.vencimento)))+
+    '<div id="ifRV">'+linha(campo('Ticker', inp('ifAtivo', x.ativo, tipo==='CRIPTO'?'bitcoin':'PETR4')),
+          campo('Quantidade', inp('ifQtd', x.quantidade!==null&&x.quantidade!==undefined?String(x.quantidade).replace('.',','):'', '100', 'decimal')),
+          campo('Preço médio', dinheiro('ifPM', x.precoMedio)))+'</div>'+
+    (novo?linha(campo('Valor aplicado', dinheiro('ifApl', x.aplicado)), campo('Valor hoje (extrato)', dinheiro('ifVM', x.valorManual, 'opcional'))):
+          linha(campo('Valor hoje pelo extrato', dinheiro('ifVM', x.valorManual, 'opcional')), campo('em', data('ifVMData', x.valorManualEm))))+
+    '<div class="lbl" style="font-size:10px">Liquidez</div>'+patChips('ifLiq', x.liquidez||'DIARIA', INV_LIQ)+
+    '<div class="lbl" style="font-size:10px">Para quê</div>'+patChips('ifObj', x.objetivo||'APOSENTADORIA', INV_OBJ, 'invMudouObj')+
+    '<div id="ifResBox" style="'+((x.objetivo||'')==='RESERVA'?'':'display:none')+'">'+
+      (reservas.length ? patChips('ifRes', x.reserva||reservas[0], reservas.map(function(r){ return [r,'🎯',r]; }))
+                       : '<div class="m" style="font-size:11.5px;margin-bottom:8px">crie a reserva em "+ reserva" primeiro</div>')+'</div>'+
+    '<div class="lbl" style="font-size:10px">Titular</div>'+segEscolha('ifTit', x.titular||'PF', ['PF','PJ'])+
+    '<div class="row" style="margin-top:10px;gap:6px">'+
+      (novo?'':'<button class="bt-no" style="padding:7px 10px;font-size:12px;color:var(--bad)" onclick="invExcluir('+x.id+')">Excluir</button>')+
+      '<button class="bt-no" style="flex:1" onclick="ST.invEdit=null;ST.invNovo=null;renderPatrimonio()">Cancelar</button>'+
+      '<button class="bt-ok" style="flex:2" onclick="invSalvar('+(x.id||0)+')">'+(novo?'Adicionar':'Salvar')+'</button></div></div>';
+  setTimeout(function(){ invMudouIdx(idx, true); }, 0);
+  return h;
+}
+function invRotTaxa(idx){
+  return ({CDI:'% do CDI',SELIC:'Selic + % a.a.',IPCA:'IPCA + % a.a.',PRE:'% ao ano'})[idx] || 'taxa';
+}
+function invMudouTipo(t){ patChip('ifIdx', invTipo(t)[3], invMudouIdx);
+  var a=el('ifAtivo'); if(a) a.placeholder=t==='CRIPTO'?'bitcoin':(t==='FII'?'HGLG11':(t==='ETF'?'BOVA11':'PETR4'));
+  if(/^(TESOURO|POUPANCA)/.test(t) && el('ifLiq')) patChip('ifLiq', 'DIARIA');
+}
+function invMudouIdx(idx, so){
+  var b=el('ifTaxaBox'), r=el('ifTaxaRot'), rv=el('ifRV');
+  if(b) b.style.visibility=/CDI|SELIC|IPCA|PRE/.test(idx)?'':'hidden';
+  if(r) r.textContent=invRotTaxa(idx);
+  if(rv) rv.style.display=idx==='VARIAVEL'?'':'none';
+  var t=el('ifTaxa'); if(t && !so && idx==='CDI' && !t.value) t.value='100';
+}
+function invMudouObj(o){ var b=el('ifResBox'); if(b) b.style.display=o==='RESERVA'?'':'none'; }
+
+function invSalvar(id){
+  var nome=(el('ifNome').value||'').trim(); if(!nome){ toast('Dê um nome'); return; }
+  var dec=function(e){ var v=el(e)&&el(e).value; return v===''||v===undefined||v===null ? '' : (parseFloat(String(v).replace(/\./g,'').replace(',','.'))||0); };
+  var idx=el('ifIdx').value;
+  var d={ id:id||null, nome:nome, instituicao:el('ifInst').value, tipo:el('ifTipo').value, indexador:idx,
+          taxa:/CDI|SELIC|IPCA|PRE/.test(idx)?patPct('ifTaxa'):'', aplicadoEm:el('ifData').value, vencimento:el('ifVenc').value,
+          liquidez:el('ifLiq').value, objetivo:el('ifObj').value, reserva:el('ifRes')?el('ifRes').value:'',
+          titular:el('ifTit').value,
+          ativo:idx==='VARIAVEL'?el('ifAtivo').value:'', quantidade:idx==='VARIAVEL'?dec('ifQtd'):'', precoMedio:idx==='VARIAVEL'?dec('ifPM'):'',
+          valorManual:el('ifVM').value?patNum('ifVM'):'', valorManualEm:el('ifVMData')?el('ifVMData').value:'' };
+  if(!id){ d.aplicado=patNum('ifApl'); if(ST.invNovo&&ST.invNovo.lancamento) d.lancamento=ST.invNovo.lancamento; }
+  if(!id && !d.aplicado && d.valorManual===''){ toast('Diga quanto aplicou (ou o valor de hoje)'); return; }
+  toast('Salvando...');
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
+    toast('Salvo'); ST.invEdit=null; ST.invNovo=null; ST.invAberto=r.id; invRecarregar();
+  }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); }).apiGravarInvestimento(d);
+}
+function invExcluir(id){
+  if(!confirm('Excluir esta aplicação e os movimentos dela?')) return;
+  google.script.run.withSuccessHandler(function(){ toast('Excluída'); ST.invEdit=null; ST.invAberto=null; invRecarregar(); })
+    .withFailureHandler(function(){ toast('Falhou'); }).apiExcluirInvestimento(id);
+}
+
+/* Saiu dinheiro para uma conta de investimento (ou voltou dela): pergunta
+   de qual aplicação é. Fica amarrado pelo id do lançamento - não pergunta
+   duas vezes. */
+function perguntarInvestimento(lancId){
+  if(!lancId) return;
+  google.script.run.withSuccessHandler(function(l){
+    if(!l||!l.ok||!l.perguntar) return;
+    google.script.run.withSuccessHandler(function(inv){
+      var L=(inv&&inv.posicoes)||[];
+      if(inv && inv.semTabela) return;
+      ST.invPergunta=l;
+      var box=document.createElement('div'); box.className='picker'; box.id='invPerg';
+      box.innerHTML='<div class="picker-fundo" onclick="fecharInvPerg()"></div><div class="picker-folha" style="padding:12px 12px 16px">'+
+        '<div class="lbl">'+(l.tipo==='APORTE'?'📈 Para qual investimento foi?':'📉 De qual investimento saiu?')+'</div>'+
+        '<div class="m" style="font-size:12px;margin:4px 0 10px">'+moeda(l.valor)+' · '+tx(l.conta||'')+' · '+invData(l.data)+'</div>'+
+        '<div style="overflow-y:auto">'+L.map(function(x){
+          return '<button class="bt-no" style="width:100%;margin-top:6px;text-align:left;font-size:13px" onclick="invApontar('+x.id+')">'+
+            invTipo(x.tipo)[1]+' '+(x.instituicao?tx(x.instituicao)+' · ':'')+tx(x.nome)+' <span style="color:var(--dim)">· '+mil(x.valor)+'</span></button>';
+        }).join('')+'</div>'+
+        (l.tipo==='APORTE'?'<button class="bt-ok" style="width:100%;margin-top:10px" onclick="invNovaDoLanc()">+ Nova aplicação com este valor</button>':'')+
+        '<button class="bt-no" style="width:100%;margin-top:6px" onclick="fecharInvPerg()">Agora não</button></div>';
+      document.body.appendChild(box);
+    }).withFailureHandler(function(){}).apiInvestimentos();
+  }).withFailureHandler(function(){}).apiLancamentoParaInvestir(lancId);
+}
+function fecharInvPerg(){ var b=el('invPerg'); if(b) b.remove(); ST.invPergunta=null; }
+function invApontar(id){
+  var l=ST.invPergunta; if(!l) return;
+  google.script.run.withSuccessHandler(function(r){
+    toast(r&&r.ok?'Amarrado ao investimento':((r&&r.erro)||'Não consegui'));
+    fecharInvPerg(); ST.patrimonio=null; ST.plano=null;
+  }).withFailureHandler(function(){ toast('Falhou'); }).apiMovimentoInvestimento(id, l.tipo, l.valor, l.data, l.id);
+}
+function invNovaDoLanc(){
+  var l=ST.invPergunta; if(!l) return;
+  ST.invNovo={ aplicado:l.valor, aplicadoEm:l.data, lancamento:l.id };
+  ST.invEdit='novo'; ST.abrePatInv=true; fecharInvPerg();
+  ST.patrimonio=null; trocarAnalise('PATRIMONIO');
 }
 
 function patFormConta(){
