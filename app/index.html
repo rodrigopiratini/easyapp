@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.6.0 \u00b7 07/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.6.1 \u00b7 07/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -489,7 +489,15 @@
     var de = mes < hoje ? mes : hoje, ate = mes > hoje ? mes : hoje;
     return Promise.all([
       carregarFluxo(de, ate),
-      rest('/rest/v1/saldos_contas?select=tipo,titular,saldo')
+      rest('/rest/v1/saldos_contas?select=tipo,titular,saldo'),
+      /* o que o app soma por cima do saldo do banco e o banco não confirmou,
+         e o que foi lançado duas vezes - a pessoa decide (ver 030) */
+      rest('/rest/v1/conferencia_banco?select=id,conta,data,valor,natureza,descricao,situacao,banco_data,banco_descricao'
+           + '&situacao=in.(fora_do_banco,repetido)&order=data').catch(function () { return []; }),
+      /* saiu da conta pelo banco e ainda não tem conta: o previsto que ele
+         paga continua "ainda sai" até a classificação */
+      mes === hoje ? rest('/rest/v1/lancamentos?select=valor&mes_ref=eq.' + mes + '&categoria_id=is.null'
+           + '&natureza=eq.DESPESA&status=neq.IGNORADO&meio=neq.CARTAO_CREDITO&origem=eq.OPENFINANCE').catch(function () { return []; }) : []
     ]).then(function (R) {
       var fluxo = R[0], saldoHoje = 0;
       R[1].forEach(function (s) {
@@ -515,6 +523,8 @@
         // entrou - saiu = saldo de hoje, centavo a centavo
         jaEntrou: n(f.jaEntrou || 0), jaSaiu: n(f.jaSaiu || 0),
         comecou: mes === hoje ? n(saldoHoje - (f.jaEntrou || 0) + (f.jaSaiu || 0)) : null,
+        conferir: R[2] || [],
+        semConta: { qtd: (R[3] || []).length, valor: n((R[3] || []).reduce(function (s, l) { return s + (Number(l.valor) || 0); }, 0)) },
         itens: f.itens.slice(0, 20)
       };
     });
@@ -1203,6 +1213,20 @@
           });
       });
     });
+  }
+
+  /* Conferência com o banco (tela Mês): apagar o lançamento à mão repetido
+     ou que não existiu, ou marcar como "são diferentes" / "manter assim". */
+  function conferirBanco(acao, id) {
+    if (!/^[0-9a-f-]{36}$/.test(String(id))) return Promise.resolve({ ok: false, erro: 'lançamento inválido' });
+    var url = '/rest/v1/lancamentos?id=eq.' + id + '&origem=neq.OPENFINANCE';
+    if (acao === 'apagar') return rest(url, { metodo: 'DELETE' }).then(function () { return { ok: true }; });
+    if (acao !== 'diferente' && acao !== 'manter') return Promise.resolve({ ok: false, erro: 'ação inválida' });
+    return rest('/rest/v1/lancamentos?select=dados&id=eq.' + id).then(function (r) {
+      var d = (r && r[0] && r[0].dados) || {};
+      d.conferido = acao;
+      return rest(url, { metodo: 'PATCH', corpo: { dados: d }, prefer: 'return=minimal' });
+    }).then(function () { return { ok: true }; });
   }
 
   function excluirLancamento(linha, id) {
@@ -3493,6 +3517,7 @@
     apiLancarManual: lancarManual,
     apiEditarLancamento: editarLancamento,
     apiExcluirLancamento: excluirLancamento,
+    apiConferirBanco: conferirBanco,
     apiAno: ano,
     apiMetas: metas,
     apiProjecaoFutura: projecaoFutura,
@@ -8252,7 +8277,8 @@ function renderMes(){
       '<div style="border-top:1px solid var(--line);margin-top:8px;padding-top:9px">'+
         '<div class="lbl">Saldo projetado no fim do mês</div>'+
         '<div class="big '+(cx.saldoProjetado>=0?'pos':'neg')+'">'+
-          moeda(cx.saldoProjetado)+'</div></div>';
+          moeda(cx.saldoProjetado)+'</div></div>'+
+      blocoConferencia(cx);
     if(cx.itens && cx.itens.length){
       h+='<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">'+
          '<div class="lbl" style="cursor:pointer" onclick="ST.abreCaixa=!ST.abreCaixa;renderMes()">'+
@@ -8361,7 +8387,7 @@ function renderMes(){
     h+='<div class="ln tab" title="'+tx(d.grupo)+'">'+
        '<div class="nm">'+ponto(d.grupo)+'<span>'+tx(d.categoria)+'</span></div>'+
        '<input id="pv'+i+'"'+((d.daVerba>0.005||d.distribuido>0.005)?' class="vb" title="o previsto veio da verba do cartão"':'')+' value="'+(d.previsto>0.005?num(d.previsto):'')+'" '+
-         'placeholder="'+(Number(d.padrao)>0.005?num(d.padrao):'0,00')+'" inputmode="decimal" '+
+         'placeholder="0,00"'+(Number(d.padrao)>0.005&&d.previsto<=0.005?' title="sem previsto neste mês (o padrão da conta é '+num(d.padrao)+')"':'')+' inputmode="decimal" '+
          'onfocus="this.select()" onblur="salvarPrevisto('+i+')" '+
          'onkeydown="if(event.key===\'Enter\')this.blur()">'+
        '<span class="n">'+moeda(d.realizado)+'</span>'+
@@ -8386,7 +8412,7 @@ function renderMes(){
       var j=base+k;
       h+='<div class="ln tab"><div class="nm">'+ponto('RECEITA')+'<span>'+tx(d.categoria)+'</span></div>'+
          '<input id="pv'+j+'" value="'+(d.previsto>0.005?num(d.previsto):'')+'" '+
-           'placeholder="'+(Number(d.padrao)>0.005?num(d.padrao):'0,00')+'" inputmode="decimal" '+
+           'placeholder="0,00"'+(Number(d.padrao)>0.005&&d.previsto<=0.005?' title="sem previsto neste mês (o padrão da conta é '+num(d.padrao)+')"':'')+' inputmode="decimal" '+
            'onfocus="this.select()" onblur="salvarPrevisto('+j+')" '+
            'onkeydown="if(event.key===\'Enter\')this.blur()">'+
          '<span class="n">'+moeda(d.realizado)+'</span>'+
@@ -8469,6 +8495,45 @@ function apagarDoMes(cat){
     toast((r&&r.erro)||'Não consegui');
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
     .apiApagarConta(cat, '');
+}
+
+/* O saldo das contas ligadas ao banco é o do banco. O que foi lançado à mão
+   nelas e o banco não mostrou (ou mostrou e foi lançado de novo) aparece aqui
+   para a pessoa resolver - antes o app decidia sozinho, pela data, e o saldo
+   projetado mudava de um dia para o outro sem nada ter acontecido. */
+function blocoConferencia(cx){
+  var lista=cx.conferir||[], sc=cx.semConta||{qtd:0};
+  if(!lista.length && !sc.qtd) return '';
+  var h='<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:9px">'+
+        '<div class="lbl" style="color:#f59e0b">⚠ Conferir com o banco</div>';
+  if(sc.qtd){
+    h+='<div class="m" style="font-size:12px;margin:6px 0">'+sc.qtd+(sc.qtd>1?' saídas':' saída')+' do banco sem classificação ('+moeda(sc.valor)+
+       '): o dinheiro já saiu da conta, mas o previsto que ela paga ainda conta em "ainda sai". Classifique para a projeção acertar.</div>';
+  }
+  lista.forEach(function(x){
+    var dt=String(x.data).slice(8,10)+'/'+String(x.data).slice(5,7);
+    var txt=x.situacao==='repetido'
+      ? 'Lançado duas vezes? O banco já trouxe '+moeda(x.valor)+' em '+String(x.banco_data).slice(8,10)+'/'+String(x.banco_data).slice(5,7)+
+        ' ('+tx(String(x.banco_descricao||'').slice(0,40))+') e você lançou à mão em '+dt+'.'
+      : 'O extrato do '+tx(x.conta)+' não tem '+moeda(x.valor)+' em '+dt+' ('+tx(String(x.descricao||'').slice(0,40))+
+        '). Ele conta como '+(x.natureza==='RECEITA'?'entrada':'saída')+' até você resolver. Saiu de outra conta? Edite no extrato.';
+    h+='<div class="m" style="font-size:12px;margin:8px 0 4px">'+txt+'</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+
+       '<button class="bt sec" style="padding:5px 10px;font-size:12px" onclick="conferirBanco(\'apagar\',\''+x.id+'\',this)">'+
+         (x.situacao==='repetido'?'Apagar o meu':'Não existiu, apagar')+'</button>'+
+       '<button class="bt sec" style="padding:5px 10px;font-size:12px" onclick="conferirBanco(\''+(x.situacao==='repetido'?'diferente':'manter')+'\',\''+x.id+'\',this)">'+
+         (x.situacao==='repetido'?'São diferentes':'Está certo, manter')+'</button></div>';
+  });
+  return h+'</div>';
+}
+
+function conferirBanco(acao,id,bt){
+  if(acao==='apagar' && !confirm('Apagar este lançamento feito à mão?')) return;
+  if(bt) bt.disabled=true;
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok){ if(bt) bt.disabled=false; alert((r&&r.erro)||'Não consegui gravar.'); return; }
+    carregar(ST.mes);
+  }).withFailureHandler(function(e){ if(bt) bt.disabled=false; alert('Não consegui gravar: '+((e&&e.message)||e)); })
+    .apiConferirBanco(acao,id);
 }
 
 function salvarPrevisto(i){
