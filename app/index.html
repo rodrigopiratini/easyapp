@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.7.0 \u00b7 07/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.7.1 \u00b7 07/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -1940,7 +1940,10 @@
         var valores = refs.map(function (r) {
           // Ano com previsto próprio manda: é o que VOCÊ decidiu, não o que
           // o código inventou corrigindo pela inflação.
-          if (r.ano === a0 || anosAbertos[r.ano]) return n(prevDe(r.ref)[nome] || 0);
+          // Mês SEM previsto nenhum segue a projeção. O primeiro acesso grava 12
+          // meses (out a set): outubro a dezembro do ano seguinte ficavam zerados
+          // porque o ano "já tinha previsto", e o ano depois voltava a aparecer.
+          if ((r.ano === a0 || anosAbertos[r.ano]) && prevPorMes[r.ref]) return n(prevDe(r.ref)[nome] || 0);
           if (FIM[nome] && r.ref > FIM[nome]) return 0;
           if (CALENDARIO[nome]) return n(CALENDARIO[nome][r.ref] || 0);
           var degrau = degrauDe(nome, r.ref);
@@ -1959,7 +1962,9 @@
           if (nome === 'OUTROS CREDITOS - PLU') return pluxeeDe(serie, r.ref, base);
           var passados = r.ano - a0;
           if (nome === 'SALARIO MENSAL') {
-            return n(base * Math.pow(1 + reajSal, passados + (r.mes >= mesReaj ? 1 : 0)));
+            // a base é dezembro deste ano, que já tem o reajuste deste ano:
+            // conta só os reajustes DEPOIS dela (antes contava um a mais por ano)
+            return n(base * Math.pow(1 + reajSal, Math.max(0, passados - 1 + (r.mes >= mesReaj ? 1 : 0))));
           }
           if (PORCONTA[nome] !== undefined) {
             var rj = PORCONTA[nome], quantos = passados;
