@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.6.3 \u00b7 07/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.6.5 \u00b7 07/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -1060,6 +1060,18 @@
     });
   }
 
+  /* Aviso com nome de outra pessoa (receber_push, 033): "É da sua conta?".
+     É meu: tira a pergunta e segue para classificar. Não é meu: APAGA - ignorado
+     ficaria no extrato sem entrar no saldo, e confunde. */
+  function definirTitular(uuid, meu) {
+    if (!meu) return rest('/rest/v1/lancamentos?id=eq.' + uuid, { metodo: 'DELETE' }).then(function () { return { ok: true, apagado: true }; });
+    return rest('/rest/v1/lancamentos?select=dados&id=eq.' + uuid + '&limit=1').then(function (r) {
+      var dados = Object.assign({}, (r && r[0] && r[0].dados) || {});
+      delete dados.perguntar_titular; dados.titular_confirmado = true;
+      return mudar('lancamentos', 'id=eq.' + uuid, { dados: dados }).then(function () { return { ok: true }; });
+    });
+  }
+
   /* Cartão múltiplo: o aviso não diz se foi crédito ou débito. Débito sai da
      conta corrente do mesmo banco (e do mesmo titular), no mês da compra. */
   function definirTipo(uuid, tipo) {
@@ -1531,6 +1543,7 @@
           x.cotacaoAprox = dd.cotacao_dia === 'aproximada';
           x.parcelasAviso = Number(dd.parcelas_aviso) || 0;
           x.perguntarTipo = !!dd.perguntar_tipo && l.meio === 'CARTAO_CREDITO';
+          x.perguntarTitular = dd.perguntar_titular ? String(dd.perguntar_titular) : '';
           return x;
         });
       });
@@ -3478,6 +3491,7 @@
     apiConfirmar: confirmar,
     apiParcelar: parcelar,
     apiDefinirTipo: definirTipo,
+    apiDefinirTitular: definirTitular,
     apiEspelhoTransferencia: espelhoTransferencia,
     apiLancarTransferencia: lancarTransferencia,
     apiDistribuir: distribuir,
@@ -3722,7 +3736,7 @@
     },
     criar: function () {
       return '<h1>Criar conta</h1><p>leva um minuto. Depois a gente monta o app com você.</p>' +
-        '<label>Seu nome</label><input id="cNome" autocomplete="name" placeholder="como quer ser chamado">' +
+        '<label>Seu nome completo</label><input id="cNome" autocomplete="name" placeholder="como está na sua conta do banco">' +
         '<label>E-mail</label><input id="cMail" type="email" autocomplete="email" value="' + esc(EMAIL) + '">' +
         '<label>WhatsApp com DDD</label><input id="cZap" type="tel" inputmode="tel" autocomplete="tel" placeholder="(51) 99999-9999">' +
         '<label>Senha (mínimo 8 caracteres)</label><input id="cSenha" type="password" autocomplete="new-password">' +
@@ -3815,7 +3829,9 @@
       function vai() {
         var nome = $('cNome').value.trim(), e = $('cMail').value.trim().toLowerCase();
         var z = digitos($('cZap').value), s = $('cSenha').value, s2 = $('cSenha2').value;
-        if (nome.length < 2) return msg('diga o seu nome');
+        // nome COMPLETO: é por ele que o app reconhece, nos avisos do banco, o
+        // dinheiro que é seu e o que é de outra pessoa ("Pix ... para Guilherme")
+        if (nome.split(/\s+/).filter(function (w) { return w.length > 1; }).length < 2) return msg('diga o seu nome completo, como está no banco');
         if (!emailOk(e)) return msg('e-mail inválido');
         if (z.length !== 10 && z.length !== 11) return msg('WhatsApp com DDD: (51) 99999-9999');
         if (s.length < 8) return msg('a senha precisa de pelo menos 8 caracteres');
@@ -4002,6 +4018,8 @@
   var B, TESTE = false;
   function semAcento(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
 
+  function nomeCompleto(n) { return String(n || '').split(/\s+/).filter(function (w) { return w.length > 1; }).length >= 2; }
+
   function novoB(nome) {
     return { passo: 0, nome: nome || '', bancos: {}, outros: [], fams: { RECEITA: 1, CASA: 1, PESSOAL: 1, SAUDE: 1 },
              contas: {}, extras: {}, ind: { meta: '', pagaFatura: '', inflacao: '4,5', reajSal: '5', mesReajSal: '' },
@@ -4086,7 +4104,8 @@
   function corpoInicio() {
     return '<h2>Oi' + (B.nome ? ', ' + esc(B.nome.split(' ')[0]) : '') + '! 👋</h2>' +
       '<p class="sub">Vamos deixar o app com a sua cara. Tudo dá para mudar depois.</p>' +
-      '<label>Como quer ser chamado</label><input id="bNome" value="' + esc(B.nome) + '">' +
+      '<label>Seu nome completo (como está no banco)</label><input id="bNome" autocomplete="name" value="' + esc(B.nome) + '">' +
+      '<p class="sub" style="margin:-4px 0 12px;font-size:12px">É por ele que o app separa, nos avisos do banco, o que é seu do que é de outra pessoa.</p>' +
       '<h3 style="margin-top:22px">Você já controla suas contas numa planilha?</h3>' +
       '<button class="escolha" id="bTemPlan"><b>📎 Sim, tenho uma planilha</b><span>O assistente lê do jeito que ela estiver, mostra a prévia e só grava quando você aprovar.</span></button>' +
       '<button class="escolha rec" id="bSemPlan"><b>✨ Não, vamos montar juntos</b><span>Uns poucos toques: bancos, famílias de contas, valores do mês. Uns 5 minutos.</span></button>';
@@ -4238,8 +4257,8 @@
   }
   function ligar(i) {
     if (i === 0) {
-      $('bTemPlan').onclick = function () { ler(); if (B.nome.length < 2) return erro('diga como quer ser chamado'); terminar('planilha'); };
-      $('bSemPlan').onclick = function () { ler(); if (B.nome.length < 2) return erro('diga como quer ser chamado'); passo(1); };
+      $('bTemPlan').onclick = function () { ler(); if (!nomeCompleto(B.nome)) return erro('diga o seu nome completo, como está no banco'); terminar('planilha'); };
+      $('bSemPlan').onclick = function () { ler(); if (!nomeCompleto(B.nome)) return erro('diga o seu nome completo, como está no banco'); passo(1); };
     }
     if (i === 1) {
       todos('[data-banco]', function (b) { b.onclick = function () {
@@ -5784,6 +5803,39 @@
       $('cSair').onclick = sair;
     });
   }
+  // ======================================================= NOME COMPLETO
+  /* O nome completo é como o app reconhece, nos avisos do banco, o que é da
+     pessoa e o que é de outra ("Pix ... para Guilherme"). Quem entrou antes de
+     o app pedir o nome completo responde uma vez; o primeiro acesso já pede. */
+  function checarNome() {
+    return P.rest('/rest/v1/perfis?select=nome,onboarding_ok&id=eq.' + uid()).then(function (r) {
+      var p = r && r[0];
+      if (!p || p.onboarding_ok === false) return true;
+      if (String(p.nome || '').split(/\s+/).filter(function (w) { return w.length > 1; }).length >= 2) return true;
+      return new Promise(function (ok) {
+        var d = document.createElement('div');
+        d.id = 'cTermos';
+        d.innerHTML = '<div class="cx"><h2>Seu nome completo</h2>' +
+          '<p>Como está na sua conta do banco. É por ele que o app separa, nos avisos do banco, o que é seu do que é ' +
+          'de outra pessoa (o Pix da mesada que cai na conta do filho, por exemplo).</p>' +
+          '<input id="cNomeC" autocomplete="name" style="width:100%;box-sizing:border-box;padding:12px;border-radius:10px;' +
+          'border:1px solid #2a3548;background:#161d2c;color:#e8edf7;font-size:16px;margin:6px 0 12px" value="' +
+          String(p.nome || '').replace(/[&<>"']/g, '') + '">' +
+          '<button id="cNomeOk">Salvar</button><button id="cNomeDepois" style="background:none;color:#8b99b5">Depois</button></div>';
+        document.body.appendChild(d);
+        $('cNomeDepois').onclick = function () { d.remove(); ok(true); };
+        $('cNomeOk').onclick = function () {
+          var n = $('cNomeC').value.trim().replace(/\s+/g, ' ');
+          if (n.split(' ').filter(function (w) { return w.length > 1; }).length < 2) return aviso('Escreva nome e sobrenome, como está no banco.');
+          this.disabled = true;
+          P.rest('/rest/v1/perfis?id=eq.' + uid(), { metodo: 'PATCH', prefer: 'return=minimal', corpo: { nome: n.slice(0, 80) } })
+            .then(function () { d.remove(); ok(true); })
+            .catch(function (e) { aviso('Não consegui salvar: ' + e.message); $('cNomeOk').disabled = false; });
+        };
+      });
+    }).catch(function () { return true; });
+  }
+
   function sair() {
     try { localStorage.removeItem('easyapp:sessao'); localStorage.removeItem('easyapp:biometria'); } catch (e) {}
     location.reload();
@@ -6335,7 +6387,7 @@
   function iniciar() {
     if (iniciado || !P.sessao()) return;
     iniciado = true;
-    checarTermos().then(function () {
+    checarTermos().then(checarNome).then(function () {
       checarPlano();
       configurarLembrete(lembreteLigado());
       autoOpenFinance();
@@ -7653,6 +7705,13 @@ function renderPendentes(){
          (p.novo?' · <span class="tag">NOVO</span>':'')+
          (p.moeda?' · <b style="color:var(--warn)">'+p.moeda+' '+num(p.valorOriginal)+'</b> × '+num(p.cotacao)+(p.cotacaoAprox?' (aprox.)':''):'')+
          (p.parcelasAviso>1?' · aviso diz <b>'+p.parcelasAviso+'x</b>':'')+'</div>'+
+       (p.perguntarTitular
+         ? '<div style="margin-top:7px;padding:8px 10px;border:1px solid var(--warn);border-radius:10px;font-size:12.5px">'+
+           '⚠️ Este dinheiro foi para <b>'+tx(p.perguntarTitular)+'</b>, não para você. É da sua conta?'+
+           '<div class="row" style="gap:6px;margin-top:7px">'+
+           '<button class="bt-ok" style="flex:1;padding:7px;font-size:13px" onclick="responderTitular('+i+',true)">É meu</button>'+
+           '<button class="bt-no" style="flex:1;padding:7px;font-size:13px;color:var(--bad)" onclick="responderTitular('+i+',false)">Não é meu · apagar</button></div></div>'
+         : '')+
        (p.perguntarTipo
          ? '<div class="row" style="gap:6px;margin-top:6px;align-items:center"><span class="m" style="font-size:12px">Foi no</span>'+
            '<div class="seg" style="flex:1;margin:0">'+
@@ -7856,6 +7915,7 @@ function confirmar(i){
       .apiEspelhoTransferencia(p.linha, p.id, destino);
     return;
   }
+  if(p.perguntarTitular){ toast('Antes: esse dinheiro é da sua conta?'); return; }
   var tipo = ST.tipoEscolhido && ST.tipoEscolhido[p.uuid];
   if(p.perguntarTipo && !tipo){ toast('Foi no crédito ou no débito?'); return; }
   if(p.perguntarTipo){
@@ -8197,10 +8257,23 @@ function criarNaClassificacao(alvo, selectId, natureza){
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
     .apiNovaCategoria(nome.toUpperCase(), fam.toUpperCase(), natureza, prev);
 }
+/* "Este dinheiro foi para Fulano, é da sua conta?" (aviso com nome de outra pessoa) */
+function responderTitular(i, meu){
+  var p=ST.pendentes[i]; if(!p) return;
+  if(!meu && !confirm('Apagar este lançamento de '+moeda(p.valor)+'? Ele não é da sua conta.')) return;
+  el('p'+i).style.opacity=.35;
+  google.script.run.withSuccessHandler(function(r){
+    if(r && r.ok===false){ toast('Não salvei: '+(r.erro||'')); var c=el('p'+i); if(c) c.style.opacity=1; return; }
+    if(meu){ p.perguntarTitular=''; el('p'+i).style.opacity=1; renderPendentes(); return; }
+    toast('Apagado'); ST.cacheMes={}; ST.extras=null; carregar();
+  }).withFailureHandler(function(){ toast('Falhou'); var c=el('p'+i); if(c) c.style.opacity=1; })
+    .apiDefinirTitular(p.uuid, meu);
+}
 function confirmarTodos(){
   var itens=[];
   ST.pendentes.forEach(function(p,i){
     var cat=el('c'+i).value;
+    if(p.perguntarTitular) return;      // dinheiro talvez de outra pessoa: só um a um, depois de responder
     if(cat) itens.push({ linha:p.linha, id:p.id, categoria:cat, valor:p.valor });
   });
   if(!itens.length){ toast('Classifique os novos primeiro'); return; }
