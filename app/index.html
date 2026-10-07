@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.10.0 \u00b7 07/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.10.1 \u00b7 07/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -1713,9 +1713,12 @@
         if (s.temDados) comDados++;
       });
 
-      var anos = {};
-      [r[2][0], r[3][0]].forEach(function (x) { if (x) anos[x.mes_ref.slice(0, 4)] = true; });
-      anos[String(a)] = true;
+      /* Do primeiro ao último ano com lançamento, mais o ano escolhido e o de
+         hoje - todos os do meio também (antes só as pontas: indo para 2025, o
+         2026 sumia do filtro). */
+      var anos = {}, ys = [Number(a), new Date().getFullYear()];
+      [r[2][0], r[3][0]].forEach(function (x) { if (x) ys.push(Number(x.mes_ref.slice(0, 4))); });
+      for (var y = Math.min.apply(null, ys); y <= Math.max.apply(null, ys); y++) anos[String(y)] = true;
 
       return {
         ano: a, serie: serie,
@@ -7415,7 +7418,7 @@
   .bt-ac{background:var(--acc);color:#fff;width:100%;padding:10px}
   select,input{width:100%;background:#0d1320;color:var(--txt);border:1px solid var(--line);
                border-radius:9px;padding:8px 9px;font:inherit;font-size:13.5px;margin-top:5px}
-  nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#121a29;
+  nav{position:fixed;bottom:0;left:0;right:0;z-index:60;display:flex;background:#121a29;
       border-top:1px solid var(--line);padding:6px 0 max(6px,env(safe-area-inset-bottom))}
   nav a{flex:1;text-align:center;color:var(--dim);text-decoration:none;font-size:11px;padding:6px 0}
   nav a.on{color:var(--acc)}
@@ -11322,12 +11325,18 @@ function patPct(id){ var e=el(id); if(!e||String(e.value).trim()==='') return ''
 /* Máscaras: percentual com o símbolo (10,00%) e mês/ano (03/2028). */
 function pctTxt(v){ return (v===''||v===null||v===undefined||isNaN(Number(v))) ? '' : num(Math.abs(Number(v)))+'%'; }
 function mascaraPct(inp, comSinal){
-  var v=String(inp.value), neg=comSinal && /^\s*[-−]/.test(v), d=v.replace(/\D/g,'');
-  // apagou o "%": tira o último número em vez de devolver o símbolo
+  /* Digita como fala: "10" vira 10%, "6,5" vira 6,5% (antes era máscara de
+     centavos, e "10" virava 0,10%). */
+  var v=String(inp.value), neg=comSinal && /^\s*[-−]/.test(v);
   var ev=window.event;
-  if(ev && /^delete/.test(ev.inputType||'') && v.indexOf('%')<0 && d) d=d.slice(0,-1);
-  d=d.replace(/^0+(?=\d)/,'').slice(0,7);
-  inp.value = d ? (neg?'−':'')+(Number(d)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%' : (neg?'−':'');
+  // apagou o "%": tira o último caractere do número em vez de devolver o símbolo
+  if(ev && /^delete/.test(ev.inputType||'') && v.indexOf('%')<0) v=v.slice(0,-1);
+  var t=v.replace(/[^\d,.]/g,'').replace(/\./g,',');
+  var k=t.indexOf(','); if(k>=0) t=t.slice(0,k+1)+t.slice(k+1).replace(/,/g,'').slice(0,2);
+  t=t.replace(/^0+(?=\d)/,'').slice(0,7);
+  inp.value = t ? (neg?'−':'')+t+'%' : (neg?'−':'');
+  // o cursor fica antes do %, para continuar digitando
+  try{ var pos=inp.value.length-(t?1:0); inp.setSelectionRange(pos,pos); }catch(e){}
 }
 function mascaraMesAno(inp){
   var d=String(inp.value).replace(/\D/g,'').slice(0,6);
@@ -11423,7 +11432,7 @@ function patForm(tipo, b){
   if(tipo==='BEM'){
     var cat=b.cat||d.cat||'IMOVEL', pc=patCat(PAT_CATS,cat);
     var temTaxa=d.taxa!==undefined&&d.taxa!==''&&d.taxa!==null;
-    var sentido=temTaxa ? (Number(d.taxa)<0?'DEP':'VAL') : (pc[3]<0?'DEP':'VAL');
+    var sentido=(temTaxa && Number(d.taxa)) ? (Number(d.taxa)<0?'DEP':'VAL') : (pc[3]<0?'DEP':'VAL');
     h+=patChips('pfCat', cat, PAT_CATS, 'patMudouCat')+
       linha(campo('Descrição', inp('pfNome', b.descricao, 'ex.: Apartamento Centro'), 2))+
       linha(campo('Valor hoje', dinheiro('pfVal', b.valor)),
@@ -11443,10 +11452,14 @@ function patForm(tipo, b){
       linha(campo('Saldo devedor', dinheiro('pfVal', b.valor)), campo('Juros ao ano', inp('pfJuros', d.juros!==undefined&&d.juros!==''?pctTxt(d.juros):'', '10,00%', 'decimal', ' oninput="mascaraPct(this)"')))+
       linha(campo('Parcela por mês', dinheiro('pfParc', d.parcela, 'opcional')), campo('Última parcela', inp('pfAte', isoMes(d.ate), 'MM/AAAA', 'numeric', ' maxlength="7" oninput="mascaraMesAno(this)"')));
   } else if(tipo==='RESERVA'){
+    ST.resOrdem=[];
     h+=patChips('pfPara', d.para||'VIAGEM', PAT_RESERVAS)+
       linha(campo('Descrição', inp('pfNome', b.descricao, 'ex.: Viagem de férias 2027'), 2))+
-      linha(campo('Quanto quer juntar', dinheiro('pfMeta', d.meta)), campo('Até quando', inp('pfAte', isoMes(d.ate), 'MM/AAAA', 'numeric', ' maxlength="7" oninput="mascaraMesAno(this);patSugerirMensal()"')))+
-      linha(campo('Já guardado', dinheiro('pfVal', b.valor)), campo('Guardar por mês', dinheiro('pfMensal', d.mensal, 'calculado sozinho')))+
+      linha(campo('Quanto quer juntar', inp('pfMeta', d.meta?num(d.meta):'', '0,00', 'decimal', ' oninput="mascaraMoeda(this);patCalcReserva(this)"')),
+            campo('Até quando', inp('pfAte', isoMes(d.ate), 'MM/AAAA', 'numeric', ' maxlength="7" oninput="mascaraMesAno(this);patCalcReserva(this)"')))+
+      linha(campo('Já guardado', inp('pfVal', b.valor?num(b.valor):'', '0,00', 'decimal', ' oninput="mascaraMoeda(this);patCalcReserva(this)"')),
+            campo('Guardar por mês', inp('pfMensal', d.mensal?num(d.mensal):'', '0,00', 'decimal', ' oninput="mascaraMoeda(this);patCalcReserva(this)"')))+
+      '<div id="pfResInfo" class="m" style="font-size:11.5px;margin:-2px 0 8px">preencha dois entre meta, prazo e valor por mês: o terceiro sai sozinho</div>'+
       '<div class="lbl" style="font-size:10px">Considerar no fluxo do mês?</div>'+
       segEscolha('pfFluxo', d.noFluxo===false?'NAO':'SIM', ['SIM','NAO'])+
       '<div class="m" style="font-size:11px;margin-top:5px">Sim: cria a conta <b>RESERVA - '+tx((b.descricao||'…').toUpperCase())+'</b> '+
@@ -11465,12 +11478,42 @@ function patForm(tipo, b){
 }
 
 // a reserva sugere o "por mês": (meta − já guardado) ÷ meses até a data
-function patSugerirMensal(){
-  var ate=mesIso('pfAte'), m=el('pfMensal');
-  if(!/^\d{4}-\d{2}$/.test(ate) || !m || m.value) return;
-  var h=mesDeHoje(), meses=(Number(ate.slice(0,4))-Number(h.slice(0,4)))*12+(Number(ate.slice(5))-Number(h.slice(5)))+1;
-  var falta=patNum('pfMeta')-patNum('pfVal');
-  if(meses>0 && falta>0) m.placeholder=num(Math.ceil(falta/meses))+' sugerido';
+/* Reserva: meta, prazo e valor por mês se completam. Dos três, os dois que
+   você digitou por último mandam e o terceiro é calculado (o "já guardado"
+   entra descontando). Campo calculado fica marcado e é refeito a cada mudança. */
+function patMesesAte(ate){
+  if(!/^\d{4}-\d{2}$/.test(ate)) return 0;
+  var h=mesDeHoje(); return (Number(ate.slice(0,4))-Number(h.slice(0,4)))*12+(Number(ate.slice(5))-Number(h.slice(5)))+1;
+}
+function patMesMais(n){
+  var h=mesDeHoje(), a=Number(h.slice(0,4)), m=Number(h.slice(5))+n-1;
+  a+=Math.floor((m-1)/12); m=((m-1)%12)+1; return ('0'+m).slice(-2)+'/'+a;
+}
+function patCalcReserva(campo){
+  ST.resOrdem=(ST.resOrdem||[]).filter(function(x){ return x!==campo.id; });
+  if(campo.id!=='pfVal'){ campo.removeAttribute('data-auto'); if(campo.value) ST.resOrdem.push(campo.id); }
+  var ids=['pfMeta','pfAte','pfMensal'], dados=ids.filter(function(i){ var e=el(i); return e.value && !e.getAttribute('data-auto'); });
+  // os dois digitados mais recentes mandam
+  var manda=ST.resOrdem.filter(function(i){ return dados.indexOf(i)>=0; }).slice(-2);
+  if(manda.length<2) manda=dados.slice(0,2);
+  var info=el('pfResInfo'), guard=patNum('pfVal');
+  if(manda.length<2){ if(info) info.textContent='preencha dois entre meta, prazo e valor por mês: o terceiro sai sozinho'; return; }
+  var alvo=ids.filter(function(i){ return manda.indexOf(i)<0; })[0], e=el(alvo);
+  var meta=patNum('pfMeta'), meses=patMesesAte(mesIso('pfAte')), mensal=patNum('pfMensal'), txt='';
+  if(alvo!=='pfAte' && !/^\d{4}-\d{2}$/.test(mesIso('pfAte'))){ if(info) info.textContent='complete a data (MM/AAAA)'; return; }
+  if(alvo==='pfMensal'){
+    if(meses<=0){ if(info) info.textContent='a data já passou'; return; }
+    var v=Math.ceil(Math.max(0,meta-guard)/meses*100)/100;
+    e.value=num(v); txt=meses+' meses de '+num(v);
+  } else if(alvo==='pfMeta'){
+    if(meses<=0){ if(info) info.textContent='a data já passou'; return; }
+    var t=guard+mensal*meses; e.value=num(t); txt=meses+' meses de '+num(mensal)+(guard?' + '+num(guard)+' já guardado':'')+' = '+num(t);
+  } else {
+    if(!(mensal>0)){ return; }
+    var n=Math.max(1, Math.ceil(Math.max(0,meta-guard)/mensal)); e.value=patMesMais(n); txt=n+' meses de '+num(mensal)+' → '+e.value;
+  }
+  e.setAttribute('data-auto','1');
+  if(info) info.innerHTML='calculado: <b style="color:var(--txt)">'+txt+'</b>';
 }
 
 function patGravar(tipo, antigo){
@@ -11997,7 +12040,19 @@ function bancosCarregar(){
     var b=el('cfgBancos'); if(b) b.innerHTML=bancosHtml();
   }).catch(function(e){ var b=el('cfgBancos'); if(b) b.innerHTML='<div class="vazio">Não consegui abrir.<br>'+tx(e.message)+'</div>'; });
 }
-function bancoDe(c){ return String(c.instituicao||c.nome||'').trim().split(/\s+/)[0].toUpperCase(); }
+/* O banco da conta: pela instituição e, sem ela, procurando um banco
+   conhecido no nome ("RODRIGO VIRTUAL - XP" é XP, não "RODRIGO"). */
+function bancoDe(c){
+  var conhecidos=BANCOS_LISTA.map(function(b){ return normaliza(b).toUpperCase(); })
+    .sort(function(a,b){ return b.length-a.length; });
+  var achar=function(t){
+    t=' '+normaliza(t||'').toUpperCase().replace(/[^A-Z0-9]+/g,' ')+' ';
+    for(var i=0;i<conhecidos.length;i++) if(t.indexOf(' '+conhecidos[i]+' ')>=0) return conhecidos[i];
+    return '';
+  };
+  return achar(c.instituicao) || achar(c.nome) ||
+         String(c.instituicao||c.nome||'').trim().split(/\s+/)[0].toUpperCase();
+}
 /* Só pergunta "é a sua conta manual?" quando pode ser: mesmo banco, mesmo
    titular (PF/PJ), conta com conta e cartão com cartão, e o final do número
    não diz o contrário. Antes oferecia qualquer conta manual (o C6 PF aparecia
@@ -12481,9 +12536,7 @@ function cfgCriarConta(){
 
 /* ---------- AJUSTES ---------- */
 function cfgAjustes(){
-  var h=// o roteiro do primeiro acesso, para rever como um cliente novo vê (não grava nada)
-    '<button class="bt-no" style="width:100%;margin-bottom:10px;font-size:12.5px" '+
-    'onclick="window.EASYAPP_ENTRADA&&window.EASYAPP_ENTRADA.primeiroAcesso(true)">▶ Ver o primeiro acesso (simulação, não grava nada)</button>';
+  var h='';
   ST.config.ajustes.forEach(function(a,i){
     var v=a.valor;
     var mostrar = a.tipo==='percent'  ? num(Number(v)*100)
