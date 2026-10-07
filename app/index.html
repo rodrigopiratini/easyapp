@@ -4009,8 +4009,12 @@
   }
 
   function primeiroAcesso(teste) {
-    var s = P.sessao(); if (!s) return;
     TESTE = !!teste || /teste-primeiro-acesso/.test(location.hash);
+    var s = P.sessao();
+    if (!s) {                                 // simulação sem login (laboratório do painel de gestão)
+      if (TESTE) { B = novoB(''); montarBoas(); $('boas').style.zIndex = 10001; passo(0); }
+      return;
+    }
     P.rest('/rest/v1/perfis?select=nome,onboarding_ok&id=eq.' + s.user_id).then(function (r) {
       var p = r && r[0];
       if (!TESTE && (!p || p.onboarding_ok !== false)) return;     // usuário antigo ou já passou por aqui
@@ -4411,7 +4415,7 @@
 
   function terminar(destino) {
     ler();
-    var s = P.sessao(), uid = s.user_id;
+    var s = P.sessao(), uid = s ? s.user_id : 'teste';
     var G = destino === 'planilha' ? { contas: [], cats: [], prev: [], cfg: [] } : montarGravacao(uid);
     if (TESTE) {
       $('bCorpo').innerHTML = '<h2>Fim do teste</h2><p class="sub">Isto é o que o app gravaria (nada foi gravado):</p><div class="resumo">' +
@@ -4467,6 +4471,7 @@
   // ================================================================ início
   var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
   if (P.sessao()) { caixa.hidden = true; primeiroAcesso(); }
+  else if (/teste-primeiro-acesso/.test(location.hash)) primeiroAcesso(true);
   ir('entrar');
   window.EASYAPP_ENTRADA = { ir: ir, primeiroAcesso: primeiroAcesso };
 })();
