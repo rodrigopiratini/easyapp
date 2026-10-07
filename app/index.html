@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.7.2 \u00b7 07/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.7.3 \u00b7 07/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -408,7 +408,7 @@
       config(),
       lerTudo('/rest/v1/resumo_mes?select=mes_ref,categoria,natureza,sai_por,previsto,realizado'
               + '&mes_ref=gte.' + de + '&mes_ref=lte.' + ate),
-      lerTudo('/rest/v1/lancamentos?select=mes_ref,valor,meio,natureza'
+      lerTudo('/rest/v1/lancamentos?select=mes_ref,valor,meio,natureza,categorias(nome)'
               + '&meio=in.(CARTAO_CREDITO,PAGAMENTO_FATURA)&status=neq.IGNORADO'
               + '&mes_ref=gte.' + de + '&mes_ref=lte.' + ate),
       // o que de fato passou pela conta: tudo que não é compra no cartão
@@ -429,7 +429,12 @@
         else if (l.natureza === 'RECEITA') x.entrou += v;
       });
       R[1].forEach(function (l) { (porMes[l.mes_ref] = porMes[l.mes_ref] || []).push(l); });
+      var cartaoPorConta = {};   // compra no cartão por conta, por mês
       R[2].forEach(function (l) {
+        if (l.meio === 'CARTAO_CREDITO' && l.natureza === 'DESPESA') {
+          var cc = cartaoPorConta[l.mes_ref] = cartaoPorConta[l.mes_ref] || {}, nm = (l.categorias || {}).nome || '';
+          cc[nm] = (cc[nm] || 0) + (Number(l.valor) || 0);
+        }
         var f = fat[l.mes_ref] = fat[l.mes_ref] || { fatura: 0, pago: 0 };
         if (l.meio === 'PAGAMENTO_FATURA') f.pago += Number(l.valor) || 0;
         // So compra (e estorno, que e despesa negativa) faz a fatura. O
@@ -441,10 +446,19 @@
       return function fluxo(ref) {
         var fechada = cicloDaFatura(c, ref).fechada;
         var aReceber = 0, aPagar = 0, aindaCabe = 0, itens = [];
+        /* A verba livre do cartão (CARTAO - A CLASSIFICAR) paga as compras de
+           cartão em contas sem previsto - a mesma regra da tela Mês. Sem isto
+           ela continuava cheia, e a fatura contava essas compras E a verba. */
+        var semPrev = 0, cc = cartaoPorConta[ref] || {}, prevDe = {};
+        (porMes[ref] || []).forEach(function (l) { prevDe[l.categoria] = Number(l.previsto) || 0; });
+        Object.keys(cc).forEach(function (nm) {
+          if (nm !== CAT_VERBA_CARTAO && !(prevDe[nm] > 0.005) && cc[nm] > 0) semPrev += cc[nm];
+        });
         (porMes[ref] || []).forEach(function (l) {
           var nt = l.natureza;
           if (!nt || nt === 'CONTROLE' || nt === 'TRANSFERENCIA') return;
           var falta = (Number(l.previsto) || 0) - (Number(l.realizado) || 0);
+          if (l.categoria === CAT_VERBA_CARTAO) falta -= semPrev;
           if (falta <= 0.005) return;
           if (nt === 'RECEITA') {
             aReceber += falta;
@@ -659,8 +673,9 @@
       lerTudo('/rest/v1/resumo_mes?select=categoria,grupo,previsto,realizado,sai_por'
            + '&mes_ref=eq.' + mes + '&sai_por=eq.CARTAO&order=categoria'),
       config(),
-      lerTudo('/rest/v1/lancamentos?select=data,valor&mes_ref=eq.' + mes
-              + '&meio=eq.CARTAO_CREDITO&natureza=eq.DESPESA&status=neq.IGNORADO')
+      lerTudo('/rest/v1/lancamentos?select=data,valor,categorias(nome)&mes_ref=eq.' + mes
+              + '&meio=eq.CARTAO_CREDITO&natureza=eq.DESPESA&status=neq.IGNORADO'),
+      lerTudo('/rest/v1/resumo_mes?select=categoria,previsto&mes_ref=eq.' + mes)
     ]).then(function (r) {
       var t = r[0][0] || { compras: 0, total: 0 };
       var cfg = r[2] || {};
@@ -696,6 +711,28 @@
                  metaAteHoje: m ? n(m * dia / dias) : null,
                  porDia: m > g ? n((m - g) / Math.max(1, dias - dia)) : 0 };
       }).sort(function (a, b) { return b.gasto - a.gasto; });
+
+      /* A verba livre (CARTAO - A CLASSIFICAR) paga as compras de cartão em
+         contas SEM meta, da menor para a maior - a mesma regra da tela Mês.
+         Antes ela ficava cheia aqui enquanto Vestuário e Compras online
+         gastavam sem meta: o "ainda tem saldo" contava o mesmo dinheiro duas vezes. */
+      var verba = porCategoria.filter(function (x) { return x.categoria === CAT_VERBA_CARTAO; })[0];
+      if (verba && verba.meta > 0.005) {
+        var prev = {}, noCartao = {};
+        r[4].forEach(function (x) { prev[x.categoria] = Number(x.previsto) || 0; });
+        r[3].forEach(function (l) { var nm = (l.categorias || {}).nome || ''; noCartao[nm] = (noCartao[nm] || 0) + (Number(l.valor) || 0); });
+        var livre = verba.meta - verba.gasto, cobriu = 0;
+        Object.keys(noCartao).filter(function (nm) {
+          return nm && nm !== CAT_VERBA_CARTAO && !(prev[nm] > 0.005) && noCartao[nm] > 0.005;
+        }).sort(function (a, b) { return noCartao[a] - noCartao[b]; }).forEach(function (nm) {
+          if (livre <= 0.005) return;
+          var c = Math.min(livre, noCartao[nm]); livre -= c; cobriu += c;
+          porCategoria.forEach(function (x) { if (x.categoria === nm) x.daVerba = n(c); });
+        });
+        verba.distribuido = n(cobriu);
+        verba.sobra = n(verba.meta - verba.gasto - cobriu);
+        verba.porDia = verba.sobra > 0 ? n(verba.sobra / Math.max(1, dias - dia)) : 0;
+      }
       return {
         total: n(t.total), meta: meta, dias: dias, hoje: dia,
         diasRestantes: Math.max(0, dias - dia),
@@ -9729,14 +9766,16 @@ function renderCartao(){
     h+='<div class="card"><div class="lbl" style="margin-bottom:4px">Por tipo de gasto</div>';
     var desenha=function(x){
       var temMeta=x.meta>0;
-      var usado=x.gasto+(x.fora||0);   // a verba inteira: cartao + o que saiu pela conta
+      // a verba inteira: cartao + o que saiu pela conta + (verba livre) o que pagou das contas sem meta
+      var usado=x.gasto+(x.fora||0)+(x.distribuido||0);
       var atrasado=temMeta && x.metaAteHoje!==null && usado>x.metaAteHoje;
       var cc=!temMeta?'':(x.sobra<0?'neg':(atrasado?'wr':'pos'));
       var corBar=x.sobra<0?'var(--bad)':(atrasado?'var(--warn)':'var(--ok)');
       h+='<div class="tg"><div class="nm">'+ponto(familiaDe(x.categoria))+tx(x.categoria)+'</div>'+
          '<div class="tg-num"><span class="meta">'+
-           (temMeta?'meta '+num(x.meta)+(x.fora>0?' · '+num(x.fora)+' pela conta':'')
-                   :'sem meta')+'</span>'+
+           (temMeta?'meta '+num(x.meta)+(x.fora>0?' · '+num(x.fora)+' pela conta':'')+
+                    (x.distribuido>0?' · '+num(x.distribuido)+' nas contas sem meta':'')
+                   :(x.daVerba>0?'sem meta · '+num(x.daVerba)+' pago pela verba livre':'sem meta'))+'</span>'+
          '<span class="'+cc+'" style="font-weight:600">'+(temMeta?num(x.sobra):'—')+'</span>'+
          '<span class="'+cc+'">'+(!temMeta?'—':x.sobra<0
              ? Math.round(-x.sobra/x.meta*100)+'% acima' : num(x.porDia))+'</span></div>';
