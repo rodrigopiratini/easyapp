@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.5.3 \u00b7 06/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.5.4 \u00b7 07/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -455,6 +455,10 @@
         });
         var f = fat[ref] || { fatura: 0, pago: 0 };
         var paga = Math.max(0, f.fatura + aindaCabe - f.pago);
+        // fatura fechada que o banco já debitou: a sobra de centavos (tarifa,
+        // arredondamento, compra que o banco jogou para a seguinte) não é
+        // conta a pagar - antes ficava "R$ 1,93 a pagar" para sempre
+        if (fechada && f.pago > 0 && paga <= sobraDeFatura(f.fatura)) paga = 0;
         if (paga > 0.005) {
           aPagar += paga;
           itens.push({ categoria: 'FATURA DO CARTAO', natureza: 'DESPESA',
@@ -1224,6 +1228,10 @@
    * quando a fatura ja estava paga na hora em que voce olhou o extrato - ai
    * ele nao desconta o mesmo dinheiro de novo.
    */
+  /* Até quanto a diferença entre a fatura somada no app e o que o banco
+     debitou é "sobra" (não é conta a pagar): R$ 5 ou 0,3% da fatura. */
+  function sobraDeFatura(fatura) { return Math.max(5, Math.abs(Number(fatura) || 0) * 0.003); }
+
   function pagarFatura(mes, valor, quando, conta) {
     mes = mes || hojeRef();
     return Promise.all([
@@ -1231,7 +1239,10 @@
       lerTudo('/rest/v1/lancamentos?select=valor,meio,natureza&mes_ref=eq.' + mes
               + '&meio=in.(CARTAO_CREDITO,PAGAMENTO_FATURA)&status=neq.IGNORADO'),
       rest('/rest/v1/contas?select=nome,tipo,titular&ativa=is.true&tipo=eq.CORRENTE'
-           + '&titular=eq.PF&order=criado_em,nome')
+           + '&titular=eq.PF&order=criado_em,nome'),
+      // a conta que pagou a última fatura (o débito automático do banco)
+      rest('/rest/v1/lancamentos?select=contas(nome,ativa)&meio=eq.PAGAMENTO_FATURA&status=neq.IGNORADO'
+           + '&conta_id=not.is.null&order=data.desc&limit=1')
     ]).then(function (R) {
       var c = R[0], fatura = 0, jaPago = 0;
       R[1].forEach(function (l) {
@@ -1240,9 +1251,14 @@
       });
       var v = Number(valor) || n(fatura - jaPago);
       if (v <= 0.005) return { ok: false, erro: 'essa fatura já está paga' };
+      // o banco já debitou e só sobrou diferença de centavos: não lança nada
+      if (!valor && jaPago > 0 && v <= sobraDeFatura(fatura))
+        return { ok: false, erro: 'essa fatura já foi paga pelo banco (sobrou só ' + 'R$ ' + v.toFixed(2).replace('.', ',') + ' de diferença)' };
 
-      // de onde a fatura e debitada: a do Config, ou a primeira conta PF
-      conta = conta || String(c.CONTA_DA_FATURA || '').trim() || ((R[2][0] || {}).nome || '');
+      // de onde a fatura é debitada: a do Config, a que pagou a última fatura,
+      // ou a primeira conta PF (antes ia direto para a primeira PF cadastrada)
+      var ultima = ((R[3] || [])[0] || {}).contas || {};
+      conta = conta || String(c.CONTA_DA_FATURA || '').trim() || (ultima.ativa ? ultima.nome : '') || ((R[2][0] || {}).nome || '');
       if (!conta) return { ok: false, erro: 'não sei de qual conta a fatura é debitada' };
 
       var dia = Math.min(28, Math.max(1, cfgNum(c, 'DIA_VENCIMENTO_FATURA', 5)));
