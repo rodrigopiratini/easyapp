@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.10 \u00b7 08/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.11 \u00b7 08/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -4668,6 +4668,8 @@
         '#boas .mini{display:flex;gap:6px;align-items:center;margin-top:7px;flex-wrap:wrap}' +
         '#boas .mini label{margin:0;font-size:11.5px;white-space:nowrap}' +
         '#boas .mini input,#boas .mini select{width:auto;flex:1;min-width:70px;padding:7px 9px;font-size:14px;border-radius:9px}' +
+        '#boas .mini.onde{background:#0f1a2e;border-radius:9px;padding:4px 4px 4px 9px;margin-top:8px}#boas .mini.onde label{color:#93b8ff}' +
+        '#boas .mini.onde select{background:transparent;border:0;color:#e8edf7;font-weight:600}' +
         '#boas .fam{display:grid;grid-template-columns:1fr 1fr;gap:7px}' +
         '#boas .fam button{display:flex;align-items:center;gap:8px;text-align:left;padding:11px 10px;border-radius:12px;border:1px solid #2a3548;' +
         'background:#161d2c;color:#e8edf7;font-size:13.5px}#boas .fam button.on{border-color:#3b82f6;background:#17284a}' +
@@ -4744,39 +4746,61 @@
       (sel.length ? '<h3>O que você tem em cada um</h3>' + sel.map(function (n) {
         var x = B.bancos[n];
         return '<div class="bl"><span class="nm">' + logo(infoBanco(n)) + esc(n) + '</span><span class="esc">' + TIPOS.map(function (k) {
-          return '<button data-tb="' + esc(n) + '" data-t="' + k[0] + '" class="' + (x[k[0]] ? 'on' : '') + '">' + k[1] + '</button>';
+          var q = qtd(x, k[0]);
+          return '<button data-tb="' + esc(n) + '" data-t="' + k[0] + '" class="' + (q ? 'on' : '') + '">' + k[1] + (q > 1 ? ' ×' + q : '') + '</button>' +
+            (q ? '<button data-tbmais="' + esc(n) + '" data-t="' + k[0] + '" title="mais uma no mesmo banco" style="padding:6px 8px">+</button>' : '');
         }).join('') + '</span><button class="x" data-tirabanco="' + esc(n) + '" title="tirar">×</button></div>';
-      }).join('') : '');
+      }).join('') + '<p class="sub" style="font-size:12px;margin-top:6px">Tem duas contas no mesmo banco (duas PJ no C6, por exemplo)? Toque no <b>+</b> ao lado.</p>' : '');
   }
 
-  // saldo de cada conta e, de cada cartão, fechamento, vencimento, final e quem paga a fatura
-  function correntes() {   // [{nome no app, rótulo}]
-    var r = [];
-    Object.keys(B.bancos).forEach(function (n) {
-      var x = B.bancos[n];
-      if (x.cPF) r.push({ nome: nomeConta(n, 'PF', false), rot: n + ' · pessoal' });
-      if (x.cPJ) r.push({ nome: nomeConta(n, 'PJ', false), rot: n + ' · empresa' });
+  // quantas de cada tipo (antes era só marcado ou não: true vale 1)
+  function qtd(x, t) { return x[t] === true ? 1 : Math.max(0, Math.min(5, +x[t] || 0)); }
+  /* Cada conta e cartão que o roteiro vai criar. A 2ª do mesmo tipo no mesmo
+     banco ganha o número no nome ("C6 BANK PJ 2") e os próprios campos
+     (saldocPJ2, fechakPF2...); a 1ª continua com os nomes de antes. */
+  function slots(n) {
+    var x = B.bancos[n], r = [];
+    [['cPF', 'PF', false], ['cPJ', 'PJ', false], ['kPF', 'PF', true], ['kPJ', 'PJ', true]].forEach(function (t) {
+      for (var i = 1; i <= qtd(x, t[0]); i++) {
+        var suf = i > 1 ? String(i) : '';
+        r.push({ t: t[0], k: t[0] + suf, tit: t[1], cartao: t[2], nome: nomeConta(n, t[1], t[2]) + (suf ? ' ' + suf : ''),
+                 rot: n + (t[2] ? ' · cartão ' : ' · conta ') + (t[1] === 'PF' ? 'pessoal' : 'empresa') + (suf ? ' ' + suf : '') });
+      }
     });
     return r;
   }
-  function pagaPadrao(n, t) {   // a conta do mesmo banco e titular; senão, a primeira
-    var cs = correntes(), mesma = nomeConta(n, t.slice(1), false);
+  function todosSlots() {
+    var r = []; Object.keys(B.bancos).forEach(function (n) { slots(n).forEach(function (s) { s.banco = n; r.push(s); }); }); return r;
+  }
+  // saldo de cada conta e, de cada cartão, fechamento, vencimento, final e quem paga a fatura
+  function correntes() {   // [{nome no app, rótulo}]
+    return todosSlots().filter(function (s) { return !s.cartao; }).map(function (s) {
+      return { nome: s.nome, rot: s.rot.replace(' · conta ', ' · ') };
+    });
+  }
+  function cartoesB() {
+    return todosSlots().filter(function (s) { return s.cartao; }).map(function (s) {
+      return { nome: s.nome, rot: s.rot.replace(' · cartão ', ' · cartão ') };
+    });
+  }
+  function pagaPadrao(n, tit) {   // a conta do mesmo banco e titular; senão, a primeira
+    var cs = correntes(), mesma = nomeConta(n, tit, false);
     return (cs.filter(function (c) { return c.nome === mesma; })[0] || cs[0] || {}).nome || '';
   }
   function corpoSaldos() {
     var cs = correntes(), h = '';
     Object.keys(B.bancos).forEach(function (n) {
-      var x = B.bancos[n], info = infoBanco(n);
-      ['cPF', 'cPJ'].forEach(function (t) {
-        if (!x[t]) return;
+      var x = B.bancos[n], info = infoBanco(n), ss = slots(n);
+      ss.filter(function (s) { return !s.cartao; }).forEach(function (s) {
+        var t = s.k;
         h += '<div class="cartao"><div class="lnv"><span class="tt" style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px">' + logo(info) +
-          esc(n) + ' · conta ' + (t === 'cPF' ? 'pessoal' : 'empresa') + '</span>' +
+          esc(s.rot) + '</span>' +
           '<input data-bd="' + esc(n) + '" data-f="saldo' + t + '" inputmode="numeric" placeholder="saldo hoje" value="' + esc(x['saldo' + t] || '') + '"></div></div>';
       });
-      ['kPF', 'kPJ'].forEach(function (t) {
-        if (!x[t]) return;
-        var paga = x['paga' + t] || pagaPadrao(n, t);
-        h += '<div class="cartao"><div class="tt">' + logo(info) + esc(n) + ' · cartão ' + (t === 'kPF' ? 'pessoal' : 'empresa') + '</div>' +
+      ss.filter(function (s) { return s.cartao; }).forEach(function (s) {
+        var t = s.k;
+        var paga = x['paga' + t] || pagaPadrao(n, s.tit);
+        h += '<div class="cartao"><div class="tt">' + logo(info) + esc(s.rot) + '</div>' +
           '<div class="mini dias"><label>fecha dia</label><input data-bd="' + esc(n) + '" data-f="fecha' + t + '" type="number" inputmode="numeric" min="1" max="31" placeholder="28" value="' + esc(x['fecha' + t] || '') + '">' +
           '<label>vence dia</label><input data-bd="' + esc(n) + '" data-f="vence' + t + '" type="number" inputmode="numeric" min="1" max="31" placeholder="5" value="' + esc(x['vence' + t] || '') + '">' +
           '<label>final</label><input data-bd="' + esc(n) + '" data-f="final' + t + '" inputmode="numeric" maxlength="4" placeholder="1234" value="' + esc(x['final' + t] || '') + '"></div>' +
@@ -4817,25 +4841,42 @@
     return '<h2>Quanto é cada uma</h2><p class="sub">O valor de um mês normal e com que frequência acontece. Não sabe? Deixe em branco e ajuste depois.</p>' +
       (h || '<p class="sub">Nenhuma conta marcada. Volte e toque nas que você tem.</p>');
   }
+  // a conta ou o cartão por onde passa (despesa) ou onde cai (receita)
+  function ondePadrao(c, x) {
+    var cs = correntes(), ks = cartoesB();
+    if (x.onde) return x.onde;
+    if (c[2] !== 'RECEITA' && x.sai === 'CARTAO' && ks.length) return 'C|' + ks[0].nome;
+    return cs.length ? 'D|' + cs[0].nome : (ks.length && c[2] !== 'RECEITA' ? 'C|' + ks[0].nome : '');
+  }
   function linhaConta(c) {
-    var x = B.contas[c[0]];
+    var x = B.contas[c[0]], rec = c[2] === 'RECEITA';
     var freq = [['mes', 'Todo mês'], ['ano', '1x por ano'], ['as', 'Às vezes']];
     var h = '<div class="cartao"><div class="lnv"><span class="tt" style="font-weight:600;font-size:14px">' + esc(c[1]) + '</span>' +
       '<input data-cv="' + esc(c[0]) + '" data-f="valor" inputmode="numeric" placeholder="R$ 0,00" value="' + esc(x.valor || '') + '"></div>' +
       '<div class="esc">' + freq.map(function (q) {
         return '<button data-cf="' + esc(c[0]) + '" data-q="' + q[0] + '" class="' + (x.freq === q[0] ? 'on' : '') + '">' + q[1] + '</button>';
-      }).join('') +
-      (c[2] === 'DESPESA' ? '<span style="width:8px"></span>' + [['CAIXA', 'Sai da conta'], ['CARTAO', 'No cartão']].map(function (q) {
-        return '<button data-cs="' + esc(c[0]) + '" data-s="' + q[0] + '" class="' + (x.sai === q[0] ? 'on' : '') + '">' + q[1] + '</button>';
-      }).join('') : '') + '</div>';
-    if (x.freq === 'ano') h += '<div class="mini"><label>Em que mês?</label><select data-cv="' + esc(c[0]) + '" data-f="mes">' +
-      MESES_C.map(function (m, k) { return k ? '<option value="' + k + '"' + (+x.mes === k ? ' selected' : '') + '>' + m + '</option>' : ''; }).join('') + '</select></div>';
+      }).join('') + '</div>';
+    // por onde passa: uma linha só, com as contas e os cartões que a pessoa cadastrou
+    var cs = correntes(), ks = rec ? [] : cartoesB(), on = ondePadrao(c, x);
+    if (cs.length || ks.length) h += '<div class="mini onde"><label>' + (rec ? '💰 Cai em' : '💳 Paga com') + '</label><select data-cv="' + esc(c[0]) + '" data-f="onde">' +
+      cs.map(function (o) { return '<option value="D|' + esc(o.nome) + '"' + (on === 'D|' + o.nome ? ' selected' : '') + '>conta · ' + esc(o.rot) + '</option>'; }).join('') +
+      ks.map(function (o) { return '<option value="C|' + esc(o.nome) + '"' + (on === 'C|' + o.nome ? ' selected' : '') + '>cartão · ' + esc(o.rot.replace(' · cartão ', ' · ')) + '</option>'; }).join('') +
+      '</select></div>';
+    if (x.freq === 'ano') h += '<div class="mini"><label>' + (+x.parc > 1 ? '1ª parcela em' : 'Em que mês?') + '</label><select data-cv="' + esc(c[0]) + '" data-f="mes">' +
+      MESES_C.map(function (m, k) { return k ? '<option value="' + k + '"' + (+x.mes === k ? ' selected' : '') + '>' + m + '</option>' : ''; }).join('') + '</select>' +
+      (rec ? '' : '<label>em</label><select data-cv="' + esc(c[0]) + '" data-f="parc" data-reabre="1">' +
+        [1, 2, 3, 4, 5, 6, 8, 10, 12].map(function (k) { return '<option value="' + k + '"' + ((+x.parc || 1) === k ? ' selected' : '') + '>' + (k === 1 ? 'à vista' : k + 'x') + '</option>'; }).join('') +
+        '</select>') + '</div>' +
+      (+x.parc > 1 && valor(x.valor) ? '<p class="sub" style="font-size:12px;margin:4px 0 0">' + x.parc + ' parcelas de ' + reaisTexto(valor(x.valor) / x.parc) + ' (o valor acima é o total do ano)</p>' : '');
+    if (x.freq === 'as') h += '<div class="mini"><label>Umas quantas vezes por ano?</label><input data-cv="' + esc(c[0]) + '" data-f="vezes" type="number" inputmode="numeric" min="1" max="12" style="max-width:70px;flex:none" value="' + esc(x.vezes || '3') + '"></div>' +
+      '<p class="sub" style="font-size:12px;margin:4px 0 0">Não tem mês certo: o app conta como uma média por mês' +
+      (valor(x.valor) ? ' (' + reaisTexto(valor(x.valor) * (+x.vezes || 3) / 12) + ')' : '') + ' na projeção. Quando acontecer, o lançamento de verdade entra no lugar.</p>';
     if (x.freq === 'mes') h += '<details data-mais="' + esc(c[0]) + '"' + (x.mais ? ' open' : '') + '><summary>' +
-      (x.reaj ? 'reajuste de ' + esc(x.reaj) + '% ao ano' : 'reajuste') + (x.ate ? ' · termina em ' + esc(x.ate) : ' · tem fim?') + '</summary>' +
+      (x.reaj ? 'reajuste de ' + esc(x.reaj) + '% ao ano' : 'reajuste') + (rec ? '' : x.ate ? ' · termina em ' + esc(x.ate) : ' · tem fim?') + '</summary>' +
       '<div class="mini"><label>Reajuste por ano</label><input data-cv="' + esc(c[0]) + '" data-f="reaj" inputmode="decimal" placeholder="%" value="' + esc(x.reaj || '') + '">' +
       '<label>em</label><select data-cv="' + esc(c[0]) + '" data-f="mesReaj"><option value="">mês</option>' +
       MESES_C.map(function (m, k) { return k ? '<option value="' + k + '"' + (+x.mesReaj === k ? ' selected' : '') + '>' + m + '</option>' : ''; }).join('') + '</select></div>' +
-      '<div class="mini"><label>Parcela ou financiamento? Último mês:</label><input data-cv="' + esc(c[0]) + '" data-f="ate" type="month" value="' + esc(x.ate || '') + '"></div></details>';
+      (rec ? '' : '<div class="mini"><label>Parcela ou financiamento? Último mês:</label><input data-cv="' + esc(c[0]) + '" data-f="ate" type="month" value="' + esc(x.ate || '') + '"></div>') + '</details>';
     return h + '</div>';
   }
 
@@ -4854,7 +4895,7 @@
     var t = 0;
     todasContas().forEach(function (c) {
       var x = B.contas[c[0]]; if (!x || c[2] !== 'DESPESA' || x.sai !== 'CARTAO') return;
-      var v = valor(x.valor); t += x.freq === 'ano' ? v / 12 : v;
+      var v = valor(x.valor); t += x.freq === 'ano' ? v / 12 : x.freq === 'as' ? v * (+x.vezes || 3) / 12 : v;
     });
     return Math.round(t);
   }
@@ -4922,7 +4963,12 @@
       };
       todos('[data-tirabanco]', function (b) { b.onclick = function () { ler(); delete B.bancos[b.dataset.tirabanco]; passo(B.passo); }; });
       todos('[data-tb]', function (b) { b.onclick = function () {
-        ler(); var x = B.bancos[b.dataset.tb]; x[b.dataset.t] = !x[b.dataset.t]; passo(B.passo);
+        ler(); var x = B.bancos[b.dataset.tb]; x[b.dataset.t] = qtd(x, b.dataset.t) ? 0 : 1; passo(B.passo);
+      }; });
+      todos('[data-tbmais]', function (b) { b.onclick = function () {
+        ler(); var x = B.bancos[b.dataset.tbmais], q = qtd(x, b.dataset.t);
+        if (q >= 5) return erro('até 5 do mesmo tipo em um banco');
+        x[b.dataset.t] = q + 1; passo(B.passo);
       }; });
     }
     if (k === 'saldos') todos('input[data-f^=saldo]', function (e) { mascaraReais(e); });
@@ -4958,6 +5004,7 @@
       todos('[data-cs]', function (b) { b.onclick = function () { ler(); B.contas[b.dataset.cs].sai = b.dataset.s; passo(B.passo); }; });
       todos('[data-mais]', function (d) { d.ontoggle = function () { var x = B.contas[d.dataset.mais]; if (x) x.mais = d.open; }; });
       todos('input[data-f=valor]', function (e) { mascaraReais(e); });
+      todos('[data-reabre], input[data-f=vezes]', function (e) { e.onchange = function () { ler(); passo(B.passo); }; });
     }
     if (k === 'indicadores') { if ($('iMeta')) mascaraReais($('iMeta')); }
     if (k === 'plano') {
@@ -4977,6 +5024,8 @@
     if (B.passo === 0 && $('bNome')) B.nome = $('bNome').value.trim();
     todos('[data-bd]', function (e) { var x = B.bancos[e.dataset.bd]; if (x) x[e.dataset.f] = e.value.trim(); });
     todos('[data-cv]', function (e) { var x = B.contas[e.dataset.cv]; if (x) x[e.dataset.f] = e.value.trim(); });
+    // escolher um cartão em "Paga com" é o mesmo que "no cartão"
+    for (var cn in B.contas) { var cx = B.contas[cn]; if (cx && cx.onde) cx.sai = cx.onde.charAt(0) === 'C' ? 'CARTAO' : 'CAIXA'; }
     if ($('iMeta')) B.ind.meta = $('iMeta').value.trim();
     if ($('iReajSal')) B.ind.reajSal = $('iReajSal').value.trim();
     if ($('iMesReajSal')) B.ind.mesReajSal = $('iMesReajSal').value;
@@ -5009,9 +5058,9 @@
     if (etapa() === 'saldos') {
       for (var n in B.bancos) {
         var x = B.bancos[n];
-        var ks = ['kPF', 'kPJ'];
-        for (var k = 0; k < 2; k++) {
-          var t = ks[k]; if (!x[t]) continue;
+        var ks = slots(n).filter(function (s) { return s.cartao; });
+        for (var k = 0; k < ks.length; k++) {
+          var t = ks[k].k;
           if (x['fecha' + t] && !(+x['fecha' + t] >= 1 && +x['fecha' + t] <= 31)) return n + ': dia de fechamento entre 1 e 31';
           if (x['vence' + t] && !(+x['vence' + t] >= 1 && +x['vence' + t] <= 31)) return n + ': dia de vencimento entre 1 e 31';
           if (x['final' + t] && !/^\d{4}$/.test(x['final' + t])) return n + ': o final do cartão tem 4 números';
@@ -5037,29 +5086,39 @@
     Object.keys(B.bancos).forEach(function (n) {
       var x = B.bancos[n];
       var idents = semAcento(n).toLowerCase().split(/[^a-z0-9]+/).filter(function (w) { return w.length > 1 && ['banco', 'bank', 'do', 'da'].indexOf(w) < 0; }).join(';');
-      [['cPF', 'PF', false], ['cPJ', 'PJ', false], ['kPF', 'PF', true], ['kPJ', 'PJ', true]].forEach(function (t) {
-        if (!x[t[0]]) return;
-        var fecha = +x['fecha' + t[0]] || null, vence = +x['vence' + t[0]] || null;
-        if (t[2] && fecha && !primeiroFecha) primeiroFecha = fecha;
-        if (t[2] && vence && !primeiroVence) primeiroVence = vence;
-        if (t[2]) { var pg = x['paga' + t[0]] || pagaPadrao(n, t[0]); if (pg) pagas.push(nomeConta(n, t[1], true) + '=' + pg); }
-        G.contas.push({ user_id: uid, nome: nomeConta(n, t[1], t[2]), tipo: t[2] ? 'CARTAO' : 'CORRENTE', titular: t[1],
-          instituicao: n, saldo_inicial: t[2] ? 0 : valor(x['saldo' + t[0]]), saldo_desde: hojeISO,
-          fechamento: t[2] ? fecha : null, final: t[2] && /^\d{4}$/.test(x['final' + t[0]] || '') ? x['final' + t[0]] : null,
+      slots(n).forEach(function (sl) {
+        var k = sl.k, car = sl.cartao;
+        var fecha = +x['fecha' + k] || null, vence = +x['vence' + k] || null;
+        if (car && fecha && !primeiroFecha) primeiroFecha = fecha;
+        if (car && vence && !primeiroVence) primeiroVence = vence;
+        if (car) { var pg = x['paga' + k] || pagaPadrao(n, sl.tit); if (pg) pagas.push(sl.nome + '=' + pg); }
+        G.contas.push({ user_id: uid, nome: sl.nome, tipo: car ? 'CARTAO' : 'CORRENTE', titular: sl.tit,
+          instituicao: n, saldo_inicial: car ? 0 : valor(x['saldo' + k]), saldo_desde: hojeISO,
+          fechamento: car ? fecha : null, final: car && /^\d{4}$/.test(x['final' + k] || '') ? x['final' + k] : null,
           identificadores: idents });
       });
     });
 
-    var sazonais = [];
+    var sazonais = [], ondes = [];
     todasContas().forEach(function (c) {
       var x = B.contas[c[0]]; if (!x) return;
-      var v = valor(x.valor), rj = pct(x.reaj);
-      G.cats.push({ user_id: uid, nome: c[0], grupo: c[6], natureza: c[2], sai_por: c[2] === 'RECEITA' ? 'CAIXA' : (x.sai || c[3]),
-        previsto_padrao: x.freq === 'mes' ? v : 0, reajuste: x.freq === 'mes' && rj ? rj : 0,   // a coluna não aceita vazio
+      var v = valor(x.valor), rj = pct(x.reaj), rec = c[2] === 'RECEITA';
+      // às vezes: sem mês certo, entra como média por mês (valor × vezes no ano ÷ 12)
+      var mensal = x.freq === 'mes' ? v : x.freq === 'as' ? Math.round(v * Math.max(1, Math.min(12, +x.vezes || 3)) / 12 * 100) / 100 : 0;
+      var onde = x.onde || ondePadrao(c, x);
+      G.cats.push({ user_id: uid, nome: c[0], grupo: c[6], natureza: c[2],
+        sai_por: rec ? 'CAIXA' : (onde ? (onde.charAt(0) === 'C' ? 'CARTAO' : 'CAIXA') : (x.sai || c[3])),
+        previsto_padrao: mensal, reajuste: x.freq === 'mes' && rj ? rj : 0,   // a coluna não aceita vazio
         mes_reajuste: x.freq === 'mes' && rj && +x.mesReaj ? +x.mesReaj : null,
-        ate: x.freq === 'mes' && /^\d{4}-\d{2}$/.test(x.ate || '') ? x.ate : null });
-      if (x.freq === 'mes' && v) G.prev.push({ nome: c[0], valor: v, ate: x.ate || '' });
-      if (x.freq === 'ano' && v && +x.mes) sazonais.push(c[0] + '|' + (+x.mes) + '|' + v);
+        ate: x.freq === 'mes' && !rec && /^\d{4}-\d{2}$/.test(x.ate || '') ? x.ate : null });
+      if (mensal) G.prev.push({ nome: c[0], valor: mensal, ate: x.freq === 'mes' && !rec ? (x.ate || '') : '' });
+      // 1x por ano, à vista ou parcelado (IPVA em 3x a partir de janeiro): uma parcela em cada mês
+      if (x.freq === 'ano' && v && +x.mes) {
+        var np = rec ? 1 : Math.max(1, Math.min(12, +x.parc || 1)), ms = [];
+        for (var i = 0; i < np; i++) ms.push(((+x.mes - 1 + i) % 12) + 1);
+        sazonais.push(c[0] + '|' + ms.join(',') + '|' + (Math.round(v / np * 100) / 100));
+      }
+      if (onde) ondes.push(c[0] + '=' + onde);
     });
     DO_SISTEMA.forEach(function (c) {
       if (!G.cats.some(function (x) { return x.nome === c.nome; }))
@@ -5078,6 +5137,8 @@
       if (+B.ind.mesReajSal) cfg('MES_REAJUSTE_CONTRATO', +B.ind.mesReajSal);
     }
     if (sazonais.length) cfg('SAZONAIS', sazonais.join(';'));
+    // por onde cada conta costuma passar: o lançamento à mão já vem com ela escolhida
+    if (ondes.length) cfg('ONDE_PAGA', ondes.join(';'));
     if (B.plano === 'agora') {
       if (dataNasc()) cfg('NASCIMENTO', dataNasc());
       cfg('IDADE_APOSENTADORIA', +B.idade || 60);
@@ -11173,6 +11234,32 @@ function mudouCatNovo(){
   var box=el('nparaBox'), rot=el('rotOnde');
   if(box) box.classList.toggle('hide', !ehTransf);
   if(rot) rot.textContent = ehTransf ? 'Saiu de qual conta' : 'Pagou com';
+  sugerirOnde();
+}
+/* Por onde cada conta costuma passar (ONDE_PAGA, do primeiro acesso): ao
+   escolher a conta, o "Pagou com" já vem preenchido - se ainda estiver vazio. */
+var _ondePaga=null;
+function sugerirOnde(){
+  var cat=el('nc')&&el('nc').value, campo=el('nonde');
+  if(!cat || !campo || campo.value) return;
+  var aplicar=function(){
+    var v=_ondePaga&&_ondePaga[cat]; if(!v || campo.value) return;
+    var itens=ondeItens();
+    if(!itens.some(function(x){ return x.valor===v; })) return;
+    var t=document.createElement('div');
+    t.innerHTML=botaoEscolha('nonde', v, 'escolher…', 'onde', itens, '');
+    var b=el('btn_nonde'); campo.value=v;
+    if(b && t.querySelector('button')) b.innerHTML=t.querySelector('button').innerHTML;
+  };
+  if(_ondePaga) return aplicar();
+  var P=window.EASYAPP_PONTE; if(!P) return;
+  P.rest('/rest/v1/config?select=valor&chave=eq.ONDE_PAGA').then(function(r){
+    _ondePaga={};
+    String((r&&r[0]&&r[0].valor)||'').split(';').forEach(function(p){
+      var i=p.indexOf('='); if(i>0) _ondePaga[p.slice(0,i)]=p.slice(i+1);
+    });
+    aplicar();
+  }).catch(function(){ _ondePaga={}; });
 }
 function salvarNovo(){
   // "129,89" num campo type=number volta vazio no Android - o lancamento
