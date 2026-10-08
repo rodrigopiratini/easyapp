@@ -38,7 +38,41 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.11 \u00b7 08/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.12.0 \u00b7 08/10/2026"};</script>
+<script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
+ * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
+ * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
+ * - o retorno só é chamado se a pessoa confirmar. */
+window.pedirTexto = function (o, feito) {
+  o = o || {};
+  var velho = document.getElementById('pedirTxt'); if (velho) velho.remove();
+  if (!document.getElementById('pedirTxtCss')) {
+    var st = document.createElement('style'); st.id = 'pedirTxtCss';
+    st.textContent = '#pedirTxt{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:18vh 14px 0;font:15px -apple-system,system-ui,sans-serif}' +
+      '#pedirTxt .px{width:min(440px,100%);background:#161d2c;border:1px solid #2a3548;border-radius:16px;padding:18px;color:#e8edf7;box-shadow:0 16px 40px #000a}' +
+      '#pedirTxt h3{margin:0 0 6px;font-size:17px}#pedirTxt p{margin:0 0 12px;color:#8b99b5;font-size:13px;line-height:1.45}' +
+      '#pedirTxt input{width:100%;box-sizing:border-box;background:#0f1420;color:#e8edf7;border:1px solid #2a3548;border-radius:10px;padding:12px;font-size:16px;outline:none}' +
+      '#pedirTxt input:focus{border-color:#3b82f6}#pedirTxt .pb{display:flex;gap:8px;margin-top:14px}' +
+      '#pedirTxt button{flex:1;padding:12px;border-radius:10px;border:0;font-size:15px;font-weight:600;cursor:pointer}' +
+      '#pedirTxt .no{background:#0f1420;color:#e8edf7;border:1px solid #2a3548}#pedirTxt .ok{flex:2;background:#3b82f6;color:#fff}';
+    document.head.appendChild(st);
+  }
+  var esc = function (t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var d = document.createElement('div'); d.id = 'pedirTxt';
+  d.innerHTML = '<div class="px"><h3>' + esc(o.titulo || '') + '</h3>' + (o.dica ? '<p>' + esc(o.dica) + '</p>' : '') +
+    '<input id="pedirTxtIn" ' + (o.tipo === 'senha' ? 'type="password" ' : '') + (o.tipo === 'valor' ? 'inputmode="decimal" ' : '') +
+    'placeholder="' + esc(o.placeholder || '') + '" value="' + esc(o.valor || '') + '" autocomplete="off">' +
+    '<div class="pb"><button class="no" id="pedirTxtNo">Cancelar</button><button class="ok" id="pedirTxtOk">' + esc(o.ok || 'OK') + '</button></div></div>';
+  document.body.appendChild(d);
+  var inp = document.getElementById('pedirTxtIn');
+  var fim = function (ok) { var v = inp.value; d.remove(); if (ok && feito) feito(v); };
+  document.getElementById('pedirTxtNo').onclick = function () { fim(false); };
+  document.getElementById('pedirTxtOk').onclick = function () { fim(true); };
+  d.onclick = function (e) { if (e.target === d) fim(false); };
+  inp.onkeydown = function (e) { if (e.key === 'Enter') fim(true); if (e.key === 'Escape') fim(false); };
+  setTimeout(function () { inp.focus(); try { inp.select(); } catch (e) {} }, 60);
+};
+</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -4669,7 +4703,14 @@
         '#boas .mini label{margin:0;font-size:11.5px;white-space:nowrap}' +
         '#boas .mini input,#boas .mini select{width:auto;flex:1;min-width:70px;padding:7px 9px;font-size:14px;border-radius:9px}' +
         '#boas .mini.onde{background:#0f1a2e;border-radius:9px;padding:4px 4px 4px 9px;margin-top:8px}#boas .mini.onde label{color:#93b8ff}' +
-        '#boas .mini.onde select{background:transparent;border:0;color:#e8edf7;font-weight:600}' +
+        '#boas .mini.onde .bsel{background:transparent;border:0;font-weight:600}' +
+        '#boas .bsel{flex:1;min-width:70px;display:flex;align-items:center;gap:6px;text-align:left;padding:7px 10px;font-size:14px;border-radius:9px;border:1px solid #2a3548;background:#0f1420;color:#e8edf7;cursor:pointer}' +
+        '#boas .bsel span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#boas .bsel i{font-style:normal;color:#8b99b5}' +
+        '.bmenu{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;font:15px -apple-system,system-ui,sans-serif}' +
+        '.bmenu .bm{width:min(460px,100%);max-height:70vh;overflow-y:auto;background:#161d2c;border:1px solid #2a3548;border-radius:16px 16px 0 0;padding:8px 0 14px}' +
+        '.bmenu .bmt{color:#8b99b5;font-size:12.5px;padding:10px 16px 6px;text-transform:uppercase;letter-spacing:.5px}' +
+        '.bmenu button{display:block;width:100%;text-align:left;background:none;border:0;color:#e8edf7;font-size:15.5px;padding:13px 16px;border-bottom:1px solid #1f2a3d;cursor:pointer}' +
+        '.bmenu button.on{color:#60a5fa;font-weight:700;background:#17284a}' +
         '#boas .fam{display:grid;grid-template-columns:1fr 1fr;gap:7px}' +
         '#boas .fam button{display:flex;align-items:center;gap:8px;text-align:left;padding:11px 10px;border-radius:12px;border:1px solid #2a3548;' +
         'background:#161d2c;color:#e8edf7;font-size:13.5px}#boas .fam button.on{border-color:#3b82f6;background:#17284a}' +
@@ -4710,6 +4751,7 @@
     $('bVai').style.display = (i === 0 || i === TELAS_BOAS.length - 1) ? 'none' : '';
     $('bVai').textContent = 'Continuar';
     ligar(CHAVES[i]);
+    menusDoApp();
     $('boas').scrollTop = mesma ? y : 0;
   }
 
@@ -4762,9 +4804,12 @@
     var x = B.bancos[n], r = [];
     [['cPF', 'PF', false], ['cPJ', 'PJ', false], ['kPF', 'PF', true], ['kPJ', 'PJ', true]].forEach(function (t) {
       for (var i = 1; i <= qtd(x, t[0]); i++) {
-        var suf = i > 1 ? String(i) : '';
-        r.push({ t: t[0], k: t[0] + suf, tit: t[1], cartao: t[2], nome: nomeConta(n, t[1], t[2]) + (suf ? ' ' + suf : ''),
-                 rot: n + (t[2] ? ' · cartão ' : ' · conta ') + (t[1] === 'PF' ? 'pessoal' : 'empresa') + (suf ? ' ' + suf : '') });
+        var suf = i > 1 ? String(i) : '', k = t[0] + suf;
+        // PJ com o nome da empresa: "C6 BANK PJ ACME" (sem nome, a 2ª vira "PJ 2")
+        var emp = t[1] === 'PJ' ? semAcento(String(x['emp' + k] || '')).toUpperCase().replace(/\s+/g, ' ').trim().slice(0, 30) : '';
+        r.push({ t: t[0], k: k, tit: t[1], cartao: t[2], emp: emp,
+                 nome: (nomeConta(n, t[1], t[2]) + (emp ? ' ' + emp : suf ? ' ' + suf : '')).slice(0, 60),
+                 rot: n + (t[2] ? ' · cartão ' : ' · conta ') + (t[1] === 'PF' ? 'pessoal' : (emp ? x['emp' + k] : 'empresa')) + (suf && !emp ? ' ' + suf : '') });
       }
     });
     return r;
@@ -4783,6 +4828,16 @@
       return { nome: s.nome, rot: s.rot.replace(' · cartão ', ' · cartão ') };
     });
   }
+  // a conta principal (⭐): a escolhida, se ainda existir; senão, a primeira
+  function principal() {
+    var cs = correntes();
+    if (B.principal && cs.some(function (c) { return c.nome === B.principal; })) return B.principal;
+    return cs.length ? cs[0].nome : '';
+  }
+  function existe(onde) {   // "D|NOME" ou "C|NOME" ainda é uma conta/cartão do roteiro?
+    var l = onde && onde.charAt(0) === 'C' ? cartoesB() : correntes(), n = String(onde || '').slice(2);
+    return l.some(function (c) { return c.nome === n; });
+  }
   function pagaPadrao(n, tit) {   // a conta do mesmo banco e titular; senão, a primeira
     var cs = correntes(), mesma = nomeConta(n, tit, false);
     return (cs.filter(function (c) { return c.nome === mesma; })[0] || cs[0] || {}).nome || '';
@@ -4792,15 +4847,18 @@
     Object.keys(B.bancos).forEach(function (n) {
       var x = B.bancos[n], info = infoBanco(n), ss = slots(n);
       ss.filter(function (s) { return !s.cartao; }).forEach(function (s) {
-        var t = s.k;
+        var t = s.k, princ = principal() === s.nome;
         h += '<div class="cartao"><div class="lnv"><span class="tt" style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px">' + logo(info) +
           esc(s.rot) + '</span>' +
-          '<input data-bd="' + esc(n) + '" data-f="saldo' + t + '" inputmode="numeric" placeholder="saldo hoje" value="' + esc(x['saldo' + t] || '') + '"></div></div>';
+          '<input data-bd="' + esc(n) + '" data-f="saldo' + t + '" inputmode="numeric" placeholder="saldo hoje" value="' + esc(x['saldo' + t] || '') + '"></div>' +
+          (s.tit === 'PJ' ? '<div class="mini"><label>Empresa</label><input data-bd="' + esc(n) + '" data-f="emp' + t + '" data-reabre="1" placeholder="nome da empresa (opcional)" value="' + esc(x['emp' + t] || '') + '"></div>' : '') +
+          '<div class="esc"><button data-principal="' + esc(s.nome) + '" class="' + (princ ? 'on' : '') + '">' + (princ ? '⭐ Conta principal' : '☆ Tornar principal') + '</button></div></div>';
       });
       ss.filter(function (s) { return s.cartao; }).forEach(function (s) {
         var t = s.k;
         var paga = x['paga' + t] || pagaPadrao(n, s.tit);
         h += '<div class="cartao"><div class="tt">' + logo(info) + esc(s.rot) + '</div>' +
+          (s.tit === 'PJ' ? '<div class="mini"><label>Empresa</label><input data-bd="' + esc(n) + '" data-f="emp' + t + '" data-reabre="1" placeholder="nome da empresa (opcional)" value="' + esc(x['emp' + t] || '') + '"></div>' : '') +
           '<div class="mini dias"><label>fecha dia</label><input data-bd="' + esc(n) + '" data-f="fecha' + t + '" type="number" inputmode="numeric" min="1" max="31" placeholder="28" value="' + esc(x['fecha' + t] || '') + '">' +
           '<label>vence dia</label><input data-bd="' + esc(n) + '" data-f="vence' + t + '" type="number" inputmode="numeric" min="1" max="31" placeholder="5" value="' + esc(x['vence' + t] || '') + '">' +
           '<label>final</label><input data-bd="' + esc(n) + '" data-f="final' + t + '" inputmode="numeric" maxlength="4" placeholder="1234" value="' + esc(x['final' + t] || '') + '"></div>' +
@@ -4809,17 +4867,24 @@
             '</select></div>' : '') + '</div>';
       });
     });
-    return '<h2>Saldos e cartões</h2><p class="sub">O saldo de hoje em cada conta e, de cada cartão, o fechamento, o vencimento e de qual conta sai o pagamento da fatura.</p>' + h;
+    return '<h2>Saldos e cartões</h2><p class="sub">O saldo de hoje em cada conta e, de cada cartão, o fechamento, o vencimento e de qual conta sai o pagamento da fatura. ' +
+      'A <b>conta principal</b> é a que já vem escolhida quando você diz onde cai ou de onde sai cada conta.</p>' + h;
   }
 
+  // as famílias de fábrica e as que a pessoa criou aqui (B.novasFams)
+  function familias() {
+    return FAMILIAS.concat((B.novasFams || []).map(function (f) {
+      return [f, '📁', f.charAt(0) + f.slice(1).toLowerCase(), []];
+    }));
+  }
   function corpoFamilias() {
     return '<h2>Agora vamos cadastrar suas famílias de contas</h2><p class="sub">Famílias juntam as contas parecidas (Casa, Saúde...). Marque as que fazem parte da sua vida.</p>' +
-      '<div class="fam">' + FAMILIAS.map(function (f) {
+      '<div class="fam">' + familias().map(function (f) {
         var on = !!B.fams[f[0]], fixa = f[0] === 'RECEITA';
         return '<button data-fam="' + f[0] + '" class="' + (on ? 'on' : '') + '"' + (fixa ? ' disabled' : '') + '><i>' + f[1] + '</i>' + esc(f[2]) +
           '</button>';
-      }).join('') + '</div>' +
-      '<p class="sub" style="margin-top:12px">Receitas sempre entram. Faltou alguma família? Depois é só pedir ao assistente ✦.</p>';
+      }).join('') + '<button id="bNovaFam" style="border-style:dashed;color:#93b8ff"><i>＋</i>Criar família</button></div>' +
+      '<p class="sub" style="margin-top:12px">Receitas sempre entram. Faltou alguma? Toque em <b>Criar família</b>: na próxima etapa você coloca as contas dela.</p>';
   }
 
   function listaFamilia(f) {
@@ -4827,30 +4892,41 @@
   }
   function corpoContas() {
     return '<h2>Agora as contas de cada família</h2><p class="sub">Toque nas que você tem. Os valores vêm na próxima etapa.</p>' +
-      FAMILIAS.filter(function (f) { return B.fams[f[0]]; }).map(function (f) {
+      familias().filter(function (f) { return B.fams[f[0]]; }).map(function (f) {
         return '<h3>' + f[1] + ' ' + esc(f[2]) + '</h3><div class="chips">' + listaFamilia(f).map(function (c) {
           return '<button class="chip' + (B.contas[c[0]] ? ' on' : '') + '" data-conta="' + esc(c[0]) + '">' + esc(c[1]) + '</button>';
         }).join('') + '<button class="chip" data-outra="' + f[0] + '">+ outra</button></div>';
       }).join('');
   }
   function corpoValores() {
-    var h = FAMILIAS.filter(function (f) { return B.fams[f[0]]; }).map(function (f) {
+    var h = familias().filter(function (f) { return B.fams[f[0]]; }).map(function (f) {
       var marcadas = listaFamilia(f).filter(function (c) { return B.contas[c[0]]; });
       return marcadas.length ? '<h3>' + f[1] + ' ' + esc(f[2]) + '</h3>' + marcadas.map(linhaConta).join('') : '';
     }).join('');
     return '<h2>Quanto é cada uma</h2><p class="sub">O valor de um mês normal e com que frequência acontece. Não sabe? Deixe em branco e ajuste depois.</p>' +
       (h || '<p class="sub">Nenhuma conta marcada. Volte e toque nas que você tem.</p>');
   }
+  function mesesAFrente(sel) {
+    var h = new Date(), r = '';
+    for (var i = 0; i < 18; i++) {
+      var d = new Date(h.getFullYear(), h.getMonth() + i, 1), v = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+      r += '<option value="' + v + '"' + ((sel || '') === v || (!sel && !i) ? ' selected' : '') + '>' + MESES_C[d.getMonth() + 1] + '/' + String(d.getFullYear()).slice(2) + '</option>';
+    }
+    return r;
+  }
   // a conta ou o cartão por onde passa (despesa) ou onde cai (receita)
   function ondePadrao(c, x) {
-    var cs = correntes(), ks = cartoesB();
-    if (x.onde) return x.onde;
+    var cs = correntes(), ks = cartoesB(), pr = principal();
+    if (x.onde && existe(x.onde) && !(c[2] === 'RECEITA' && x.onde.charAt(0) === 'C')) return x.onde;
     if (c[2] !== 'RECEITA' && x.sai === 'CARTAO' && ks.length) return 'C|' + ks[0].nome;
-    return cs.length ? 'D|' + cs[0].nome : (ks.length && c[2] !== 'RECEITA' ? 'C|' + ks[0].nome : '');
+    return pr ? 'D|' + pr : (ks.length && c[2] !== 'RECEITA' ? 'C|' + ks[0].nome : '');
   }
   function linhaConta(c) {
     var x = B.contas[c[0]], rec = c[2] === 'RECEITA';
-    var freq = [['mes', 'Todo mês'], ['ano', '1x por ano'], ['as', 'Às vezes']];
+    if (x.freq === 'as') x.freq = 'mes';   // "às vezes" virou "parcelado"
+    // "tem fim / último mês" só nas contas que acabam: financiamento, empréstimo, consórcio...
+    var temFim = !rec && /PARCELA|FINANC|EMPREST|CONSORC|PRESTAC|CREDIARIO|DIVIDA/.test(semAcento(c[0] + ' ' + c[1]).toUpperCase());
+    var freq = [['mes', 'Todo mês'], ['ano', '1x por ano'], ['parc', 'Parcelado']];
     var h = '<div class="cartao"><div class="lnv"><span class="tt" style="font-weight:600;font-size:14px">' + esc(c[1]) + '</span>' +
       '<input data-cv="' + esc(c[0]) + '" data-f="valor" inputmode="numeric" placeholder="R$ 0,00" value="' + esc(x.valor || '') + '"></div>' +
       '<div class="esc">' + freq.map(function (q) {
@@ -4868,15 +4944,19 @@
         [1, 2, 3, 4, 5, 6, 8, 10, 12].map(function (k) { return '<option value="' + k + '"' + ((+x.parc || 1) === k ? ' selected' : '') + '>' + (k === 1 ? 'à vista' : k + 'x') + '</option>'; }).join('') +
         '</select>') + '</div>' +
       (+x.parc > 1 && valor(x.valor) ? '<p class="sub" style="font-size:12px;margin:4px 0 0">' + x.parc + ' parcelas de ' + reaisTexto(valor(x.valor) / x.parc) + ' (o valor acima é o total do ano)</p>' : '');
-    if (x.freq === 'as') h += '<div class="mini"><label>Umas quantas vezes por ano?</label><input data-cv="' + esc(c[0]) + '" data-f="vezes" type="number" inputmode="numeric" min="1" max="12" style="max-width:70px;flex:none" value="' + esc(x.vezes || '3') + '"></div>' +
-      '<p class="sub" style="font-size:12px;margin:4px 0 0">Não tem mês certo: o app conta como uma média por mês' +
-      (valor(x.valor) ? ' (' + reaisTexto(valor(x.valor) * (+x.vezes || 3) / 12) + ')' : '') + ' na projeção. Quando acontecer, o lançamento de verdade entra no lugar.</p>';
+    if (x.freq === 'parc') {
+      var np = Math.max(2, +x.vezes || 3);
+      h += '<div class="mini"><label>Em</label><select data-cv="' + esc(c[0]) + '" data-f="vezes" data-reabre="1">' +
+        [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24, 36, 48].map(function (k) { return '<option value="' + k + '"' + (np === k ? ' selected' : '') + '>' + k + 'x</option>'; }).join('') +
+        '</select><label>a partir de</label><select data-cv="' + esc(c[0]) + '" data-f="inicio" data-reabre="1">' + mesesAFrente(x.inicio) + '</select></div>' +
+        (valor(x.valor) ? '<p class="sub" style="font-size:12px;margin:4px 0 0">' + np + ' parcelas de ' + reaisTexto(valor(x.valor)) + ' (o valor acima é o de cada parcela) · total ' + reaisTexto(valor(x.valor) * np) + '</p>' : '<p class="sub" style="font-size:12px;margin:4px 0 0">Digite acima o valor de cada parcela.</p>');
+    }
     if (x.freq === 'mes') h += '<details data-mais="' + esc(c[0]) + '"' + (x.mais ? ' open' : '') + '><summary>' +
-      (x.reaj ? 'reajuste de ' + esc(x.reaj) + '% ao ano' : 'reajuste') + (rec ? '' : x.ate ? ' · termina em ' + esc(x.ate) : ' · tem fim?') + '</summary>' +
+      (x.reaj ? 'reajuste de ' + esc(x.reaj) + '% ao ano' : 'reajuste') + (!temFim ? '' : x.ate ? ' · termina em ' + esc(x.ate) : ' · tem fim?') + '</summary>' +
       '<div class="mini"><label>Reajuste por ano</label><input data-cv="' + esc(c[0]) + '" data-f="reaj" inputmode="decimal" placeholder="%" value="' + esc(x.reaj || '') + '">' +
       '<label>em</label><select data-cv="' + esc(c[0]) + '" data-f="mesReaj"><option value="">mês</option>' +
       MESES_C.map(function (m, k) { return k ? '<option value="' + k + '"' + (+x.mesReaj === k ? ' selected' : '') + '>' + m + '</option>' : ''; }).join('') + '</select></div>' +
-      (rec ? '' : '<div class="mini"><label>Parcela ou financiamento? Último mês:</label><input data-cv="' + esc(c[0]) + '" data-f="ate" type="month" value="' + esc(x.ate || '') + '"></div>') + '</details>';
+      (!temFim ? '' : '<div class="mini"><label>Último mês (quando acaba):</label><input data-cv="' + esc(c[0]) + '" data-f="ate" type="month" value="' + esc(x.ate || '') + '"></div>') + '</details>';
     return h + '</div>';
   }
 
@@ -4895,7 +4975,7 @@
     var t = 0;
     todasContas().forEach(function (c) {
       var x = B.contas[c[0]]; if (!x || c[2] !== 'DESPESA' || x.sai !== 'CARTAO') return;
-      var v = valor(x.valor); t += x.freq === 'ano' ? v / 12 : x.freq === 'as' ? v * (+x.vezes || 3) / 12 : v;
+      var v = valor(x.valor); t += x.freq === 'ano' ? v / 12 : v;
     });
     return Math.round(t);
   }
@@ -4937,7 +5017,7 @@
   function todos(sel, fn) { Array.prototype.forEach.call(document.querySelectorAll('#boas ' + sel), fn); }
   function todasContas() {
     var r = [];
-    FAMILIAS.forEach(function (f) {
+    familias().forEach(function (f) {
       if (!B.fams[f[0]]) return;
       f[3].forEach(function (c) { r.push(c.concat([f[0]])); });
       (B.extras[f[0]] || []).forEach(function (n) { r.push([n, n, f[0] === 'RECEITA' ? 'RECEITA' : 'DESPESA', 'CAIXA', 'mes', 0, f[0]]); });
@@ -4971,13 +5051,26 @@
         x[b.dataset.t] = q + 1; passo(B.passo);
       }; });
     }
-    if (k === 'saldos') todos('input[data-f^=saldo]', function (e) { mascaraReais(e); });
+    if (k === 'saldos') {
+      todos('input[data-f^=saldo]', function (e) { mascaraReais(e); });
+      todos('[data-principal]', function (b) { b.onclick = function () { ler(); B.principal = b.dataset.principal; passo(B.passo); }; });
+      // o nome da empresa entra no nome da conta: redesenha para os outros campos acompanharem
+      todos('input[data-reabre]', function (e) { e.onchange = function () { ler(); passo(B.passo); }; });
+    }
     if (k === 'familias') {
       todos('[data-fam]', function (b) { b.onclick = function () {
         var f = b.dataset.fam; if (f === 'RECEITA') return;
         if (B.fams[f]) delete B.fams[f]; else B.fams[f] = 1;
         passo(B.passo);
       }; });
+      $('bNovaFam').onclick = function () {
+        pedirTexto({ titulo: 'Nova família', dica: 'Junta contas parecidas. Ex.: Viagens, Pets, Igreja, Hobby.', placeholder: 'nome da família', ok: 'Criar' }, function (n) {
+          var id = semAcento(String(n || '')).toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30);
+          if (id.length < 2) return;
+          if (!familias().some(function (f) { return f[0] === id; })) (B.novasFams = B.novasFams || []).push(id);
+          B.fams[id] = 1; passo(B.passo);
+        });
+      };
     }
     if (k === 'contas') {
       todos('[data-conta]', function (b) { b.onclick = function () {
@@ -4985,18 +5078,19 @@
         if (B.contas[c0]) delete B.contas[c0];
         else {
           var c = todasContas().filter(function (x) { return x[0] === c0; })[0] || [c0, c0, 'DESPESA', 'CAIXA', 'mes', 0];
-          B.contas[c0] = { valor: '', freq: c[4], sai: c[3], reaj: c[5] ? String(c[5]).replace('.', ',') : '', mesReaj: '', mes: '', ate: '' };
+          B.contas[c0] = { valor: '', freq: c[4] === 'as' ? 'mes' : c[4], sai: c[3], reaj: c[5] ? String(c[5]).replace('.', ',') : '', mesReaj: '', mes: '', ate: '' };
         }
         passo(B.passo);
       }; });
       todos('[data-outra]', function (b) { b.onclick = function () {
         var f = b.dataset.outra;
-        var n = prompt('Nome da conta (ex.: Academia, Escola de inglês)');
-        n = String(n || '').trim(); if (n.length < 2) return;
-        var nome = (f === 'RECEITA' ? 'RECEITA' : f) + ' - ' + semAcento(n).toUpperCase().slice(0, 40);
-        (B.extras[f] = B.extras[f] || []).push(nome);
-        B.contas[nome] = { valor: '', freq: 'mes', sai: 'CAIXA', reaj: '', mesReaj: '', mes: '', ate: '' };
-        passo(B.passo);
+        pedirTexto({ titulo: 'Nova conta', dica: 'O nome como você quer ver no app.', placeholder: 'Ex.: Academia, Escola de inglês', ok: 'Criar' }, function (n) {
+          n = String(n || '').trim(); if (n.length < 2) return;
+          var nome = (f === 'RECEITA' ? 'RECEITA' : f) + ' - ' + semAcento(n).toUpperCase().slice(0, 40);
+          if (!(B.extras[f] || []).some(function (x) { return x === nome; })) (B.extras[f] = B.extras[f] || []).push(nome);
+          B.contas[nome] = { valor: '', freq: 'mes', sai: 'CAIXA', reaj: '', mesReaj: '', mes: '', ate: '' };
+          passo(B.passo);
+        });
       }; });
     }
     if (k === 'valores') {
@@ -5017,6 +5111,35 @@
     }
   }
   function erro(t) { $('bErro').textContent = t; }
+
+  /* Os <select> do roteiro abrem o menu do sistema (fundo branco, letra cinza).
+     Cada um vira um botão no tema do app que abre a nossa lista; a escolha
+     volta para o select e dispara o "change" de sempre. */
+  function menusDoApp() {
+    todos('select', function (sel) {
+      if (sel.dataset.menu) return;
+      sel.dataset.menu = '1'; sel.style.display = 'none';
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'bsel';
+      var pinta = function () { var o = sel.options[sel.selectedIndex]; b.innerHTML = '<span>' + esc(o ? o.text : 'escolher') + '</span><i>▾</i>'; };
+      pinta();
+      b.onclick = function () {
+        var d = document.createElement('div'); d.className = 'bmenu';
+        d.innerHTML = '<div class="bm"><div class="bmt">' + esc((sel.previousElementSibling && sel.previousElementSibling.tagName === 'LABEL' ? sel.previousElementSibling.textContent : '') || 'Escolha') + '</div>' +
+          Array.prototype.map.call(sel.options, function (o, k) {
+            return '<button type="button" data-k="' + k + '" class="' + (k === sel.selectedIndex ? 'on' : '') + '">' + esc(o.text) + '</button>';
+          }).join('') + '</div>';
+        d.onclick = function (e) {
+          var k = e.target.closest && e.target.closest('[data-k]');
+          if (k) { sel.selectedIndex = +k.dataset.k; pinta(); sel.dispatchEvent(new Event('change', { bubbles: true })); }
+          if (k || e.target === d) d.remove();
+        };
+        document.body.appendChild(d);
+        var on = d.querySelector('.on'); if (on) on.scrollIntoView({ block: 'center' });
+      };
+      sel.parentNode.insertBefore(b, sel.nextSibling);
+    });
+  }
 
   // guarda o que está na tela antes de redesenhar
   function ler() {
@@ -5091,7 +5214,11 @@
         var fecha = +x['fecha' + k] || null, vence = +x['vence' + k] || null;
         if (car && fecha && !primeiroFecha) primeiroFecha = fecha;
         if (car && vence && !primeiroVence) primeiroVence = vence;
-        if (car) { var pg = x['paga' + k] || pagaPadrao(n, sl.tit); if (pg) pagas.push(sl.nome + '=' + pg); }
+        if (car) {
+          var pg = x['paga' + k];
+          if (!pg || !correntes().some(function (c) { return c.nome === pg; })) pg = pagaPadrao(n, sl.tit);
+          if (pg) pagas.push(sl.nome + '=' + pg);
+        }
         G.contas.push({ user_id: uid, nome: sl.nome, tipo: car ? 'CARTAO' : 'CORRENTE', titular: sl.tit,
           instituicao: n, saldo_inicial: car ? 0 : valor(x['saldo' + k]), saldo_desde: hojeISO,
           fechamento: car ? fecha : null, final: car && /^\d{4}$/.test(x['final' + k] || '') ? x['final' + k] : null,
@@ -5105,7 +5232,7 @@
       var v = valor(x.valor), rj = pct(x.reaj), rec = c[2] === 'RECEITA';
       // às vezes: sem mês certo, entra como média por mês (valor × vezes no ano ÷ 12)
       var mensal = x.freq === 'mes' ? v : x.freq === 'as' ? Math.round(v * Math.max(1, Math.min(12, +x.vezes || 3)) / 12 * 100) / 100 : 0;
-      var onde = x.onde || ondePadrao(c, x);
+      var onde = ondePadrao(c, x);
       G.cats.push({ user_id: uid, nome: c[0], grupo: c[6], natureza: c[2],
         sai_por: rec ? 'CAIXA' : (onde ? (onde.charAt(0) === 'C' ? 'CARTAO' : 'CAIXA') : (x.sai || c[3])),
         previsto_padrao: mensal, reajuste: x.freq === 'mes' && rj ? rj : 0,   // a coluna não aceita vazio
@@ -5117,6 +5244,15 @@
         var np = rec ? 1 : Math.max(1, Math.min(12, +x.parc || 1)), ms = [];
         for (var i = 0; i < np; i++) ms.push(((+x.mes - 1 + i) % 12) + 1);
         sazonais.push(c[0] + '|' + ms.join(',') + '|' + (Math.round(v / np * 100) / 100));
+      }
+      // parcelado: N parcelas do valor digitado, a partir do mês escolhido
+      if (x.freq === 'parc' && v) {
+        var ini = /^\d{4}-\d{2}$/.test(x.inicio || '') ? x.inicio : mesAtual, refs = [];
+        for (var j = 0; j < Math.max(2, +x.vezes || 3); j++) {
+          var dj = new Date(+ini.slice(0, 4), +ini.slice(5, 7) - 1 + j, 1);
+          refs.push(dj.getFullYear() + '-' + ('0' + (dj.getMonth() + 1)).slice(-2));
+        }
+        G.prev.push({ nome: c[0], valor: v, refs: refs });
       }
       if (onde) ondes.push(c[0] + '=' + onde);
     });
@@ -5139,6 +5275,7 @@
     if (sazonais.length) cfg('SAZONAIS', sazonais.join(';'));
     // por onde cada conta costuma passar: o lançamento à mão já vem com ela escolhida
     if (ondes.length) cfg('ONDE_PAGA', ondes.join(';'));
+    if (principal()) cfg('CONTA_PRINCIPAL', principal());
     if (B.plano === 'agora') {
       if (dataNasc()) cfg('NASCIMENTO', dataNasc());
       cfg('IDADE_APOSENTADORIA', +B.idade || 60);
@@ -5178,6 +5315,7 @@
         var prev = [], hoje = new Date();
         G.prev.forEach(function (p) {
           if (!id[p.nome]) return;
+          if (p.refs) { p.refs.forEach(function (ref) { prev.push({ user_id: uid, categoria_id: id[p.nome], valor: p.valor, mes_ref: ref }); }); return; }
           for (var m = 0; m < 12; m++) {
             var d = new Date(hoje.getFullYear(), hoje.getMonth() + m, 1);
             var ref = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
@@ -6620,13 +6758,14 @@
 
   // ============================================================ EXCLUIR
   function pedirExclusao() {
-    var senha = prompt('Para excluir a conta e TODOS os seus dados, digite a sua senha.\n\nIsso não tem volta.');
-    if (!senha) return;
-    if (!confirm('Excluir a conta e apagar todos os dados agora?')) return;
-    fn('conta', { acao: 'excluir', senha: senha }).then(function () {
-      alert('Sua conta foi excluída. Obrigado por ter testado o EasyAPP.');
-      sair();
-    }).catch(function (e) { aviso(e.message); });
+    pedirTexto({ titulo: 'Excluir a conta', dica: 'Para excluir a conta e TODOS os seus dados, digite a sua senha. Isso não tem volta.', tipo: 'senha', ok: 'Continuar' }, function (senha) {
+      if (!senha) return;
+      if (!confirm('Excluir a conta e apagar todos os dados agora?')) return;
+      fn('conta', { acao: 'excluir', senha: senha }).then(function () {
+        alert('Sua conta foi excluída. Obrigado por ter testado o EasyAPP.');
+        sair();
+      }).catch(function (e) { aviso(e.message); });
+    });
   }
 
   // ============================================================ AVISOS
@@ -6868,12 +7007,17 @@
       // open finance: o guia e, depois de ligado, os bancos
       h += '<div class="c-guia" id="guia-of" hidden><div class="c-gt"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAIKADAAQAAAABAAAAIAAAAACshmLzAAAEeklEQVRYCe2WXWxURRTHZ+9utx/ULQVZC0iFUKpoLFajUQOKhIBoMMiDr1QlfkSjxkRCwpuJMVGi0Qc1ikI0vEFQI5AQqBKCojFGKbRaK5C64aOsFGlLu233Xn7/zZ1luNvyIm/2JL+dmXPPnTkz58y5a8yE/N9PIHa1A+id/6gey6YsxKfNgVpT27FTjQnt1I1DEjwYhhEo2qkflRIHnEVnYLwI7oO5kAJNeBp+hf1wGLRYMzwITZCGBJyHLjgYovdKnCk64OxiGnYtsAZuBk02lpxD+R3odB6AGhhL5HQ7fApfgBwrOlJwwFl8Ac/ehiWg47yWMspku2Ad/KGJFcKYs/id6D4DOTGuxILABLHiwY1rd5UHP/DsaeiQjT1exftdiC4eoDsJbXDK97zqc+nUklRv/9SKwRHjeyWOnMHuWxiCmXA73ACuoXJqIyjEWTmghy+A4uhKL4NPYAscW9r+fq7hz8zdydzIwsa2brNi2yHT0J6JnsYAtq+DdlcBjbAWWuA6sPIwnafgrfj6aY3K4DdgMlj5h87L8B70tOzZkE9dGPDyifiGXGXyocyctOlonm3Sp86buoxysSi19P6FVlDMdSJ7IQvaYDlItOlZsEdXaDXUgxWfzjuwFfKFRCEQscDcxHi5ciCe983ZulqzvWVx53B54jh6V1YyqJMirBO6BboBH0rnSAP9lXJgGbgx0pX5HAJbaOhLlB/yuiCe7/sn5k3fWNWf+8DqwnYu7a1WF86h09gEx6yeVuFfJgcUJ1cOMshYxaru721XNaHMDmjPDE4q358YzbfSV75YqaIzTwPnhmmok/pJHUfmy4EaR6HuX5GxHV5vO2GbzSe8LNFRnK9IBMZTI7Ya5sE9AemmyAHmuELGK0DKDVdivKmKoDmEK1Fb+yw6d6AX3eOToUISnVD6Hv04kk6M+ko23ffojs86drar8BVCYxW0WS2kpHNlEYM5VvFl/f22+zsdfQmtpKv6h5YPJxMrUKSskrYPOjWOJPEtqO6R3pE2ObAbFB8ruh7PQVkkiX5DV7xyftwzjUe6X6UuPGtfDFvV+eKmwjlUlFTsbgxt1AzDbjmwA7rAFTnwIlRoApXcvpqqDN+ArwP6Wry+67R5YlPrTCqjSq0r2xmokNlbMInua7BGOkeO0t9lP0brGLwJbuwHGW8D3d8jkzsO9L2yb3MTO95x2y/HZy396mczvTtr5JAj2v0qULYrLAtAJ/QYlIMVFaeX4CPrwBQGm0GGUVFp1YQ9QcxUXqyuvKNyYCgVH/Wji+s9JbRCpePVyagoVUNUtqJ4HvqsAzJQ7PXxWQzjyjX4HO9kci3+txbxnExVHjwJ8s7NdoaX5T/8F7jILNrgM1BYXGsXA+hkvJLmcVgLd8FYR6hbo0m+gSQ8AjPAzSGGBbnA74/wMWj3g86mLzvAg4I4jtSgaAbdXYVHYyXPSVCcD8EJ0CYU63uhCVScEqB86AQtfhhUH6K1odQBGbniOKTdqWyLkokidjIplGN3t1JOyMQJRE/gEiRdQ2K8noRVAAAAAElFTkSuQmCC" alt=""> Open Finance' + (of && of.modo === 'easyapp' ? '' : ' · sua conta Pluggy') + '</div>';
       // o passo a passo (e o vídeo) aparece antes de ligar e, recolhido, depois de ligado
+      // os campos do Client ID e do Secret entram logo depois do passo 4, na sequência
+      var campos = '<div style="margin:2px 0 10px 0"><input id="cCid" placeholder="Client ID" autocomplete="off"><input id="cCse" type="password" placeholder="Client Secret" autocomplete="off">' +
+          '<div class="c-bts"><button class="c-bt" id="cOfSalvar">Salvar</button></div><div class="c-erro" id="cOfErro"></div></div>';
+      var semCampos = !!(of && (of.modo === 'easyapp' || of.configurado));
       var passos =
           '<button class="c-bt" id="cOfVideo" style="width:100%;margin:6px 0 4px">▶ Ver o passo a passo (1 min)</button><ol>' +
           '<li>Abra <a href="#" id="cMeuPluggy">meu.pluggy.ai</a>, crie a sua conta e conecte nela os seus bancos e cartões (grátis, para uso pessoal).</li>' +
           '<li>Abra <a href="#" id="cPluggySite">dashboard.pluggy.ai</a> e toque em <b>Criar conta</b> (Sign up), com o mesmo e-mail.</li>' +
           '<li>No menu, abra <b>Applications</b> (Aplicações). Já vem uma aplicação criada; se não vier, toque em <b>Create application</b>.</li>' +
-          '<li>Nela, ative o conector <b>MeuPluggy</b> e copie o <b>Client ID</b> e o <b>Client Secret</b>. Cole aqui embaixo e toque em <b>Salvar</b>.</li>' +
+          '<li>Nela, ative o conector <b>MeuPluggy</b> e copie o <b>Client ID</b> e o <b>Client Secret</b>. ' + (semCampos ? 'Cole no app e toque em <b>Salvar</b>.' : 'Cole aqui e toque em <b>Salvar</b>:') + '</li>' +
+          (semCampos ? '' : campos) +
           '<li>Toque em <b>+ conectar banco</b> e escolha <b>MeuPluggy</b> (não o banco direto). Entre com a conta do passo 1: vêm todos os bancos que você conectou lá.</li>' +
           '<li>Pronto: as transações chegam sozinhas, com 1 a 3 dias de atraso (o tempo do banco).</li>' +
           '</ol><div class="m" style="font-size:11px;margin-top:6px">Por que o MeuPluggy? A conta nova da Pluggy é de teste e não liga banco de verdade direto; ' +
@@ -6896,10 +7040,7 @@
       } else if (!of.configurado) {
         h += '<div class="m" style="font-size:12px;margin:2px 0 6px">Traz as transações direto do banco, pelo sistema oficial do Banco Central. ' +
           'Pega também o que não gera aviso no celular: tarifas, IOF, débitos automáticos.</div>' +
-          passos +
-          '<div class="lbl" style="margin:10px 0 2px">Cole aqui</div>' +
-          '<input id="cCid" placeholder="Client ID" autocomplete="off"><input id="cCse" type="password" placeholder="Client Secret" autocomplete="off">' +
-          '<div class="c-bts"><button class="c-bt" id="cOfSalvar">Salvar</button></div><div class="c-erro" id="cOfErro"></div>';
+          passos;
       } else {
         (of.itens || []).forEach(function (i) {
           h += '<div class="c-lin"><span>🏦 ' + esc(i.banco || 'Banco') + (i.ultimo_erro ? '<br><small class="neg">' + esc(i.ultimo_erro) + '</small>' : '') + '</span><b style="font-weight:500;font-size:12px">' +
@@ -8822,6 +8963,7 @@ function filtrarPicker(){ montarPicker(el('pkBusca').value); }
    como classificar o credito de um PIX que voce mandou de uma conta sua para
    outra. */
 function serveParaNatureza(x, natureza){
+  if(natureza==='TODAS') return true;   // lançar à mão: receita também (salário, reembolso)
   return x.natureza===natureza || x.natureza==='TRANSFERENCIA' ||
          (natureza==='DESPESA' && x.natureza==='INVESTIMENTO');
 }
@@ -8935,11 +9077,13 @@ function pickerCriar(){
   var p=ST.pk;
   fecharPicker();
   if(p.itens){                       // lista solta: cria um item novo digitado
-    var nv=prompt(p.textoNovo.replace(/^\+\s*/,'')+':','');
-    if(!nv || !nv.trim()) return;
-    // na lista de "caiu em" o valor carrega o prefixo C| (cartao) ou D| (conta)
-    var pref = /cart/i.test(p.textoNovo||'') ? 'C|' : '';
-    escolherLista(p, pref+nv.trim().toUpperCase());
+    var tit=(p.textoNovo||'').replace(/^\+\s*/,'');
+    pedirTexto({ titulo: tit.charAt(0).toUpperCase()+tit.slice(1), placeholder: 'nome', ok: 'Criar' }, function(nv){
+      if(!nv || !nv.trim()) return;
+      // na lista de "caiu em" o valor carrega o prefixo C| (cartao) ou D| (conta)
+      var pref = /cart/i.test(p.textoNovo||'') ? 'C|' : '';
+      escolherLista(p, pref+nv.trim().toUpperCase());
+    });
     return;
   }
   // vindo do Extrato (rcAlvo) nao ha cartao onde encaixar o formulario
@@ -8957,7 +9101,7 @@ function pickerCriar(){
       else { toast('Crie a conta em Config → Contas'); return; }
     }
   }
-  abrirCriar(alvo, p.id, p.natureza);
+  abrirCriar(alvo, p.id, p.natureza==='TODAS' ? 'DESPESA' : p.natureza);
 }
 
 function destravar(i){
@@ -9466,8 +9610,9 @@ function confirmarTrazer(){
   var cat=el('rcAlvo').value;
   if(!cat) return;
   var nomeMes=NOMES_MES[Number(ST.mes.split('-')[1])];
-  var v=prompt('Quanto prever de "'+cat+'" em '+nomeMes+'?', '0,00');
-  if(v===null) return;
+  pedirTexto({ titulo:'Quanto prever em '+nomeMes+'?', dica:cat, valor:'0,00', tipo:'valor', ok:'Prever' }, function(v){ trazerComValor(cat, nomeMes, v); });
+}
+function trazerComValor(cat, nomeMes, v){
   v=parseFloat(String(v).replace(/\./g,'').replace(',','.'));
   if(isNaN(v)){ toast('Valor inválido'); return; }
   toast('Trazendo para '+nomeMes+'...');
@@ -9515,9 +9660,10 @@ function mudouFamilia(){
 }
 
 function editarPrevisto(categoria, atual){
-  var v = prompt('Previsto de "' + categoria + '" em ' +
-                 NOMES_MES[Number(ST.mes.split('-')[1])] + ':', atual);
-  if(v === null) return;
+  pedirTexto({ titulo:'Previsto em ' + NOMES_MES[Number(ST.mes.split('-')[1])], dica:categoria, valor:atual, tipo:'valor', ok:'Salvar' },
+    function(v){ salvarPrevistoTexto(categoria, v); });
+}
+function salvarPrevistoTexto(categoria, v){
   v = parseFloat(String(v).replace(/\./g,'').replace(',','.'));
   if(isNaN(v)){ toast('Valor inválido'); return; }
   google.script.run.withSuccessHandler(function(r){
@@ -11136,7 +11282,7 @@ function renderNovo(){
     '<div class="lbl" style="margin-top:12px">Descrição</div><input id="nd" placeholder="Ex: farmácia">'+
     '<div class="lbl" style="margin-top:12px">Conta</div>'+
     '<input type="hidden" id="nc" value="">'+
-    '<button class="bt-conta" id="btn_nc" onclick="abrirPicker(\'nc\',\'DESPESA\',\'mudouCatNovo()\')">'+
+    '<button class="bt-conta" id="btn_nc" onclick="abrirPicker(\'nc\',\'TODAS\',\'mudouCatNovo()\')">'+
       '<span style="color:var(--dim)">escolher conta…</span>'+
       '<span style="margin-left:auto;color:var(--dim)">&#9662;</span></button>'+
     '<div class="lbl" style="margin-top:12px" id="rotOnde">Pagou com</div>'+
@@ -11233,7 +11379,8 @@ function mudouCatNovo(){
   var ehTransf = el('nc') && el('nc').value===CAT_TRANSFER;
   var box=el('nparaBox'), rot=el('rotOnde');
   if(box) box.classList.toggle('hide', !ehTransf);
-  if(rot) rot.textContent = ehTransf ? 'Saiu de qual conta' : 'Pagou com';
+  var ehRec = !ehTransf && el('nc') && el('nc').value && catNatureza(el('nc').value)==='RECEITA';
+  if(rot) rot.textContent = ehTransf ? 'Saiu de qual conta' : ehRec ? 'Entrou em qual conta' : 'Pagou com';
   sugerirOnde();
 }
 /* Por onde cada conta costuma passar (ONDE_PAGA, do primeiro acesso): ao
@@ -11272,7 +11419,7 @@ function salvarNovo(){
   var nat=catNatureza(cat)||'DESPESA';
 
   var onde=(el('nonde')&&el('nonde').value)||'';
-  if(!onde){ toast('Diga se pagou com cartão ou pela conta'); return; }
+  if(!onde){ toast(nat==='RECEITA' ? 'Diga em qual conta entrou' : 'Diga se pagou com cartão ou pela conta'); return; }
   var ehCartao = onde.charAt(0)==='C';
   var alvo = onde.slice(2);
 
