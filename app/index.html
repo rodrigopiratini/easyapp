@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.2 \u00b7 08/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.3 \u00b7 08/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -12146,7 +12146,8 @@ function bancosHtml(){
         var temOf=(ST.bancos||[]).some(function(o){ return o.of && (o.tipo==='CARTAO')===(c.tipo==='CARTAO'); });
         h+='<div style="padding:0 0 9px 26px">'+
           (!c.of && c.saldo_desde?'<div class="m" style="font-size:11px;margin-bottom:6px">saldo de '+moeda(c.saldo_inicial)+' em '+c.saldo_desde.split('-').reverse().join('/')+'</div>':'')+
-          (c.of?'<div class="m" style="font-size:11px;margin-bottom:6px">vem do banco pelo Open Finance: saldo e lançamentos chegam sozinhos</div>':
+          (c.of?'<div class="m" style="font-size:11px;margin-bottom:6px">vem do banco pelo Open Finance: saldo e lançamentos chegam sozinhos</div>'+
+            (c.tipo==='CARTAO'?'':'<button class="bt-no" style="width:100%;padding:6px;font-size:12px" onclick="bancoAcertarSaldo(\''+c.id+'\')">O banco mostra outro saldo? Acertar</button>'):
             '<div class="row" style="gap:6px">'+
               '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" onclick="ST.bancoEd=ST.bancoEd===\''+c.id+'\'?null:\''+c.id+'\';ST.bancoLigar=null;bancosCarregar()">'+(ed?'Fechar':'Editar saldo')+'</button>'+
               (temOf?'<button class="bt-no" style="flex:1.4;padding:6px;font-size:12px" onclick="ST.bancoLigar=ST.bancoLigar===\''+c.id+'\'?null:\''+c.id+'\';ST.bancoEd=null;bancosCarregar()">Juntar com a do Open Finance</button>':'')+
@@ -12225,6 +12226,23 @@ function bancoMultiplo(id, sim){
     corpo:{ user_id:window.EASYAPP_PONTE.sessao().user_id, chave:'CARTOES_MULTIPLOS', valor:l.join(',') } })
   .then(function(){ ST.multiplos=l; toast(sim?'Marcado: as compras dele vão perguntar crédito ou débito':'Desmarcado'); })
   .catch(function(e){ toast('Não salvei: '+e.message); bancosCarregar(); });
+}
+/* Conta do Open Finance com o saldo atrasado (o banco ainda não mandou o dado
+   novo): a pessoa digita o saldo que o banco mostra agora e o app passa a
+   partir dele. Quando o banco mandar um saldo NOVO, o Open Finance volta a
+   mandar (reancora sozinho). */
+function bancoAcertarSaldo(id){
+  var c=(ST.bancos||[]).filter(function(x){ return x.id===id; })[0]; if(!c) return;
+  var t=prompt('Saldo que o banco mostra AGORA em '+c.nome+' (ex.: 557,77; negativo com -):', '');
+  if(t===null) return;
+  var neg=/^\s*-/.test(t), v=(parseFloat(String(t).replace(/[^\d,]/g,'').replace(',','.'))||0)*(neg?-1:1);
+  if(!String(t).replace(/\D/g,'')){ toast('Digite o saldo'); return; }
+  var atual=Number(c.saldo)||0, ini=Math.round(((Number(c.saldo_inicial)||0)+(v-atual))*100)/100;
+  if(!confirm('Saldo de '+c.nome+': '+moeda(atual)+' → '+moeda(v)+'?')) return;
+  ponteRest('/rest/v1/contas?id=eq.'+id, { metodo:'PATCH', corpo:{ saldo_inicial: ini }, prefer:'return=minimal' }).then(function(){
+    toast('Saldo acertado: '+moeda(v)); ST.bancos=null; ST.cacheMes={}; ST.extras=null; ST.saldos=null; bancosCarregar();
+    if(typeof carregar==='function') carregar(ST.mes, false);
+  }).catch(function(e){ toast('Não salvei: '+e.message); });
 }
 function bancoExcluir(id){
   var c=(ST.bancos||[]).filter(function(x){ return x.id===id; })[0]; if(!c) return;
