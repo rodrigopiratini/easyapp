@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.12.0 \u00b7 08/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.12.1 \u00b7 08/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -5400,15 +5400,21 @@ window.pedirTexto = function (o, feito) {
     ['padrao', '◆ Padrão', 'o equilíbrio · bom para quase tudo'],
     ['profundo', '★ Profundo', 'cerca de 2× o preço · módulos grandes e análises difíceis']
   ];
-  function motor() { try { return localStorage.getItem('easyapp:motor') || 'padrao'; } catch (e) { return 'padrao'; } }
+  // no teste grátis o Profundo fica travado (custa ~2× e acabava com o saldo do teste)
+  function motor() {
+    var m = 'padrao'; try { m = localStorage.getItem('easyapp:motor') || 'padrao'; } catch (e) {}
+    return (m === 'profundo' && IA.plano === 'teste') ? 'padrao' : m;
+  }
   function desenharMotor() {
     var e = $('iaMotor'); if (!e) return;
     var m = motor(), atual = MOTORES.filter(function (x) { return x[0] === m; })[0] || MOTORES[1];
+    var trava = IA.plano === 'teste';
     e.innerHTML = '<div class="ia-mt">' + MOTORES.map(function (x) {
-      return '<button data-motor="' + x[0] + '" class="' + (x[0] === m ? 'on' : '') + '">' + x[1] + '</button>';
-    }).join('') + '</div><div class="ia-mtd">' + esc(atual[2]) + '</div>';
+      var off = trava && x[0] === 'profundo';
+      return '<button data-motor="' + x[0] + '" class="' + (x[0] === m ? 'on' : '') + '"' + (off ? ' disabled style="opacity:.45"' : '') + '>' + x[1] + '</button>';
+    }).join('') + '</div><div class="ia-mtd">' + esc(atual[2]) + (trava ? ' · ★ Profundo libera no plano mensal ou anual' : '') + '</div>';
     Array.prototype.forEach.call(e.querySelectorAll('[data-motor]'), function (b) {
-      b.onclick = function () { try { localStorage.setItem('easyapp:motor', b.dataset.motor); } catch (x) {} desenharMotor(); };
+      b.onclick = function () { if (b.disabled) return; try { localStorage.setItem('easyapp:motor', b.dataset.motor); } catch (x) {} desenharMotor(); };
     });
   }
 
@@ -5707,6 +5713,8 @@ window.pedirTexto = function (o, feito) {
       var ia = (c && c.ia) || {};
       var total = Number(ia.franquia || 0) + Number(ia.creditos || 0) + Math.max(0, Number(ia.gasto_mes || 0) - Number(ia.franquia || 0));
       IA.mes = Number(ia.gasto_mes || 0);
+      var antes = IA.plano; IA.plano = ia.liberado ? ia.plano : '';
+      if (antes !== IA.plano) desenharMotor();
       if (ia.liberado && ia.plano === 'cortesia') return desenharSaldo(-1, IA.mes, null);
       desenharSaldo(total, IA.mes, Number(ia.disponivel || 0));
     }).catch(function () {
@@ -6485,6 +6493,8 @@ window.pedirTexto = function (o, feito) {
     var f = false;
     try { f = sessionStorage.getItem('easyapp:abrir-planilha') === '1'; sessionStorage.removeItem('easyapp:abrir-planilha'); } catch (e) {}
     if (!f) return;
+    // a planilha vai no Padrão: lê bem e cabe no saldo do teste (o Profundo gastava tudo)
+    try { if (localStorage.getItem('easyapp:motor') === 'profundo') localStorage.setItem('easyapp:motor', 'padrao'); } catch (e) {}
     setTimeout(function () {
       abrir();
       $('iaTxt').value = 'Essa é a minha planilha de contas. Lê e me mostra a prévia da projeção dos próximos 12 meses.';
