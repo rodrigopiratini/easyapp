@@ -119,6 +119,16 @@
   #abertura.some{opacity:0;pointer-events:none}
   @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
   h1 img{width:30px;height:30px;border-radius:8px;vertical-align:-7px;margin-right:9px}
+  /* a logo do app: as três barrinhas, que de tempos em tempos sobem de novo como na abertura */
+  h1 em,#abertura b em{color:var(--verm);font-style:normal}
+  .lg3{display:inline-flex;align-items:flex-end;gap:3px;height:24px;margin-right:10px;vertical-align:-3px}
+  .lg3 i{display:block;width:7px;border-radius:2px;transform-origin:bottom;animation:lgNasce .6s cubic-bezier(.34,1.56,.64,1) both,lgSobe 9s cubic-bezier(.34,1.56,.64,1) 3s infinite}
+  .lg3 i:nth-child(1){height:10px;background:var(--azul);animation-delay:.05s,3.05s}
+  .lg3 i:nth-child(2){height:17px;background:var(--azul);animation-delay:.18s,3.18s}
+  .lg3 i:nth-child(3){height:24px;background:var(--verde);animation-delay:.31s,3.31s}
+  @keyframes lgNasce{from{transform:scaleY(0);opacity:0}to{transform:scaleY(1);opacity:1}}
+  @keyframes lgSobe{0%{transform:scaleY(1)}5%{transform:scaleY(.1)}12%{transform:scaleY(1)}100%{transform:scaleY(1)}}
+  @media (prefers-reduced-motion:reduce){.lg3 i{animation:none}}
   .abas{display:flex;gap:6px;margin:14px 0 4px;border-bottom:1px solid var(--line);overflow-x:auto}
   .abas button{background:none;border:0;border-bottom:2px solid transparent;color:var(--tx2);padding:10px 14px;font-size:14.5px;font-weight:600;cursor:pointer;white-space:nowrap}
   .abas button.on{color:var(--tx);border-bottom-color:var(--azul)}
@@ -151,7 +161,7 @@
 </style>
 </head>
 <body>
-<div id="abertura"><img src="img/icone-192.png" alt=""><b>Easy<i>APP</i> · Gestão</b><small>abrindo o painel…</small></div>
+<div id="abertura"><img src="img/icone-192.png" alt=""><b>EasyAPP <em>Gestão</em></b><small>abrindo o painel…</small></div>
 <div class="cx" id="cx"></div>
 <script src="gestao-testes.js?v=3.1.0"></script>
 <script>
@@ -165,7 +175,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.9.0 · 08/10/2026';
+var VERSAO_PAINEL = '1.9.1 · 08/10/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -227,7 +237,7 @@ function destravarBio() {
     .then(function (a) { if (!a || !(new Uint8Array(a.response.authenticatorData)[32] & 4)) throw new Error('biometria não confirmada'); window.BIO_OK = true; });
 }
 function telaBio(erro) {
-  cx.innerHTML = '<div class="login"><h1><img src="img/icone-192.png" alt="">Easy<i>APP</i> · Gestão</h1>' +
+  cx.innerHTML = '<div class="login"><h1><span class="lg3" aria-hidden="true"><i></i><i></i><i></i></span>EasyAPP <em>Gestão</em></h1>' +
     '<p>Use a digital ou o rosto para abrir o painel.</p><button id="b">Abrir com biometria</button>' +
     '<div class="msg" id="e">' + esc(erro || '') + '</div>' +
     '<button class="lk" id="outra" style="margin-top:10px;background:none;color:var(--azul);width:auto">Entrar com senha e código</button></div>' + rodape();
@@ -258,7 +268,7 @@ function sessao(v) {
 }
 
 function telaLogin(erro) {
-  cx.innerHTML = '<div class="login"><h1><img src="img/icone-192.png" alt="">Easy<i>APP</i> · Gestão</h1><p>Entre com o login de administrador.</p>' +
+  cx.innerHTML = '<div class="login"><h1><span class="lg3" aria-hidden="true"><i></i><i></i><i></i></span>EasyAPP <em>Gestão</em></h1><p>Entre com o login de administrador.</p>' +
     '<input id="m" type="email" autocomplete="username" placeholder="e-mail">' +
     '<input id="s" type="password" autocomplete="current-password" placeholder="senha">' +
     '<button id="b">Entrar</button><div class="msg" id="e">' + esc(erro || '') + '</div></div>' + rodape();
@@ -293,7 +303,7 @@ function authMfa(caminho, metodo, corpo) {
   }); });
 }
 function telaMfa(erro) {
-  cx.innerHTML = '<div class="login"><h1><img src="img/icone-192.png" alt="">Easy<i>APP</i> · Gestão</h1><p class="sub">conferindo a verificação em duas etapas…</p></div>' + rodape();
+  cx.innerHTML = '<div class="login"><h1><span class="lg3" aria-hidden="true"><i></i><i></i><i></i></span>EasyAPP <em>Gestão</em></h1><p class="sub">conferindo a verificação em duas etapas…</p></div>' + rodape();
   tirarAbertura();
   authMfa('user').then(function (u) {
     var f = (u.factors || []).filter(function (x) { return x.factor_type === 'totp' && x.status === 'verified'; })[0];
@@ -313,7 +323,7 @@ function qrSrc(q) {
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(q.slice(i));
 }
 function pedirCodigo(fatorId, novo, erro) {
-  cx.innerHTML = '<div class="login"><h1><img src="img/icone-192.png" alt="">Easy<i>APP</i> · Gestão</h1>' +
+  cx.innerHTML = '<div class="login"><h1><span class="lg3" aria-hidden="true"><i></i><i></i><i></i></span>EasyAPP <em>Gestão</em></h1>' +
     (novo
       ? '<p><b>Ative a verificação em duas etapas</b> (uma vez só). No celular, abra um app autenticador ' +
         '(Google Authenticator, Microsoft Authenticator...), toque em <b>+</b> e leia este QR:</p>' +
@@ -829,7 +839,7 @@ function k(rot, val, nota, cls) {
 function desenhar() {
   var d = DADOS, r = d.resumo, p = r.planos;
   var aba = function (k, t) { return '<button class="' + (ABA === k ? 'on' : '') + '" onclick="trocarAba(\'' + k + '\')">' + t + '</button>'; };
-  var h = '<div class="topo"><h1><img src="img/icone-192.png" alt="">Easy<i>APP</i> · Gestão</h1><div><button class="lk" id="at">Atualizar</button> · <button class="lk" id="sair">Sair</button></div></div>' +
+  var h = '<div class="topo"><h1><span class="lg3" aria-hidden="true"><i></i><i></i><i></i></span>EasyAPP <em>Gestão</em></h1><div><button class="lk" id="at">Atualizar</button> · <button class="lk" id="sair">Sair</button></div></div>' +
     '<div class="sub">atualizado ' + new Date(d.gerado_em).toLocaleString('pt-BR') + (VERSAO ? ' · app no site: versão ' + esc(VERSAO) : '') + '</div>' +
     '<div class="abas">' + aba('geral', '📊 Visão geral') + aba('ia', '✦ IA e créditos') + aba('pessoas', '👥 Pessoas e vouchers') + aba('avisos', '🔔 Avisos dos bancos') + aba('testes', '🧪 Testar primeiro acesso') + '</div>';
 
