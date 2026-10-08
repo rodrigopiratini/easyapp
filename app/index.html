@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.9 \u00b7 08/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.10 \u00b7 08/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -116,6 +116,10 @@
               return rest(caminho, Object.assign({}, opcoes, { tentativa: 1 }));
             });
         }
+        // login de uma conta que não existe mais (excluída, ou recriada com o
+        // mesmo e-mail): o token ainda vale, mas o banco recusa gravar
+        if (r.status === 409 && t.indexOf('23503') >= 0 && /table \\?"users\\?"/.test(t))
+          return pedirLogin('Este login é de uma conta que não existe mais. Entre de novo (ou crie a conta outra vez).');
         throw new Error(caminho + ' -> ' + r.status + ' ' + t.slice(0, 200));
       });
     });
@@ -4589,6 +4593,35 @@
              plano: null, nasc: '', idade: '60', rent: '4' };
   }
 
+  /* Rascunho do primeiro acesso no aparelho: um erro ao salvar (sem internet,
+     login perdido) não pode jogar fora o que a pessoa levou minutos montando.
+     Fica até o app ser montado; ao abrir de novo, oferece continuar. */
+  var RASCUNHO = 'easyapp:boas-rascunho';
+  function guardarRascunho() {
+    if (!B || (TESTE && !P.sessao())) return;
+    try { localStorage.setItem(RASCUNHO, JSON.stringify({ quando: Date.now(), B: B })); } catch (e) {}
+  }
+  function lerRascunho() {
+    try {
+      var r = JSON.parse(localStorage.getItem(RASCUNHO) || 'null');
+      if (r && r.B && Date.now() - r.quando < 30 * 864e5) return r;
+    } catch (e) {}
+    return null;
+  }
+  function apagarRascunho() { try { localStorage.removeItem(RASCUNHO); } catch (e) {} }
+  function retomar(nome) {
+    var r = lerRascunho(), d = r && new Date(r.quando);
+    if (r && confirm('Você tem um cadastro que não terminou (' + ('0' + d.getDate()).slice(-2) + '/' +
+        ('0' + (d.getMonth() + 1)).slice(-2) + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) +
+        '). Continuar de onde parou?')) {
+      B = r.B; if (nome && !B.nome) B.nome = nome;
+      return B.passo || 0;
+    }
+    if (r) apagarRascunho();
+    B = novoB(nome);
+    return 0;
+  }
+
   function primeiroAcesso(teste) {
     TESTE = !!teste || /teste-primeiro-acesso/.test(location.hash);
     var s = P.sessao();
@@ -4599,8 +4632,8 @@
     P.rest('/rest/v1/perfis?select=nome,onboarding_ok&id=eq.' + s.user_id).then(function (r) {
       var p = r && r[0];
       if (!TESTE && (!p || p.onboarding_ok !== false)) return;     // usuário antigo ou já passou por aqui
-      B = novoB(p && p.nome);
-      montarBoas(); passo(0);
+      var ini = retomar(p && p.nome);
+      montarBoas(); passo(ini);
     }).catch(function () { /* banco sem a migração 018: segue o app normal */ });
   }
 
@@ -4650,6 +4683,8 @@
     d.innerHTML = '<div class="cx"><div id="bRot"></div><div id="bCorpo"></div><div class="erro" id="bErro"></div><div style="height:90px"></div></div>' +
       '<div class="rodape"><button class="volta" id="bVolta">Voltar</button><button class="vai" id="bVai">Continuar</button></div>';
     document.body.appendChild(d);
+    // cada campo preenchido já vai para o rascunho (não só ao trocar de etapa)
+    d.addEventListener('change', function () { try { ler(); } catch (e) {} guardarRascunho(); });
     $('bVolta').onclick = function () { ler(); passo(B.passo - 1); };
     $('bVai').onclick = function () { ler(); var e = conferir(); if (e) { $('bErro').textContent = e; return; } passo(B.passo + 1); };
   }
@@ -4662,6 +4697,7 @@
     // um toque redesenha a mesma etapa: a tela fica onde estava (antes voltava ao topo)
     var mesma = $('bCorpo').innerHTML && i === B.passo, y = $('boas').scrollTop;
     B.passo = i; $('bErro').textContent = '';
+    guardarRascunho();
     $('bRot').innerHTML = (TESTE ? '<div class="teste">Modo de teste: nada do que você fizer aqui é gravado.</div>' : '') +
       (i ? '<div class="rot">' + ETAPAS.map(function (n, k) {
         return '<span class="' + (k + 1 < i ? 'ok' : k + 1 === i ? 'at' : '') + '">' + (k + 1 < i ? '✓ ' : '') + n + '</span>';
@@ -5099,10 +5135,13 @@
           if (destino === 'planilha') sessionStorage.setItem('easyapp:abrir-planilha', '1');
           if (destino === 'automacao') sessionStorage.setItem('easyapp:depois-boas', 'automacao');
         } catch (x) {}
+        apagarRascunho();
         location.reload();
       }).catch(function (x) {
         todos('button', function (b) { b.disabled = false; });
-        erro('Não consegui salvar: ' + String(x.message || x).slice(0, 160));
+        guardarRascunho();
+        erro('Não consegui salvar: ' + String(x.message || x).slice(0, 160) +
+          ' · O que você montou está guardado neste aparelho: ao entrar de novo, o app oferece continuar de onde parou.');
       });
   }
 
