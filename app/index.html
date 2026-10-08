@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.1 \u00b7 08/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.2 \u00b7 08/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -6927,7 +6927,7 @@
       b('cOfConectar', function () { conectarBanco(re).catch(function (e) { erro(e.message); }); });
       b('cOfSync', function () {
         erro('buscando...');
-        fn('openfinance', { acao: 'sincronizar' }).then(function (r) {
+        fn('openfinance', { acao: 'sincronizar', forcar: true }).then(function (r) {
           aviso((r.bancos_novos && r.bancos_novos.length ? 'Banco novo: ' + r.bancos_novos.join(', ') + '. ' : '') + r.novas + ' novos, ' + r.adotadas + ' confirmados');
           avisarContasNovas(r);
           recarregarApp(); re();
