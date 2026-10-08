@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.5 \u00b7 08/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.6 \u00b7 08/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -6597,11 +6597,12 @@
       w.init();
     });
   }
-  // ao abrir o app, no máximo a cada 6 horas
+  // ao abrir ou voltar para o app, no máximo a cada 15 minutos. Só lê o que a
+  // Pluggy já tem; pedir dado novo ao banco continua no máximo a cada 2 horas
+  // (no servidor), por causa do limite de consultas do Open Finance
   function autoOpenFinance() {
     var ult = 0; try { ult = +localStorage.getItem('easyapp:of-sync') || 0; } catch (e) {}
-    // ao abrir o app, no máximo a cada hora (e a rotina do servidor busca de hora em hora)
-    if (Date.now() - ult < 3600e3) return;
+    if (Date.now() - ult < 15 * 60e3) return;
     fn('openfinance', { acao: 'status' }).then(function (s) {
       if (!s.configurado || !s.itens.length) return;
       try { localStorage.setItem('easyapp:of-sync', String(Date.now())); } catch (e) {}
@@ -6826,6 +6827,10 @@
         (av.length ? av.map(function (x) {
           var d = new Date(x.recebido), c = x.corpo || {};
           var st = ST_TXT[x.status] || (/^IGNORADA/.test(x.status || '') ? '⏭ ignorado (' + String(x.status).replace('IGNORADA ', '').toLowerCase() + ')' : esc(x.status || ''));
+          // quanto o aviso levou da notificação do banco até aqui (o MacroDroid manda a hora em ms)
+          var pz = String(c.posted || ''), t0 = /^\d{13}$/.test(pz) ? +pz : /^\d{10}$/.test(pz) ? pz * 1000 : 0;
+          var atraso = t0 ? Math.round((d.getTime() - t0) / 60e3) : 0;
+          if (atraso >= 1 && atraso < 1440) st += '<br><small style="color:' + (atraso >= 5 ? 'var(--warn)' : 'var(--dim)') + '">chegou ' + atraso + ' min depois</small>';
           return '<div class="c-lin"><span>' + ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + ' ' +
             ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) +
             '<br><small style="color:var(--dim)">' + esc(String(c.title || c.estabelecimento || c.app || '').slice(0, 40)) + '</small></span>' +
@@ -7003,6 +7008,7 @@
   // o Android costuma só VOLTAR com o app (ele fica em segundo plano): confere
   // de novo ao voltar, no máximo a cada 30 minutos
   document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && iniciado) autoOpenFinance();
     if (document.visibilityState === 'visible' && iniciado && Date.now() - ultimaChecagem > 5 * 60e3) checarVersao();
   });
 
@@ -10775,13 +10781,13 @@ function atualizarPorTras(){
 }
 
 /* Compra nova pelo aviso do celular aparece na hora: com o app aberto, a cada
-   15 s (e sempre que ele volta para a frente) olha o último aviso recebido;
+   5 s (e sempre que ele volta para a frente) olha o último aviso recebido;
    chegou um novo, avisa e refaz o Classificar por trás, sem mexer na tela. */
 var _ultPush=null, _pushTimer=null;
 function vigiarPush(){
   clearTimeout(_pushTimer);
   var P=window.EASYAPP_PONTE;
-  if(!P || !P.sessao() || document.hidden){ _pushTimer=setTimeout(vigiarPush, 15000); return; }
+  if(!P || !P.sessao() || document.hidden){ _pushTimer=setTimeout(vigiarPush, 5000); return; }
   P.rest('/rest/v1/push_log?select=recebido,status,lancamento&order=recebido.desc&limit=5').then(function(r){
     r=r||[];
     var novo=r.length?r[0].recebido:'';
@@ -10794,7 +10800,7 @@ function vigiarPush(){
       }
     }
     if(novo) _ultPush=novo; else if(_ultPush===null) _ultPush='';
-  }).catch(function(){}).then(function(){ _pushTimer=setTimeout(vigiarPush, 15000); });
+  }).catch(function(){}).then(function(){ _pushTimer=setTimeout(vigiarPush, 5000); });
 }
 document.addEventListener('visibilitychange', function(){ if(!document.hidden) vigiarPush(); });
 setTimeout(vigiarPush, 4000);
