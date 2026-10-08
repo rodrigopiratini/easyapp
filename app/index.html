@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.6 \u00b7 08/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.7 \u00b7 08/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -10782,12 +10782,28 @@ function atualizarPorTras(){
 
 /* Compra nova pelo aviso do celular aparece na hora: com o app aberto, a cada
    5 s (e sempre que ele volta para a frente) olha o último aviso recebido;
-   chegou um novo, avisa e refaz o Classificar por trás, sem mexer na tela. */
-var _ultPush=null, _pushTimer=null;
+   chegou um novo, avisa e refaz o Classificar por trás, sem mexer na tela.
+   A cada 15 s olha também a última leitura do Open Finance (aviso da Pluggy,
+   rotina do servidor): mudou, refaz os números do mesmo jeito. */
+var _ultPush=null, _pushTimer=null, _ultOf=null, _ofVolta=0, _ofSemRpc=false;
+function refazerPorTras(){
+  var f=function(){ ST.cacheMes={}; if(ST.mes){ ST.extrato=null; atualizarPorTras(); } };
+  // o que veio de fora não passa pelas escritas do app: limpa o guardado na ponte antes
+  google.script.run.withSuccessHandler(f).withFailureHandler(f).apiLimparCache();
+}
+function vigiarOpenFinance(P){
+  if(_ofSemRpc || (++_ofVolta)%3!==1) return;
+  P.rest('/rest/v1/rpc/of_ultima_sync',{metodo:'POST',corpo:{}}).then(function(t){
+    t=t||'';
+    if(_ultOf!==null && t && t!==_ultOf) refazerPorTras();
+    _ultOf=t;
+  }).catch(function(e){ if(/404|PGRST20|does not exist/i.test(String((e&&e.message)||e))) _ofSemRpc=true; });
+}
 function vigiarPush(){
   clearTimeout(_pushTimer);
   var P=window.EASYAPP_PONTE;
   if(!P || !P.sessao() || document.hidden){ _pushTimer=setTimeout(vigiarPush, 5000); return; }
+  vigiarOpenFinance(P);
   P.rest('/rest/v1/push_log?select=recebido,status,lancamento&order=recebido.desc&limit=5').then(function(r){
     r=r||[];
     var novo=r.length?r[0].recebido:'';
@@ -10796,13 +10812,13 @@ function vigiarPush(){
       if(lancou.length){
         var pend=lancou.filter(function(x){ return x.status==='PENDENTE'; }).length;
         toast(pend ? (pend===1?'Compra nova para classificar':'Compras novas para classificar: '+pend) : 'Compra nova lançada');
-        if(ST.mes){ ST.extrato=null; atualizarPorTras(); }
+        refazerPorTras();
       }
     }
     if(novo) _ultPush=novo; else if(_ultPush===null) _ultPush='';
   }).catch(function(){}).then(function(){ _pushTimer=setTimeout(vigiarPush, 5000); });
 }
-document.addEventListener('visibilitychange', function(){ if(!document.hidden) vigiarPush(); });
+document.addEventListener('visibilitychange', function(){ if(!document.hidden){ _ofVolta=0; vigiarPush(); } });
 setTimeout(vigiarPush, 4000);
 
 /* Cada cartãozinho ganha um ícone pela etiqueta: entrar é seta verde para
