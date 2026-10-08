@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.0 \u00b7 07/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.11.1 \u00b7 08/10/2026"};</script>
 <script>/* Ponte: o app fala `google.script.run`, o Supabase responde.
  *
  * O Index.html tem 3.700 linhas e chama o servidor por
@@ -7361,7 +7361,7 @@
        font:15px/1.45 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif;
        padding-bottom:78px}
   header{position:sticky;top:0;z-index:9;background:#0f1420f2;backdrop-filter:blur(8px);
-         padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+         padding:calc(14px + env(safe-area-inset-top,0px)) 16px 10px;border-bottom:1px solid var(--line)}
   /* o nome fica em UMA linha: quebrado, ele espremia os filtros e o "a ver" */
   h1{margin:0;font-size:15px;font-weight:600;letter-spacing:.1px;white-space:nowrap}
   h1 b{font-weight:600;color:var(--acc)}
