@@ -175,7 +175,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.9.1 · 08/10/2026';
+var VERSAO_PAINEL = '1.10.0 · 09/10/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -514,11 +514,35 @@ function darCortesia(id, nome) {
   };
 }
 
+// 📱 o app do cliente numa moldura de celular (a sessão já está em easyapp:sessao-suporte)
+function telaSuporte(nome, modo) {
+  var v = document.getElementById('suporteApp'); if (v) v.remove();
+  var src = 'app/?suporte=1&r=' + Date.now();
+  var d = document.createElement('div'); d.id = 'suporteApp';
+  d.style.cssText = 'position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.75);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px';
+  d.innerHTML = '<div style="display:flex;gap:10px;align-items:center;color:#e8edf7;font-size:13.5px;flex-wrap:wrap;justify-content:center">' +
+      '<b>📱 ' + esc(nome) + '</b><span style="color:' + (modo === 'edicao' ? 'var(--amb)' : 'var(--tx2)') + '">' + (modo === 'edicao' ? 'leitura e edição' : 'só leitura') + '</span>' +
+      '<a class="lk" href="' + src + '" target="_blank" rel="noopener" style="color:var(--azul)">tela cheia ↗</a>' +
+      '<button class="lk" id="suporteFechar" style="color:var(--tx)">fechar ✕</button></div>' +
+    '<iframe src="' + src + '" title="App do cliente" style="width:min(430px,100%);height:min(840px,calc(100vh - 60px));border:1px solid #40516c;border-radius:22px;background:#0f1420"></iframe>';
+  document.body.appendChild(d);
+  document.getElementById('suporteFechar').onclick = function () {
+    d.remove();
+    // a sessão do cliente não fica guardada neste navegador depois de fechar
+    try { localStorage.removeItem('easyapp:sessao-suporte'); localStorage.removeItem('easyapp:suporte-info'); } catch (e) {}
+  };
+}
+
 // ⚙ conta: voltar às configurações de fábrica ou excluir
 function gerirConta(id) {
   var p = pessoa(id), nome = p.nome || p.email || '';
   var f = janelaPeq('<div class="topo"><h3>Conta</h3><button class="lk" onclick="fecharPeq()">fechar</button></div>' +
     '<div class="quem">' + esc(nome) + (p.nome ? ' · ' + esc(p.email) : '') + ' · ' + esc(nomePlano(p)) + '</div>' +
+    '<div class="zona"><h4>📱 Abrir o app do cliente</h4>' +
+      '<p>O app dele, como no celular dele, sem usar a senha (Termos de Uso, seção 7). Cada abertura fica no histórico do cliente. ' +
+      'Em <b>leitura e edição</b>, o que você mudar muda na conta dele.</p>' +
+      '<button id="gcVer" style="background:var(--azul);color:#fff">👁 Só ver</button> ' +
+      '<button id="gcEditar">✏️ Ver e corrigir</button></div>' +
     '<div class="zona"><h4>↺ Voltar às configurações de fábrica</h4>' +
       '<p>Apaga lançamentos, bancos, categorias, metas, módulos, conversa com o assistente e Open Finance, e a pessoa refaz o primeiro acesso (boas-vindas e termos). ' +
       'O login continua. Plano, créditos e pagamentos ficam.</p>' +
@@ -530,6 +554,24 @@ function gerirConta(id) {
       '<button id="gcExcluir" disabled>Excluir para sempre</button></div>' +
     '<div class="resumo" id="pqRes"></div>');
   var res = f.querySelector('#pqRes'), mail = f.querySelector('#gcMail'), bx = f.querySelector('#gcExcluir'), br = f.querySelector('#gcReset');
+  var abrirApp = function (modo, b) {
+    if (modo === 'edicao' && !confirm('Abrir o app de ' + nome + ' com edição? O que você mudar fica na conta dele.')) return;
+    var orig = b.textContent; b.disabled = true; b.textContent = 'Abrindo…';
+    acao({ acao: 'abrir_como', user_id: id, modo: modo }).then(function (d) {
+      b.disabled = false; b.textContent = orig;
+      if (!d || !d.ok) return;
+      var s = d.sessao;
+      try {
+        localStorage.setItem('easyapp:sessao-suporte', JSON.stringify({ token: s.access_token, refresh: s.refresh_token, user_id: s.user.id,
+          expira: Date.now() + (Number(s.expires_in) || 3600) * 1000 }));
+        localStorage.setItem('easyapp:suporte-info', JSON.stringify({ modo: d.modo, nome: d.nome }));
+      } catch (e) { alert('O navegador não deixou guardar o acesso.'); return; }
+      fecharPeq();
+      telaSuporte(d.nome, d.modo);
+    }).catch(function (e) { alert(e.message); b.disabled = false; b.textContent = orig; });
+  };
+  f.querySelector('#gcVer').onclick = function () { abrirApp('leitura', this); };
+  f.querySelector('#gcEditar').onclick = function () { abrirApp('edicao', this); };
   mail.oninput = function () { bx.disabled = mail.value.trim().toLowerCase() !== String(p.email || '').toLowerCase(); };
   var rodar = function (b, corpo, texto, fim) {
     var orig = b.textContent; b.disabled = true; b.textContent = texto; res.textContent = '';

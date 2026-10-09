@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.14.1 \u00b7 09/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.15.0 \u00b7 09/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -101,7 +101,16 @@ window.pedirTexto = function (o, feito) {
      sessão em outra chave, para não trocar a sessão de quem usa o app neste
      navegador. */
   var CHAVE_SESSAO = window.EASYAPP_CHAVE_SESSAO =
+    /[?&]suporte=1(&|$)/.test(location.search) ? 'easyapp:sessao-suporte' :
     /[?&]demo=1(&|$)/.test(location.search) ? 'easyapp:sessao-demo' : 'easyapp:sessao';
+  /* Suporte (painel de gestão → "Abrir o app do cliente", Termos seção 7): o
+     app do cliente com a sessão dele numa chave própria. Em "leitura" nada
+     grava: o que não é consulta é recusado aqui, antes de sair do celular. */
+  var SUPORTE = window.EASYAPP_SUPORTE = /[?&]suporte=1(&|$)/.test(location.search)
+    ? (function () { try { return JSON.parse(localStorage.getItem('easyapp:suporte-info') || 'null') || { modo: 'leitura' }; } catch (e) { return { modo: 'leitura' }; } })()
+    : null;
+  var SO_LER = !!(SUPORTE && SUPORTE.modo !== 'edicao');
+  function recusaLeitura() { return Promise.reject(new Error('Modo só leitura: o painel abriu este app para ver, não para mudar.')); }
   function comSessao() {
     if (sessao) return Promise.resolve();
     return new Promise(function (r) { esperando.push(r); });
@@ -109,6 +118,12 @@ window.pedirTexto = function (o, feito) {
 
   function rest(caminho, opcoes) {
     opcoes = opcoes || {};
+    if (SO_LER) {
+      var mt = String(opcoes.metodo || 'GET').toUpperCase();
+      // consulta: GET e as funções de leitura (rpc); o resto grava
+      if (mt !== 'GET' && !(mt === 'POST' && /^\/rest\/v1\/rpc\//.test(caminho) && !/rpc\/(ativar|apagar|excluir|gravar|salvar|receber)/.test(caminho)))
+        return recusaLeitura();
+    }
     var h = {
       'apikey': ANON,
       'Content-Type': 'application/json',
@@ -4188,6 +4203,7 @@ window.pedirTexto = function (o, feito) {
      respondia 401 e o assistente dizia "Não consegui". Agora renova antes
      e, se mesmo assim vier 401, renova e tenta mais uma vez. */
   function chamar(nome, corpo, tentativa) {
+    if (SO_LER && !(nome === 'openfinance' && corpo && corpo.acao === 'status')) return recusaLeitura();
     return comSessao().then(emDia).then(function () {
       return fetch(URL_BASE + '/functions/v1/' + nome, { method: 'POST',
         headers: { 'apikey': ANON, 'Authorization': 'Bearer ' + sessao.token, 'Content-Type': 'application/json' },
@@ -4198,6 +4214,17 @@ window.pedirTexto = function (o, feito) {
     });
   }
 
+  if (SUPORTE) {
+    var faixa = function () {
+      if (document.getElementById('faixaSuporte')) return;
+      var f = document.createElement('div'); f.id = 'faixaSuporte';
+      f.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:30000;pointer-events:none;text-align:center;' +
+        'font:600 11.5px -apple-system,system-ui,sans-serif;padding:3px 8px;color:#fff;background:' + (SO_LER ? '#1d4ed8' : '#b45309');
+      f.textContent = '🛟 Suporte · app de ' + (SUPORTE.nome || 'cliente') + ' · ' + (SO_LER ? 'só leitura' : 'leitura e edição');
+      document.body.appendChild(f);
+    };
+    if (document.body) faixa(); else document.addEventListener('DOMContentLoaded', faixa);
+  }
   window.google = { script: { run: corredor(null, null), host: { setHeight: function () {} } } };
   window.EASYAPP_PONTE = { entrar: entrar, rest: rest, chamar: chamar, sessao: function () { return sessao; },
                            auth: auth, usarSessao: usarSessao, traduzErro: traduzErro,
@@ -4228,7 +4255,7 @@ window.pedirTexto = function (o, feito) {
   // site, que troca a senha (ou confirma o e-mail) ali mesmo.
   var SITE = 'https://easyappfinancial.com.br/';
   var PAGINA_SENHA = SITE + 'senha.html';
-  var VERSAO_TERMOS = '2026-10-02';             // a mesma de conta.js
+  var VERSAO_TERMOS = '2026-10-09';             // a mesma de conta.js
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -4660,6 +4687,7 @@ window.pedirTexto = function (o, feito) {
   }
 
   function primeiroAcesso(teste) {
+    if (window.EASYAPP_SUPORTE && !teste) return;   // suporte vê o app do cliente, não o roteiro
     TESTE = !!teste || /teste-primeiro-acesso/.test(location.hash);
     var s = P.sessao();
     if (!s) {                                 // simulação sem login (laboratório do painel de gestão)
@@ -6533,7 +6561,7 @@ window.pedirTexto = function (o, feito) {
   'use strict';
 
   var P = window.EASYAPP_PONTE, CFG = window.EASYAPP_CFG || {};
-  var VERSAO_TERMOS = '2026-10-02';
+  var VERSAO_TERMOS = '2026-10-09';
   var SITE = 'https://easyappfinancial.com.br/';
   /* A versão nova do APK sai daqui, direto de onde o build publica: o site só
      copiava de 5 em 5 minutos (e o GitHub atrasa esse relógio, às vezes meia
@@ -7343,6 +7371,7 @@ window.pedirTexto = function (o, feito) {
   function iniciar() {
     if (iniciado || !P.sessao()) return;
     iniciado = true;
+    if (window.EASYAPP_SUPORTE) { avisoReconectar(); return; }
     checarTermos().then(checarNome).then(function () {
       checarPlano();
       configurarLembrete(lembreteLigado());
@@ -7513,7 +7542,7 @@ window.pedirTexto = function (o, feito) {
   var bSim = document.getElementById('tSim'), bNao = document.getElementById('tNao');
   var verificando = false, saiuEm = null, oferecendo = false;
 
-  function ligada() { try { return localStorage.getItem(CHAVE) === 'sim'; } catch (e) { return false; } }
+  function ligada() { if (window.EASYAPP_SUPORTE) return false; try { return localStorage.getItem(CHAVE) === 'sim'; } catch (e) { return false; } }
   function gravar(v) { try { v ? localStorage.setItem(CHAVE, 'sim') : localStorage.removeItem(CHAVE); } catch (e) {} }
   function temSessao() { return !!(window.EASYAPP_PONTE && window.EASYAPP_PONTE.sessao()); }
 
