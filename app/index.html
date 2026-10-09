@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.13.4 \u00b7 09/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.13.5 \u00b7 09/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6832,9 +6832,10 @@ window.pedirTexto = function (o, feito) {
       document.head.appendChild(s);
     });
   }
-  function conectarBanco(depois) {
-    return Promise.all([fn('openfinance', { acao: 'token_conexao' }), carregarPluggy()]).then(function (r) {
-      var w = new window.PluggyConnect({
+  // itemId: reconectar um banco cujo acesso venceu ou deu erro (abre a Pluggy já nele)
+  function conectarBanco(depois, itemId) {
+    return Promise.all([fn('openfinance', itemId ? { acao: 'token_conexao', itemId: itemId } : { acao: 'token_conexao' }), carregarPluggy()]).then(function (r) {
+      var w = new window.PluggyConnect(Object.assign({
         connectToken: r[0].accessToken, includeSandbox: false,
         onSuccess: function (d) {
           var id = d && d.item && d.item.id; if (!id) return;
@@ -6845,7 +6846,7 @@ window.pedirTexto = function (o, feito) {
             .catch(function (e) { aviso(e.message); });
         },
         onError: function (e) { aviso('A Pluggy não conectou: ' + ((e && e.message) || 'tente de novo')); }
-      });
+      }, itemId ? { updateItem: itemId } : {}));
       w.init();
     });
   }
@@ -7041,7 +7042,8 @@ window.pedirTexto = function (o, feito) {
         // contrato do EasyAPP: é só escolher o banco na janela oficial
         (of.itens || []).forEach(function (i) {
           h += '<div class="c-lin"><span>🏦 ' + esc(i.banco || 'Banco') + (i.ultimo_erro ? '<br><small class="neg">' + esc(i.ultimo_erro) + '</small>' : '') + '</span><b style="font-weight:500;font-size:12px">' +
-            (i.ultima_sync ? 'atualizado ' + dataHora(i.ultima_sync) : 'aguardando') + '</b></div>';
+            (i.ultimo_erro ? '<button class="c-bt" data-reconectar="' + esc(i.item_id) + '" style="width:auto;margin:0;padding:7px 12px;font-size:13px">Reconectar</button>'
+              : (i.ultima_sync ? 'atualizado ' + dataHora(i.ultima_sync) : 'aguardando')) + '</b></div>';
         });
         h += '<div class="m" style="font-size:12px;margin:4px 0 6px">' + ((of.itens || []).length
             ? 'As transações chegam sozinhas, com 1 a 3 dias de atraso (o tempo do banco).'
@@ -7057,7 +7059,8 @@ window.pedirTexto = function (o, feito) {
       } else {
         (of.itens || []).forEach(function (i) {
           h += '<div class="c-lin"><span>🏦 ' + esc(i.banco || 'Banco') + (i.ultimo_erro ? '<br><small class="neg">' + esc(i.ultimo_erro) + '</small>' : '') + '</span><b style="font-weight:500;font-size:12px">' +
-            (i.ultima_sync ? 'atualizado ' + dataHora(i.ultima_sync) : 'aguardando') + '</b></div>';
+            (i.ultimo_erro ? '<button class="c-bt" data-reconectar="' + esc(i.item_id) + '" style="width:auto;margin:0;padding:7px 12px;font-size:13px">Reconectar</button>'
+              : (i.ultima_sync ? 'atualizado ' + dataHora(i.ultima_sync) : 'aguardando')) + '</b></div>';
         });
         if (!(of.itens || []).length) h += '<div class="m" style="font-size:12px">Conta Pluggy cadastrada. Agora conecte um banco.</div>';
         h += '<details class="c-passo" style="margin-top:10px"><summary>📖 Passo a passo e vídeo · como conectar mais bancos</summary>' + passos + '</details>';
@@ -7190,6 +7193,10 @@ window.pedirTexto = function (o, feito) {
         fn('openfinance', { acao: 'salvar', clientId: $('cCid').value, clientSecret: $('cCse').value }).then(re).catch(function (e) { erro(e.message); });
       });
       b('cOfConectar', function () { conectarBanco(re).catch(function (e) { erro(e.message); }); });
+      // acesso vencido ou com erro: reabre a Pluggy no próprio banco para autorizar de novo
+      Array.prototype.forEach.call(raiz.querySelectorAll('[data-reconectar]'), function (bt) {
+        bt.onclick = function () { conectarBanco(re, bt.dataset.reconectar).catch(function (e) { erro(e.message); }); };
+      });
       b('cOfSync', function () {
         erro('buscando...');
         fn('openfinance', { acao: 'sincronizar', forcar: true }).then(function (r) {
