@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.13.1 \u00b7 09/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.13.2 \u00b7 09/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -11646,32 +11646,40 @@ function renderPatrimonio(){
   // ---------- investimentos ----------
   h+=patTitulo('INV', 'Investimentos e reservas', moeda((p.totalInvestido||0)+(p.totalReservas||0)), ST.abrePatInv);
   if(ST.abrePatInv){
-    h+='<div class="row" style="gap:6px;margin:4px 0 8px">'+
-       '<button class="bt-ok" style="flex:1.3;font-size:12.5px" onclick="ST.invEdit=ST.invEdit===\'novo\'?null:\'novo\';ST.invNovo=null;ST.patNovo=null;renderPatrimonio()">+ aplicação</button>'+
-       '<button class="bt-no" style="flex:1;font-size:12.5px" onclick="ST.invEdit=null;patAbrirNovo(\'RESERVA\')">+ reserva</button></div>';
-    h+=blocoAplicacoes(p);
-    // reservas: troca do carro, viagem... cada um cria as suas
-    h+='<div class="lbl" style="margin:12px 0 6px">Reservas</div>';
-    h+=patLista(p.reservas||[], 'RESERVA');
-    if(ST.patNovo && ST.patNovo.tipo==='RESERVA') h+=patForm('RESERVA');
-    // o jeito antigo: conta de investimento (saldo pelos aportes) e valor digitado
-    var contas=p.contasInvestimento||[], manuais=p.investimentos||[];
-    h+='<div class="lbl" style="margin:12px 0 6px">Contas e valores digitados</div>';
-    if(contas.length){
-      h+='<div class="card" style="padding:4px 11px">'+
-        contas.map(function(x){
-          return '<div class="row" style="padding:7px 0;gap:8px"><span style="width:22px;text-align:center">🏦</span>'+
-            '<span style="flex:1;font-size:13px">'+tx(x.conta)+'<i class="sub">conta · saldo pelos aportes</i></span>'+
-            '<span class="num pos" style="font-weight:600">'+moeda(x.saldo)+'</span></div>';
-        }).join('')+'</div>';
+    /* Abas: Aplicações | Reservas. A escolhida fica marcada e só ela aparece;
+       o "+ nova" fica dentro da aba (antes os dois botões só abriam os
+       formulários e a tela mostrava tudo junto). */
+    var aba = ST.invAba || 'APL';
+    h+='<div class="seg" style="width:100%;margin:4px 0 10px">'+
+       '<button style="flex:1" class="'+(aba==='APL'?'on':'')+'" onclick="ST.invAba=\'APL\';ST.patNovo=null;ST.patContaNova=false;renderPatrimonio()">📈 Aplicações</button>'+
+       '<button style="flex:1" class="'+(aba==='RES'?'on':'')+'" onclick="ST.invAba=\'RES\';ST.invEdit=null;ST.invNovo=null;ST.patContaNova=false;if(ST.patNovo&&ST.patNovo.tipo!==\'RESERVA\')ST.patNovo=null;renderPatrimonio()">🎯 Reservas</button></div>';
+    if(aba==='RES'){
+      // reservas: troca do carro, viagem... cada um cria as suas
+      h+=patLista(p.reservas||[], 'RESERVA');
+      if(ST.patNovo && ST.patNovo.tipo==='RESERVA') h+=patForm('RESERVA');
+      else h+='<button class="bt-ok" style="width:100%;margin-top:8px;font-size:13px" onclick="patAbrirNovo(\'RESERVA\')">+ reserva</button>';
+    } else {
+      if(ST.invEdit!=='novo') h+='<button class="bt-ok" style="width:100%;margin:0 0 8px;font-size:13px" onclick="ST.invEdit=\'novo\';ST.invNovo=null;ST.patNovo=null;renderPatrimonio()">+ aplicação</button>';
+      h+=blocoAplicacoes(p);
+      // o jeito antigo: conta de investimento (saldo pelos aportes) e valor digitado
+      var contas=p.contasInvestimento||[], manuais=p.investimentos||[];
+      if(contas.length || manuais.length) h+='<div class="lbl" style="margin:12px 0 6px">Contas e valores digitados</div>';
+      if(contas.length){
+        h+='<div class="card" style="padding:4px 11px">'+
+          contas.map(function(x){
+            return '<div class="row" style="padding:7px 0;gap:8px"><span style="width:22px;text-align:center">🏦</span>'+
+              '<span style="flex:1;font-size:13px">'+tx(x.conta)+'<i class="sub">conta · saldo pelos aportes</i></span>'+
+              '<span class="num pos" style="font-weight:600">'+moeda(x.saldo)+'</span></div>';
+          }).join('')+'</div>';
+      }
+      if(manuais.length) h+=patLista(manuais, 'INVESTIMENTO');
+      if(ST.patNovo && ST.patNovo.tipo==='INVESTIMENTO') h+=patForm('INVESTIMENTO');
+      if(ST.patContaNova) h+=patFormConta();
+      h+='<div class="row" style="gap:6px;margin:6px 0 4px">'+
+         '<button class="bt-no" style="flex:1;font-size:12px;padding:6px" '+
+           'onclick="ST.patContaNova=!ST.patContaNova;ST.patNovo=null;renderPatrimonio()">+ conta de investimento</button>'+
+         '<button class="bt-no" style="flex:1;font-size:12px;padding:6px" onclick="patAbrirNovo(\'INVESTIMENTO\')">+ valor digitado</button></div>';
     }
-    if(manuais.length) h+=patLista(manuais, 'INVESTIMENTO');
-    if(ST.patNovo && ST.patNovo.tipo==='INVESTIMENTO') h+=patForm('INVESTIMENTO');
-    if(ST.patContaNova) h+=patFormConta();
-    h+='<div class="row" style="gap:6px;margin:6px 0 4px">'+
-       '<button class="bt-no" style="flex:1;font-size:12px;padding:6px" '+
-         'onclick="ST.patContaNova=!ST.patContaNova;ST.patNovo=null;renderPatrimonio()">+ conta de investimento</button>'+
-       '<button class="bt-no" style="flex:1;font-size:12px;padding:6px" onclick="patAbrirNovo(\'INVESTIMENTO\')">+ valor digitado</button></div>';
   }
   h+='<div style="height:20px"></div>';
   c.innerHTML=h;
