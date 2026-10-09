@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.13.5 \u00b7 09/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.14.0 \u00b7 09/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6846,9 +6846,39 @@ window.pedirTexto = function (o, feito) {
             .catch(function (e) { aviso(e.message); });
         },
         onError: function (e) { aviso('A Pluggy não conectou: ' + ((e && e.message) || 'tente de novo')); }
-      }, itemId ? { updateItem: itemId } : {}));
+      }, itemId ? { updateItem: itemId } : r[0].connectorId ? { selectedConnectorId: r[0].connectorId } : {}));
       w.init();
     });
+  }
+  /* Banco que pediu para autorizar de novo: uma faixa na tela com o botão
+     Reconectar (antes a pessoa só via o erro se abrisse Minha conta). */
+  function avisoReconectar() {
+    fn('openfinance', { acao: 'status' }).then(function (s) {
+      var l = ((s && s.itens) || []).filter(function (i) { return i.ultimo_erro; });
+      if (!l.length || $('cReconectar')) return;
+      var f = document.createElement('div');
+      f.id = 'cReconectar';
+      f.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:8990;' +
+        'background:#7c2d12;color:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 8px 24px #0009;font:14px -apple-system,system-ui,sans-serif';
+      f.innerHTML = '<b>🏦 ' + esc(l.map(function (i) { return i.banco || 'Banco'; }).join(', ')) + ': reconecte o Open Finance</b>' +
+        '<div style="font-size:12.5px;opacity:.9;margin:3px 0 10px">O banco pediu para autorizar de novo. Sem isso as transações param de chegar.</div>' +
+        '<div style="display:flex;gap:8px"><button id="cRecSim" style="flex:1;padding:10px;border:0;border-radius:10px;background:#f97316;color:#fff;font-weight:700">Reconectar</button>' +
+        '<button id="cRecNao" style="flex:none;padding:10px 14px;border:0;border-radius:10px;background:transparent;color:#fed7aa">Depois</button></div>';
+      document.body.appendChild(f);
+      $('cRecNao').onclick = function () { f.remove(); };
+      $('cRecSim').onclick = function () {
+        f.remove();
+        conectarBanco(function () {}, l[0].item_id).catch(function (e) { aviso(e.message); });
+      };
+    }).catch(function () {});
+  }
+  // depois do primeiro acesso ("configurar a automação agora"): com o contrato
+  // do EasyAPP, a janela do banco já abre - é um toque só
+  function conectarDireto() {
+    return fn('openfinance', { acao: 'status' }).then(function (s) {
+      if (s && s.modo === 'easyapp' && !(s.itens || []).length) return conectarBanco(function () {}).then(function () { return true; });
+      return false;
+    }).catch(function () { return false; });
   }
   // ao abrir ou voltar para o app, no máximo a cada 15 minutos. Só lê o que a
   // Pluggy já tem; pedir dado novo ao banco continua no máximo a cada 2 horas
@@ -7293,6 +7323,7 @@ window.pedirTexto = function (o, feito) {
       checarPlano();
       configurarLembrete(lembreteLigado());
       autoOpenFinance();
+      avisoReconectar();
       checarVersao();
     });
   }
@@ -7423,7 +7454,7 @@ window.pedirTexto = function (o, feito) {
     vai(0);
   }
 
-  window.EASYAPP_CONTA = { render: render, iniciar: iniciar, conectarBanco: conectarBanco, tutorialPluggy: tutorialPluggy };
+  window.EASYAPP_CONTA = { render: render, iniciar: iniciar, conectarBanco: conectarBanco, tutorialPluggy: tutorialPluggy, conectarDireto: conectarDireto };
   if (P.sessao()) setTimeout(iniciar, 600);
 })();
 </script>
@@ -13220,7 +13251,10 @@ carregar(mesDeHoje());
 // fim do primeiro acesso com "configurar a automação agora": abre Config → Minha conta
 (function(){
   var f=''; try{ f=sessionStorage.getItem('easyapp:depois-boas')||''; sessionStorage.removeItem('easyapp:depois-boas'); }catch(e){}
-  if(f==='automacao') setTimeout(function(){ ST.modoCfg='CONTA'; irParaTela('config'); }, 900);
+  if(f==='automacao') setTimeout(function(){
+    ST.modoCfg='CONTA'; irParaTela('config');
+    if(window.EASYAPP_CONTA && window.EASYAPP_CONTA.conectarDireto) window.EASYAPP_CONTA.conectarDireto();
+  }, 900);
 })();
 // Sem recarregamento automatico: ele atrapalhava no meio da classificacao.
 // Use o botao de atualizar no canto superior direito.
