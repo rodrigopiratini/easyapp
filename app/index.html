@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.13.0 \u00b7 09/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.13.1 \u00b7 09/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10868,17 +10868,10 @@ function abrirEditar(id, linha){
 
   el('edForm').innerHTML =
     '<div class="lbl" style="margin-bottom:8px">Editar lançamento manual</div>'+
-    '<div class="lbl">Descrição</div><input id="edDesc" value="'+
+    '<div class="lbl">É</div>'+
+    segEscolha('edNat', receita?'RECEITA':'DESPESA', ['DESPESA','RECEITA'], ROT_TIPO)+
+    '<div class="lbl" style="margin-top:8px">Descrição</div><input id="edDesc" value="'+
       String(x.fornecedor||'').replace(/"/g,'&quot;')+'">'+
-    '<div class="row" style="gap:8px;margin-top:8px">'+
-      '<div style="flex:1"><div class="lbl">Valor</div>'+
-        '<input id="edVal" inputmode="decimal" value="'+num(valor)+'" oninput="mascaraMoeda(this)"></div>'+
-      '<div style="flex:1"><div class="lbl">Data</div>'+
-        '<input id="edData" type="date" value="'+iso+'"></div></div>'+
-    '<div class="lbl" style="margin-top:8px" id="edRotOnde">'+(receita?'Recebeu em':'Pagou com')+'</div>'+
-    botaoEscolha('edOnde', atual, 'escolher…', 'onde', ondeItens(), '')+
-    '<div class="lbl" style="margin-top:8px">É</div>'+
-    segEscolha('edNat', receita?'RECEITA':'DESPESA', ['DESPESA','RECEITA'])+
     '<div class="lbl" style="margin-top:9px">Conta</div>'+
     '<input type="hidden" id="edCat" value="'+String(x.categoria||'').replace(/"/g,'&quot;')+'">'+
     // a lista de contas segue o "É": receita mostra as contas de receita
@@ -10886,6 +10879,12 @@ function abrirEditar(id, linha){
       (x.categoria ? ponto(familiaDe(x.categoria))+x.categoria
                    : '<span style="color:var(--dim)">escolher conta…</span>')+
       '<span style="margin-left:auto;color:var(--dim)">&#9662;</span></button>'+
+    '<div class="lbl" style="margin-top:8px">Valor</div>'+
+      '<input id="edVal" inputmode="decimal" value="'+num(valor)+'" oninput="mascaraMoeda(this)">'+
+    '<div class="lbl" style="margin-top:8px" id="edRotOnde">'+(receita?'Entrou em':'Saiu de')+'</div>'+
+    botaoEscolha('edOnde', atual, 'escolher…', 'onde', ondeItens(), '')+
+    '<div class="lbl" style="margin-top:8px">Data</div>'+
+      '<input id="edData" type="date" value="'+iso+'">'+
     '<div class="row" style="margin-top:12px;gap:8px">'+
       '<button class="bt-no" style="flex:1" onclick="fecharEditar()">Cancelar</button>'+
       '<button class="bt-ok" style="flex:2" onclick="salvarEditado()">Salvar</button></div>';
@@ -11292,19 +11291,22 @@ function renderNovo(){
         'onclick="irParaTela(ST.telaAnterior||\'mes\')">&#8592; voltar</button>'+
       '<div class="lbl" style="margin:0">Lançar à mão</div></div>'+
     '<div class="card">'+
-    '<div class="lbl">Valor</div>'+
+    // a ordem de quem anota: o que é, o que foi, em que conta, quanto, de qual banco, quando
+    '<div class="lbl">É</div>'+
+    segEscolha('nTipo', 'DESPESA', ['DESPESA','RECEITA','TRANSFERENCIA'], ROT_TIPO)+
+    '<div class="lbl" style="margin-top:12px">Descrição</div><input id="nd" placeholder="Ex: farmácia">'+
+    '<div id="ncBox"><div class="lbl" style="margin-top:12px">Conta</div>'+
+    '<input type="hidden" id="nc" value="">'+
+    '<button class="bt-conta" id="btn_nc" onclick="abrirPicker(\'nc\',el(\'nTipo\').value,\'mudouCatNovo()\')">'+
+      '<span style="color:var(--dim)">escolher conta…</span>'+
+      '<span style="margin-left:auto;color:var(--dim)">&#9662;</span></button></div>'+
+    '<div class="lbl" style="margin-top:12px">Valor</div>'+
     '<input id="nv" type="text" inputmode="decimal" placeholder="0,00" '+
       'oninput="mascaraMoeda(this)">'+
-    '<div class="lbl" style="margin-top:12px">Descrição</div><input id="nd" placeholder="Ex: farmácia">'+
-    '<div class="lbl" style="margin-top:12px">Conta</div>'+
-    '<input type="hidden" id="nc" value="">'+
-    '<button class="bt-conta" id="btn_nc" onclick="abrirPicker(\'nc\',\'TODAS\',\'mudouCatNovo()\')">'+
-      '<span style="color:var(--dim)">escolher conta…</span>'+
-      '<span style="margin-left:auto;color:var(--dim)">&#9662;</span></button>'+
-    '<div class="lbl" style="margin-top:12px" id="rotOnde">Pagou com</div>'+
-    botaoEscolha('nonde', '', 'escolher…', 'onde', ondeItens(), '')+
+    '<div class="lbl" style="margin-top:12px" id="rotOnde">Saiu de</div>'+
+    botaoEscolha('nonde', '', 'escolher o banco ou cartão…', 'onde', ondeItens(), '')+
     '<div id="nparaBox" class="hide">'+
-      '<div class="lbl" style="margin-top:12px">Entrou em qual conta</div>'+
+      '<div class="lbl" style="margin-top:12px">Entrou em</div>'+
       botaoEscolha('npara', '', 'escolher…', 'conta',
                    ((ST.saldos&&ST.saldos.contas)||[]).map(function(c){
                      return { valor:c.conta, rotulo:c.conta, grupo:c.titular }; }), '')+
@@ -11392,12 +11394,26 @@ function importarFatura(){
 }
 
 function mudouCatNovo(){
-  var ehTransf = el('nc') && el('nc').value===CAT_TRANSFER;
+  var ehTransf = (el('nTipo') && el('nTipo').value==='TRANSFERENCIA') || (el('nc') && el('nc').value===CAT_TRANSFER);
   var box=el('nparaBox'), rot=el('rotOnde');
   if(box) box.classList.toggle('hide', !ehTransf);
-  var ehRec = !ehTransf && el('nc') && el('nc').value && catNatureza(el('nc').value)==='RECEITA';
-  if(rot) rot.textContent = ehTransf ? 'Saiu de qual conta' : ehRec ? 'Entrou em qual conta' : 'Pagou com';
+  var ehRec = !ehTransf && el('nTipo') && el('nTipo').value==='RECEITA';
+  if(rot) rot.textContent = ehTransf ? 'Saiu de' : ehRec ? 'Entrou em' : 'Saiu de';
   sugerirOnde();
+}
+/* Débito, crédito ou transferência: a lista de contas segue o tipo; na
+   transferência a conta é a de transferência e pede os dois bancos. */
+function novoTipoMudou(t){
+  var c=el('nc'), b=el('btn_nc'), box=el('ncBox');
+  if(t==='TRANSFERENCIA'){ c.value=CAT_TRANSFER; if(box) box.classList.add('hide'); }
+  else {
+    if(box) box.classList.remove('hide');
+    if(c.value && (c.value===CAT_TRANSFER || !serveParaNatureza({ natureza: catNatureza(c.value) }, t))){
+      c.value='';
+      if(b) b.innerHTML='<span style="color:var(--dim)">escolher conta…</span><span style="margin-left:auto;color:var(--dim)">&#9662;</span>';
+    }
+  }
+  mudouCatNovo();
 }
 /* Por onde cada conta costuma passar (ONDE_PAGA, do primeiro acesso): ao
    escolher a conta, o "Pagou com" já vem preenchido - se ainda estiver vazio. */
@@ -11432,10 +11448,11 @@ function salvarNovo(){
   if(!v || isNaN(v)){ toast('Informe o valor'); el('nv').focus(); return; }
   var cat=(el('nc')&&el('nc').value)||'';
   if(!cat){ toast('Escolha a conta'); return; }
-  var nat=catNatureza(cat)||'DESPESA';
+  var tipoN=(el('nTipo')&&el('nTipo').value)||'';
+  var nat=(tipoN==='RECEITA'||tipoN==='DESPESA') ? tipoN : (catNatureza(cat)||'DESPESA');
 
   var onde=(el('nonde')&&el('nonde').value)||'';
-  if(!onde){ toast(nat==='RECEITA' ? 'Diga em qual conta entrou' : 'Diga se pagou com cartão ou pela conta'); return; }
+  if(!onde){ toast(nat==='RECEITA' ? 'Diga em qual banco entrou' : 'Diga de qual banco ou cartão saiu'); return; }
   var ehCartao = onde.charAt(0)==='C';
   var alvo = onde.slice(2);
 
@@ -12759,14 +12776,14 @@ function cfgEditar(nome){
 }
 
 /* Duas ou tres opcoes nao merecem uma folha inteira: viram um segmento. */
-function segEscolha(id, valor, opcoes){
+function segEscolha(id, valor, opcoes, rotulos){
   return '<input type="hidden" id="'+id+'" value="'+valor+'">'+
     '<div class="seg" style="width:100%" id="seg_'+id+'">'+
     opcoes.map(function(o){
       return '<button style="flex:1;min-width:0;padding-left:2px;padding-right:2px'+(opcoes.length>3?';font-size:11.5px':'')+'" '+
         'data-v="'+o+'" class="'+(o===valor?'on':'')+'" '+
         'onclick="escolherSeg(\''+id+'\',\''+o+'\')">'+
-        (SEG_ROTULO[o] || o.charAt(0)+o.slice(1).toLowerCase())+'</button>';
+        ((rotulos&&rotulos[o]) || SEG_ROTULO[o] || o.charAt(0)+o.slice(1).toLowerCase())+'</button>';
     }).join('')+'</div>';
 }
 var SEG_ROTULO={ TRANSFERENCIA:'Transferência', INVESTIMENTO:'Investimento', NAO:'Não' };
@@ -12777,12 +12794,14 @@ function escolherSeg(id, valor){
     b.classList.toggle('on', b.getAttribute('data-v')===valor);
   });
   if(id==='edNat') edNatMudou(valor);
+  if(id==='nTipo') novoTipoMudou(valor);
 }
+var ROT_TIPO={ DESPESA:'Débito', RECEITA:'Crédito', TRANSFERENCIA:'Transferência' };
 /* Editar lançamento: virou receita, o rótulo é "Recebeu em" e a conta tem que
    ser de receita. Um crédito numa conta de despesa entrava no Mês junto com os
    débitos (REEMBOLSOS DIVERSOS com -R$ 2.000). */
 function edNatMudou(nat){
-  var r=el('edRotOnde'); if(r) r.textContent = nat==='RECEITA' ? 'Recebeu em' : 'Pagou com';
+  var r=el('edRotOnde'); if(r) r.textContent = nat==='RECEITA' ? 'Entrou em' : 'Saiu de';
   var c=el('edCat'), b=el('btn_edCat');
   if(c && c.value && !serveParaNatureza({ natureza: catNatureza(c.value) }, nat)){
     c.value='';
