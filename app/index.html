@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.14.0 \u00b7 09/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.14.1 \u00b7 09/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6915,7 +6915,7 @@ window.pedirTexto = function (o, feito) {
     Promise.all([
       lerConta().catch(function () { return null; }),
       fn('openfinance', { acao: 'status' }).catch(function () { return null; }),
-      P.rest('/rest/v1/push_log?select=recebido,status,corpo&order=recebido.desc&limit=6').catch(function () { return []; }),
+      P.rest('/rest/v1/push_log?select=recebido,status,corpo&order=recebido.desc&limit=15').catch(function () { return []; }),
       token().catch(function () { return null; })
     ]).then(function (R) {
       var c = R[0] || {}, of = R[1], tk = R[3];
@@ -7122,10 +7122,27 @@ window.pedirTexto = function (o, feito) {
           var pz = String(c.posted || ''), t0 = /^\d{13}$/.test(pz) ? +pz : /^\d{10}$/.test(pz) ? pz * 1000 : 0;
           var atraso = t0 ? Math.round((d.getTime() - t0) / 60e3) : 0;
           if (atraso >= 1 && atraso < 1440) st += '<br><small style="color:' + (atraso >= 5 ? 'var(--warn)' : 'var(--dim)') + '">chegou ' + atraso + ' min depois</small>';
-          return '<div class="c-lin"><span>' + ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + ' ' +
+          // o detalhe: valor e o texto inteiro da notificação; o que não virou
+          // lançamento (ignorado, repetido, já veio do banco) pode ser lançado à mão
+          var txt = String((c.title || '') + ' ' + (c.text || '')).trim();
+          var mv = txt.match(/R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})/i);
+          var val = c.valor != null && c.valor !== '' ? Number(c.valor) : mv ? Number(mv[1].replace(/\./g, '').replace(',', '.')) : 0;
+          var entrou = /receb|recebeu|credit|entrada|deposit|estorno|reembolso/i.test(txt);
+          var naoEntrou = /^IGNORADA|DUPLICADA|JA VEIO/.test(x.status || '');
+          var quando = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+          return '<details class="c-aviso" style="border-bottom:1px solid var(--line)"><summary class="c-lin" style="list-style:none;cursor:pointer;border:0"><span>' +
+            ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + ' ' +
             ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) +
-            '<br><small style="color:var(--dim)">' + esc(String(c.title || c.estabelecimento || c.app || '').slice(0, 40)) + '</small></span>' +
-            '<span style="text-align:right;font-size:12px">' + st + '</span></div>';
+            (val ? ' · <b>' + (entrou ? '+' : '−') + reais(val) + '</b>' : '') +
+            '<br><small style="color:var(--dim)">' + esc(String(c.title || c.estabelecimento || c.app || '').slice(0, 40)) + ' ▾</small></span>' +
+            '<span style="text-align:right;font-size:12px">' + st + '</span></summary>' +
+            '<div style="font-size:12px;color:var(--dim);padding:0 0 10px;line-height:1.45">' +
+              (c.app ? '<b>' + esc(c.app) + '</b> · ' : '') + esc(txt || c.estabelecimento || '(sem texto)') +
+              (x.status === 'JA VEIO DO BANCO' ? '<br>O Open Finance já tinha um lançamento de mesmo valor nesta conta, por isso não lançou de novo.' : '') +
+              (/DUPLICADA/.test(x.status || '') ? '<br>Chegou outro aviso igual pouco antes, por isso não lançou de novo.' : '') +
+              (naoEntrou && val ? '<br><button class="c-bt sec" style="width:auto;margin-top:8px;padding:8px 12px;font-size:12.5px" data-lancaraviso="' +
+                esc(JSON.stringify({ v: val, r: entrou, d: quando, t: String(c.title || c.text || '').slice(0, 60) })) + '">Lançar mesmo assim</button>' : '') +
+            '</div></details>';
         }).join('') : '<div class="m" style="font-size:12px;margin-top:6px">Nenhum aviso chegou ainda.</div>') +
         '</details>';
       if (nativo) {
@@ -7223,6 +7240,13 @@ window.pedirTexto = function (o, feito) {
         fn('openfinance', { acao: 'salvar', clientId: $('cCid').value, clientSecret: $('cCse').value }).then(re).catch(function (e) { erro(e.message); });
       });
       b('cOfConectar', function () { conectarBanco(re).catch(function (e) { erro(e.message); }); });
+      // aviso que não virou lançamento: abre o "lançar à mão" já preenchido
+      Array.prototype.forEach.call(raiz.querySelectorAll('[data-lancaraviso]'), function (bt) {
+        bt.onclick = function () {
+          var o = {}; try { o = JSON.parse(bt.dataset.lancaraviso); } catch (e) {}
+          if (typeof window.lancarPreenchido === 'function') window.lancarPreenchido(o.r ? 'RECEITA' : 'DESPESA', o.v, o.t, o.d);
+        };
+      });
       // acesso vencido ou com erro: reabre a Pluggy no próprio banco para autorizar de novo
       Array.prototype.forEach.call(raiz.querySelectorAll('[data-reconectar]'), function (bt) {
         bt.onclick = function () { conectarBanco(re, bt.dataset.reconectar).catch(function (e) { erro(e.message); }); };
@@ -11444,6 +11468,17 @@ function mudouCatNovo(){
   if(rot) rot.textContent = ehTransf ? 'Saiu de' : ehRec ? 'Entrou em' : 'Saiu de';
   sugerirOnde();
 }
+/* Lançar à mão já preenchido (vindo de um aviso do celular que não virou
+   lançamento): tipo, valor, descrição e data; falta só a conta e o banco. */
+window.lancarPreenchido=function(tipo, valor, descr, data){
+  abrirLancar();
+  setTimeout(function(){
+    if(el('nTipo')) escolherSeg('nTipo', tipo);
+    if(el('nv')) el('nv').value = num(valor);
+    if(el('nd')) el('nd').value = String(descr||'').replace(/[!]+$/,'');
+    if(el('nda') && /^\d{4}-\d{2}-\d{2}$/.test(data||'')) el('nda').value = data;
+  }, 60);
+};
 /* Débito, crédito ou transferência: a lista de contas segue o tipo; na
    transferência a conta é a de transferência e pede os dois bancos. */
 function novoTipoMudou(t){
