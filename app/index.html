@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.13.2 \u00b7 09/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.13.3 \u00b7 09/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -7065,7 +7065,7 @@ window.pedirTexto = function (o, feito) {
         h += '<div class="c-bts">' +
           ((of.itens || []).length ? '<button class="c-bt" id="cOfSync">↻ Atualizar agora</button>' : '') +
           '<button class="c-bt' + ((of.itens || []).length ? ' sec' : '') + '" id="cOfConectar">+ conectar banco</button></div>' +
-          '<div class="c-bts"><button class="c-bt sec" id="cOfMeu">Abrir meu.pluggy.ai</button>' +
+          '<div class="c-bts"><button class="c-bt sec" id="cOfMeu">＋ Conectar mais bancos</button>' +
           '<button class="c-bt sec" id="cOfRemover">Remover</button></div>' +
           '<div class="m" style="font-size:11.5px;margin-top:6px">Ligou um banco novo no meu.pluggy.ai? Toque em <b>Atualizar agora</b>: o app procura as conexões novas. ' +
           'Se ele não aparecer, toque em <b>+ conectar banco</b>, escolha <b>MeuPluggy</b> e autorize o banco novo.</div>' +
@@ -7178,7 +7178,8 @@ window.pedirTexto = function (o, feito) {
       });
       b('cPluggySite', function (e) { e.preventDefault(); abrirFora('https://dashboard.pluggy.ai'); });
       b('cMeuPluggy', function (e) { e.preventDefault(); abrirFora('https://meu.pluggy.ai'); });
-      b('cOfMeu', function () { abrirFora('https://meu.pluggy.ai'); });
+      // direto na página de conexões (Data Passport → + Nova conexão), não na inicial
+      b('cOfMeu', function () { abrirFora('https://meu.pluggy.ai/connections'); });
       b('cOfVideo', function () { tutorialPluggy(); });
       b('cOfSalvar', function () {
         erro('salvando...');
