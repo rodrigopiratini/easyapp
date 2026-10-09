@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.13.3 \u00b7 09/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.13.4 \u00b7 09/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -7061,14 +7061,18 @@ window.pedirTexto = function (o, feito) {
         });
         if (!(of.itens || []).length) h += '<div class="m" style="font-size:12px">Conta Pluggy cadastrada. Agora conecte um banco.</div>';
         h += '<details class="c-passo" style="margin-top:10px"><summary>📖 Passo a passo e vídeo · como conectar mais bancos</summary>' + passos + '</details>';
-        // conectado: o atalho é o meu.pluggy.ai (onde se liga mais um banco); depois "+ conectar banco" autoriza aqui
-        h += '<div class="c-bts">' +
-          ((of.itens || []).length ? '<button class="c-bt" id="cOfSync">↻ Atualizar agora</button>' : '') +
-          '<button class="c-bt' + ((of.itens || []).length ? ' sec' : '') + '" id="cOfConectar">+ conectar banco</button></div>' +
-          '<div class="c-bts"><button class="c-bt sec" id="cOfMeu">＋ Conectar mais bancos</button>' +
-          '<button class="c-bt sec" id="cOfRemover">Remover</button></div>' +
-          '<div class="m" style="font-size:11.5px;margin-top:6px">Ligou um banco novo no meu.pluggy.ai? Toque em <b>Atualizar agora</b>: o app procura as conexões novas. ' +
-          'Se ele não aparecer, toque em <b>+ conectar banco</b>, escolha <b>MeuPluggy</b> e autorize o banco novo.</div>' +
+        // banco novo: três passos, na ordem, cada um num botão (antes eram três
+        // botões soltos e não dava para saber a sequência)
+        var passo = function (n, id, titulo, dica, prim) {
+          return '<button class="c-bt' + (prim ? '' : ' sec') + '" id="' + id + '" style="width:100%;text-align:left;margin:0 0 6px;padding:11px 12px">' +
+            '<b style="display:block;font-size:14.5px">' + n + ' · ' + titulo + '</b>' +
+            '<span style="display:block;font-size:11.5px;font-weight:400;opacity:.8;margin-top:2px">' + dica + '</span></button>';
+        };
+        h += '<div class="lbl" style="margin:12px 0 6px">Banco novo? Siga os 3 passos</div>' +
+          passo(1, 'cOfMeu', 'Incluir o banco no meu.pluggy.ai', 'abre a página Conexões: toque em + Nova conexão e autorize no app do banco', true) +
+          passo(2, 'cOfConectar', 'Liberar o acesso para o EasyAPP', 'na janela que abre, escolha MeuPluggy e autorize (é aqui que o EasyAPP passa a ver o banco)', true) +
+          passo(3, 'cOfSync', 'Atualizar agora', 'traz as transações do banco novo (e de todos)', true) +
+          '<div class="c-bts" style="margin-top:4px"><button class="c-bt sec" id="cOfRemover" style="font-size:12.5px">Desconectar os bancos</button></div>' +
           '<div class="c-erro" id="cOfErro"></div>';
       }
       h += '</div>';
