@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.15.0 \u00b7 09/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.16.0 \u00b7 10/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -11868,7 +11868,10 @@ function patLista(lista, tipo){
       if(d.ate) sub.push('até '+patMesTxt(d.ate));
     } else if(tipo==='RESERVA'){
       ic=patCat(PAT_RESERVAS, d.para)[1];
-      if(d.meta) sub.push('meta '+mil(d.meta)+(d.ate?' em '+patMesTxt(d.ate):''));
+      if(d.meta){
+        var rj=(d.reaj!==undefined&&d.reaj!=='')?Number(d.reaj)/100:resInflacao(), nm=patMesesAte(d.ate||'');
+        sub.push('meta '+mil(d.meta)+(d.ate?' em '+patMesTxt(d.ate):'')+(rj&&nm>0?' (vira '+mil(resMetaFut(d.meta,nm,rj))+')':''));
+      }
       if(d.mensal) sub.push(num(d.mensal)+'/mês');
       sub.push(d.noFluxo?'no fluxo do mês':'fora do fluxo');
     } else {
@@ -11960,6 +11963,8 @@ function patForm(tipo, b){
             campo('Até quando', inp('pfAte', isoMes(d.ate), 'MM/AAAA', 'numeric', ' maxlength="7" oninput="mascaraMesAno(this);patCalcReserva(this)"')))+
       linha(campo('Já guardado', inp('pfVal', b.valor?num(b.valor):'', '0,00', 'decimal', ' oninput="mascaraMoeda(this);patCalcReserva(this)"')),
             campo('Guardar por mês', inp('pfMensal', d.mensal?num(d.mensal):'', '0,00', 'decimal', ' oninput="mascaraMoeda(this);patCalcReserva(this)"')))+
+      linha(campo('Reajuste da meta (% ao ano)', inp('pfReaj', d.reaj!==undefined&&d.reaj!==''?pctTxt(d.reaj):'', 'inflação '+pctTxt(resInflacao()*100), 'decimal', ' oninput="mascaraPct(this);patCalcReserva(this)"')),
+            campo('O guardado rende (% ao ano)', inp('pfRend', d.rend!==undefined&&d.rend!==''?pctTxt(d.rend):'', resTaxaAplic(b.descricao)!==null?'aplicações '+pctTxt(resTaxaAplic(b.descricao)*100):'0% (parado)', 'decimal', ' oninput="mascaraPct(this);patCalcReserva(this)"')))+
       '<div id="pfResInfo" class="m" style="font-size:11.5px;margin:-2px 0 8px">preencha dois entre meta, prazo e valor por mês: o terceiro sai sozinho</div>'+
       '<div class="lbl" style="font-size:10px">Considerar no fluxo do mês?</div>'+
       segEscolha('pfFluxo', d.noFluxo===false?'NAO':'SIM', ['SIM','NAO'])+
@@ -11990,6 +11995,44 @@ function patMesMais(n){
   var h=mesDeHoje(), a=Number(h.slice(0,4)), m=Number(h.slice(5))+n-1;
   a+=Math.floor((m-1)/12); m=((m-1)%12)+1; return ('0'+m).slice(-2)+'/'+a;
 }
+/* Reserva com reajuste e rendimento. A META é em dinheiro de hoje e encarece
+   com o reajuste até a data (o carro de 80 mil custa mais em 2029); o JÁ
+   GUARDADO e cada mês guardado rendem pela taxa do guardado. Reajuste vazio
+   = a inflação dos Ajustes; rendimento vazio = o das aplicações ligadas à
+   reserva, senão zero (dinheiro parado). */
+function resInflacao(){
+  if(ST.inflacaoCfg===undefined){
+    ST.inflacaoCfg=0.045;
+    ponteRest('/rest/v1/config?select=valor&chave=eq.INFLACAO').then(function(r){
+      var v=parseFloat(String((r&&r[0]&&r[0].valor)||'').replace(',','.'));
+      if(v>0) ST.inflacaoCfg = v>1 ? v/100 : v;
+    }).catch(function(){});
+  }
+  return ST.inflacaoCfg;
+}
+function resTaxaAplic(nome){
+  var L=((ST.patrimonio&&ST.patrimonio.inv&&ST.patrimonio.inv.posicoes)||[]).filter(function(x){
+    return x.objetivo==='RESERVA' && x.reserva===nome && x.taxaAno!==null && x.taxaAno!==undefined; });
+  if(!L.length) return null;
+  var p=0, s=0; L.forEach(function(x){ var w=Math.max(1, x.valor||0); p+=w; s+=w*x.taxaAno; });
+  return s/p;
+}
+function resTaxas(nome){
+  // os campos são em "por cento" (4,5 = 4,5%); a conta usa fração
+  var a=patPct('pfReaj'), r=patPct('pfRend'), ap=resTaxaAplic(nome);
+  return { reaj: a==='' ? resInflacao() : a/100, rend: r==='' ? (ap!==null?ap:0) : r/100 };
+}
+// meta de hoje corrigida até daqui a n meses
+function resMetaFut(meta, n, reaj){ return meta*Math.pow(1+reaj, n/12); }
+// quanto o guardado e os depósitos viram em n meses
+function resJuntado(guard, mensal, n, rend){
+  var i=Math.pow(1+rend, 1/12)-1, f=Math.pow(1+i, n);
+  return guard*f + mensal*(i>0 ? (f-1)/i : n);
+}
+function resMensal(meta, guard, n, reaj, rend){
+  var i=Math.pow(1+rend, 1/12)-1, f=Math.pow(1+i, n), falta=resMetaFut(meta,n,reaj)-guard*f;
+  return falta<=0 ? 0 : falta/(i>0 ? (f-1)/i : n);
+}
 function patCalcReserva(campo){
   ST.resOrdem=(ST.resOrdem||[]).filter(function(x){ return x!==campo.id; });
   if(campo.id!=='pfVal'){ campo.removeAttribute('data-auto'); if(campo.value) ST.resOrdem.push(campo.id); }
@@ -12001,17 +12044,24 @@ function patCalcReserva(campo){
   if(manda.length<2){ if(info) info.textContent='preencha dois entre meta, prazo e valor por mês: o terceiro sai sozinho'; return; }
   var alvo=ids.filter(function(i){ return manda.indexOf(i)<0; })[0], e=el(alvo);
   var meta=patNum('pfMeta'), meses=patMesesAte(mesIso('pfAte')), mensal=patNum('pfMensal'), txt='';
+  var tx=resTaxas((el('pfNome')&&el('pfNome').value)||''), corr=function(n){
+    return (tx.reaj||tx.rend) ? ' · meta corrigida '+num(resMetaFut(meta,n,tx.reaj))+(tx.rend?' · guardado rende '+pctTxt(tx.rend*100)+'/ano':'') : ''; };
   if(alvo!=='pfAte' && !/^\d{4}-\d{2}$/.test(mesIso('pfAte'))){ if(info) info.textContent='complete a data (MM/AAAA)'; return; }
   if(alvo==='pfMensal'){
     if(meses<=0){ if(info) info.textContent='a data já passou'; return; }
-    var v=Math.ceil(Math.max(0,meta-guard)/meses*100)/100;
-    e.value=num(v); txt=meses+' meses de '+num(v);
+    var v=Math.ceil(resMensal(meta,guard,meses,tx.reaj,tx.rend)*100)/100;
+    e.value=num(v); txt=meses+' meses de '+num(v)+corr(meses);
   } else if(alvo==='pfMeta'){
     if(meses<=0){ if(info) info.textContent='a data já passou'; return; }
-    var t=guard+mensal*meses; e.value=num(t); txt=meses+' meses de '+num(mensal)+(guard?' + '+num(guard)+' já guardado':'')+' = '+num(t);
+    // o que dá para juntar até a data, trazido para dinheiro de hoje (a meta é em valor de hoje)
+    var junta=resJuntado(guard,mensal,meses,tx.rend), t=junta/Math.pow(1+tx.reaj, meses/12);
+    e.value=num(t); txt=meses+' meses de '+num(mensal)+(guard?' + '+num(guard)+' já guardado':'')+' = '+num(junta)+' em '+mesIso('pfAte').split('-').reverse().join('/')+
+      (tx.reaj?' (vale '+num(t)+' de hoje)':'');
   } else {
     if(!(mensal>0)){ return; }
-    var n=Math.max(1, Math.ceil(Math.max(0,meta-guard)/mensal)); e.value=patMesMais(n); txt=n+' meses de '+num(mensal)+' → '+e.value;
+    var n=1; while(n<600 && resJuntado(guard,mensal,n,tx.rend) < resMetaFut(meta,n,tx.reaj)) n++;
+    if(n>=600){ if(info) info.textContent='com esse valor por mês a meta corrigida não chega: aumente o valor'; return; }
+    e.value=patMesMais(n); txt=n+' meses de '+num(mensal)+' → '+e.value+corr(n);
   }
   e.setAttribute('data-auto','1');
   if(info) info.innerHTML='calculado: <b style="color:var(--txt)">'+txt+'</b>';
@@ -12034,12 +12084,13 @@ function patGravar(tipo, antigo){
   } else if(tipo==='RESERVA'){
     var ate=mesIso('pfAte');
     if(!/^\d{4}-\d{2}$/.test(ate)){ toast('Diga até quando (MM/AAAA)'); return; }
-    var mensal=patNum('pfMensal');
+    var mensal=patNum('pfMensal'), txr=resTaxas(nome);
     if(!mensal){
-      var h0=mesDeHoje(), meses=(Number(ate.slice(0,4))-Number(h0.slice(0,4)))*12+(Number(ate.slice(5))-Number(h0.slice(5)))+1;
-      mensal=meses>0 ? Math.ceil(Math.max(0, patNum('pfMeta')-v)/meses) : 0;
+      var meses=patMesesAte(ate);
+      mensal=meses>0 ? Math.ceil(resMensal(patNum('pfMeta'), v, meses, txr.reaj, txr.rend)) : 0;
     }
-    det={ para:el('pfPara').value, meta:patNum('pfMeta'), ate:ate, mensal:mensal, noFluxo:el('pfFluxo').value==='SIM' };
+    det={ para:el('pfPara').value, meta:patNum('pfMeta'), ate:ate, mensal:mensal, noFluxo:el('pfFluxo').value==='SIM',
+          reaj:patPct('pfReaj'), rend:patPct('pfRend') };
   }
   toast('Salvando...');
   var fim=function(r){
