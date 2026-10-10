@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.17.2 \u00b7 10/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.17.3 \u00b7 10/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -11210,13 +11210,14 @@ function abrirDestino(id, linha){
   var atual = onde ? ((ehCartao?'C|':'D|')+onde) : '';
 
   el('edForm').innerHTML =
-    '<div class="lbl" style="margin-bottom:8px">Corrigir o destino</div>'+
+    '<div class="lbl" style="margin-bottom:8px">'+(receita?'Corrigir onde entrou':'Corrigir de onde saiu')+'</div>'+
     '<div class="card" style="padding:9px 11px;margin:0 0 10px">'+
       '<div style="font-size:13.5px;line-height:1.3">'+tx(x.fornecedor||'')+'</div>'+
       '<div class="m" style="font-size:11px;margin-top:3px">'+(x.data||'')+' · '+
         moeda(valor)+'</div></div>'+
-    '<div class="lbl">Caiu em</div>'+
-    botaoEscolha('dsOnde', atual, 'cartão ou conta…', 'caiu em', ondeItens(), '',
+    // crédito ENTROU na conta; débito e compra SAÍRAM dela (ou do cartão)
+    '<div class="lbl">'+(receita?'Entrou em':'Saiu de')+'</div>'+
+    botaoEscolha('dsOnde', atual, 'cartão ou conta…', receita?'entrou em':'saiu de', ondeItens(), '',
                  '+ outro cartão') +
     '<div class="lbl" style="margin-top:9px">Conta</div>'+
     '<input type="hidden" id="dsCat" value="'+String(x.categoria||'').replace(/"/g,'&quot;')+'">'+
