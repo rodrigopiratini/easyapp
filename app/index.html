@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.17.4 \u00b7 10/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.18.0 \u00b7 10/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -952,7 +952,7 @@ window.pedirTexto = function (o, feito) {
     var v = n(l.valor);
     var entrou = l.natureza === 'RECEITA' || v < 0;
     return {
-      id: l.origem_id || l.id, linha: 0,
+      id: l.origem_id || l.id, uuid: l.id, linha: 0,
       data: d[2] + '/' + d[1] + '/' + d[0],
       ordem: new Date(l.data).getTime(), criado: String(l.criado_em || ''),
       valor: v,
@@ -8833,8 +8833,8 @@ function renderPendentes(){
            ' onclick="confirmar('+i+')">✓</button>'+
        '</div>'+
        '<div id="nc'+i+'"></div>'+
-       // parcelas: aparece sozinho se o aviso falou em parcelas; senão fica no ⋯
-       (cartaoCred && tipo!=='DEBITO' && (mais || parcSel>1)
+       // parcelas: sempre à vista na compra no crédito (escondido no ⋯ ninguém achava)
+       (cartaoCred && tipo!=='DEBITO'
          ? '<div class="row" style="gap:6px;margin-top:6px;align-items:center"><span class="m" style="font-size:12px">Parcelas</span>'+
            '<select id="pc'+i+'" style="flex:1;margin:0;padding:5px 8px;font-size:13px" onchange="mostrarParcela('+i+')">'+
            [1,2,3,4,5,6,7,8,9,10,11,12,18,24].concat(parcSel>1&&[1,2,3,4,5,6,7,8,9,10,11,12,18,24].indexOf(parcSel)<0?[parcSel]:[])
@@ -11158,7 +11158,7 @@ function acharNoExtrato(id, linha){
 function abrirEditar(id, linha){
   var x=acharNoExtrato(id, linha);
   if(!x){ toast('Não achei esse lançamento'); return; }
-  ST.editando={ id:id, linha:linha };
+  ST.editando={ id:id, linha:linha, uuid:x.uuid||id };
   var valor = (x.valor!==undefined) ? x.valor : (x.credito||x.debito);
   var receita = !!x.credito;
   var ehCartao = String(x.meio||'')==='CARTAO_CREDITO' || x.cartao;
@@ -11188,6 +11188,7 @@ function abrirEditar(id, linha){
     botaoEscolha('edOnde', atual, 'escolher…', 'onde', ondeItens(), '')+
     '<div class="lbl" style="margin-top:8px">Data</div>'+
       '<input id="edData" type="date" value="'+iso+'">'+
+    campoParcelas(x, receita)+
     '<div class="row" style="margin-top:12px;gap:8px">'+
       '<button class="bt-no" style="flex:1" onclick="fecharEditar()">Cancelar</button>'+
       '<button class="bt-ok" style="flex:2" onclick="salvarEditado()">Salvar</button></div>';
@@ -11202,7 +11203,7 @@ function abrirEditar(id, linha){
 function abrirDestino(id, linha){
   var x=acharNoExtrato(id, linha);
   if(!x){ toast('Não achei esse lançamento'); return; }
-  ST.editando={ id:id, linha:linha, destino:true };
+  ST.editando={ id:id, linha:linha, destino:true, uuid:x.uuid||id };
   var valor = (x.valor!==undefined) ? x.valor : (x.credito||x.debito);
   var receita = !!x.credito;
   var ehCartao = String(x.meio||'')==='CARTAO_CREDITO' || !!x.cartao;
@@ -11226,6 +11227,7 @@ function abrirDestino(id, linha){
       (x.categoria ? ponto(familiaDe(x.categoria))+x.categoria
                    : '<span style="color:var(--dim)">escolher conta…</span>')+
       '<span style="margin-left:auto;color:var(--dim)">&#9662;</span></button>'+
+    campoParcelas(x, receita)+
     '<label style="display:flex;align-items:center;gap:8px;margin-top:11px;'+
       'font-size:12.5px;color:var(--dim)">'+
       '<input type="checkbox" id="dsTodos" checked style="width:16px;height:16px;'+
@@ -11251,7 +11253,8 @@ function salvarDestino(){
     categoria: el('dsCat').value,
     todos: !!(el('dsTodos') && el('dsTodos').checked)
   };
-  if(!dados.conta && !dados.categoria){ toast('Nada para mudar'); return; }
+  var vezes=el('edParc')?Number(el('edParc').value)||1:1;
+  if(!dados.conta && !dados.categoria && vezes<2){ toast('Nada para mudar'); return; }
   fecharEditar();
 
   var itens=(ST.extrato&&ST.extrato.itens)||[], alvo=null;
@@ -11277,9 +11280,30 @@ function salvarDestino(){
   google.script.run.withSuccessHandler(function(r){
     if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui salvar'); return; }
     ST.cacheMes={}; ST.extras=null; ST.ano=null;
-    atualizarPorTras();
+    if(vezes>1) parcelarDepois(e.uuid, vezes); else atualizarPorTras();
   }).withFailureHandler(function(err){ toast('Falhou: '+((err&&err.message)||err)); })
     .apiCorrigirDestino(e.linha, e.id, dados);
+}
+
+/* Parcelar depois: a compra no crédito que entrou à vista (aviso do banco só
+   traz o total) vira as parcelas, uma em cada fatura, com a etiqueta 01/02.
+   A que já está parcelada só mostra em que parcela está. */
+function campoParcelas(x, receita){
+  var cartao = String(x.meio||'')==='CARTAO_CREDITO' || !!x.cartao;
+  if(!cartao || receita) return '';
+  if(x.parcelada || x.parcela) return '<div class="m" style="font-size:12px;margin-top:9px">parcela <b class="parc">'+(x.parcela||'')+'</b></div>';
+  return '<div class="lbl" style="margin-top:9px">Parcelas</div>'+
+    '<select id="edParc" style="margin:0">'+
+    [1,2,3,4,5,6,7,8,9,10,11,12,18,24].map(function(k){ return '<option value="'+k+'">'+(k===1?'à vista':k+'x')+'</option>'; }).join('')+
+    '</select>';
+}
+function parcelarDepois(uuid, vezes){
+  if(!(vezes>1) || !uuid) return;
+  google.script.run.withSuccessHandler(function(r){
+    toast(r&&r.ok ? 'Parcelado em '+r.vezes+'x de '+moeda(r.parcela) : 'Não parcelei: '+((r&&r.erro)||''));
+    ST.extrato=null; ST.extras=null; ST.cacheMes={}; ST.ano=null;
+    renderExtrato(); atualizarPorTras();
+  }).withFailureHandler(function(e){ toast('Não parcelei: '+((e&&e.message)||e)); }).apiParcelar(uuid, vezes);
 }
 
 function fecharEditar(){
@@ -11303,6 +11327,7 @@ function salvarEditado(){
   };
   if(!dados.valor){ toast('Informe o valor'); return; }
   if(!dados.categoria){ toast('Escolha a conta'); return; }
+  var vezes=(el('edParc') && ehCartao && dados.natureza==='DESPESA')?Number(el('edParc').value)||1:1;
   fecharEditar();
   toast('Salvando...');
   // Recarregar o mes inteiro custava uma viagem de varios segundos so para
@@ -11311,6 +11336,7 @@ function salvarEditado(){
     if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui salvar'); return; }
     toast('Lançamento atualizado');
     ST.extrato=null; ST.extras=null; ST.cacheMes={}; ST.ano=null;
+    if(vezes>1){ parcelarDepois(e.uuid, vezes); return; }
     renderExtrato();
     atualizarPorTras();
   }).withFailureHandler(function(err){ toast('Falhou: '+((err&&err.message)||err)); })
