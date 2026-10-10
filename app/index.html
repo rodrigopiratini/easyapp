@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.16.0 \u00b7 10/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.16.1 \u00b7 10/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -2595,6 +2595,7 @@ window.pedirTexto = function (o, feito) {
       return {
         idade: idade, idadeMeta: IDADE_META, nascimento: nascTxt, anoMeta: ALVO.getFullYear(), mesesAte: nMeses, anosAte: Math.round(nMeses / 12 * 10) / 10,
         taxa: taxa, valorizacaoImovel: valorizIm, retirada: retirada,
+        taxaFonte: (pat.inv && pat.inv.taxaRealMedia !== null && pat.inv.taxaRealMedia !== undefined) ? 'aplicacoes' : 'ajuste',
         receitaMes: Math.round(receita), despesaMes: Math.round(despesa),
         sobraMes: Math.round(sobra), mesesDaMedia: janela,
         porAno: porAno, alavancas: alavancas,
@@ -3331,6 +3332,7 @@ window.pedirTexto = function (o, feito) {
                   dividas: Math.round(pat.totalDividas || 0),
                   liquido: Math.round(pat.liquido || 0) },
           idade: p.idade, anosAte: p.anosAte, anoFinal: anoFinal,
+          taxa: p.taxa, taxaFonte: p.taxaFonte, retirada: p.retirada,
           nascimento: p.nascimento || '', idadeMeta: p.idadeMeta,
           anosDisponiveis: anosOrd, semAporte: semAporte, capacidade: cap,
           alvo: alvo,
@@ -10265,7 +10267,11 @@ function graficoEvolucao(p){
     '<div class="m" style="font-size:12px;margin-top:6px">'+fimTxt+'</div>'+
     '<div class="m" style="font-size:10.5px;margin-top:4px"><span style="color:#22c55e">━</span> no plano (guardando '+mil(p.aporteMes||0)+'/mês)'+
       (temR?' · <span style="color:#f59e0b">━</span> no ritmo de hoje ('+mil(p.aporteRitmo||0)+'/mês)':'')+
-      (perto?'':' · <span style="color:#3b82f6">╌</span> só o investido')+'</div></div>';
+      (perto?'':' · <span style="color:#3b82f6">╌</span> só o investido')+'</div>'+
+    // a taxa que a projeção usa: está sempre à vista (antes ninguém sabia qual era)
+    (p.taxa!==undefined&&p.taxa!==null?'<div class="m" style="font-size:11px;margin-top:6px">📈 rendimento usado: <b>'+num(p.taxa*100)+'% ao ano acima da inflação</b> · '+
+      (p.taxaFonte==='aplicacoes'?'média das suas aplicações de longo prazo (Patrimônio → Investimentos)':'padrão do app: cadastre suas aplicações para usar a taxa delas')+
+      (p.retirada?' · renda: retirada de '+num(p.retirada*100)+'% ao ano':'')+'</div>':'')+'</div>';
 }
 
 /* Para onde vai o dinheiro e como fazer o plano caber.
