@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.17.0 \u00b7 10/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.17.1 \u00b7 10/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10432,7 +10432,8 @@ function graficoEvolucao(p){
   var area=linha+' L'+X(pts.length-1).toFixed(1)+','+(H-B)+' L'+X(0).toFixed(1)+','+(H-B)+' Z';
   var passo=Math.ceil(pts.length/6), rot='';
   pts.forEach(function(x,i){
-    if(i%passo===0 || i===pts.length-1)
+    // o último rótulo sempre aparece; o do passo que cairia em cima dele, não
+    if((i%passo===0 && (i===pts.length-1 || pts.length-1-i>=passo*0.6)) || i===pts.length-1)
       rot+='<text x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="'+(i===0?'start':i===pts.length-1?'end':'middle')+
            '" font-size="10" fill="#8b99b5">'+x.r+'</text>';
   });
