@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.17.3 \u00b7 10/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.17.4 \u00b7 10/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -12001,15 +12001,20 @@ function renderPatrimonio(){
 }
 
 function patTitulo(chave, titulo, valor, aberto){
-  return '<div class="card" style="padding:11px 12px;margin-top:12px;cursor:pointer" '+
+  return '<div class="card" style="padding:11px 12px;margin-top:12px;cursor:pointer;scroll-margin-top:150px" '+
     'onclick="patAbrir(\''+chave+'\')">'+
     '<div class="row"><div class="lbl" style="margin:0">'+
       '<span class="seta'+(aberto?' aberta':'')+'">&#9656;</span> '+titulo+'</div>'+
     '<div class="num" style="font-weight:700">'+valor+'</div></div></div>';
 }
 function patAbrir(k){
-  if(k==='BENS') ST.abrePatBens=!ST.abrePatBens; else ST.abrePatInv=!ST.abrePatInv;
+  // uma seção aberta por vez: abrir uma recolhe a outra
+  if(k==='BENS'){ ST.abrePatBens=!ST.abrePatBens; if(ST.abrePatBens) ST.abrePatInv=false; }
+  else { ST.abrePatInv=!ST.abrePatInv; if(ST.abrePatInv) ST.abrePatBens=false; }
   renderPatrimonio();
+  // a que abriu fica no alto da tela (a de cima, ao recolher, puxava a lista)
+  var t=document.querySelector('[onclick="patAbrir(\''+k+'\')"]');
+  if(t && (k==='BENS'?ST.abrePatBens:ST.abrePatInv)) try{ t.scrollIntoView({block:'start',behavior:'smooth'}); }catch(e){}
 }
 function patAbrirNovo(t){
   ST.patNovo = (ST.patNovo && ST.patNovo.tipo===t) ? null : { tipo:t };
@@ -12735,7 +12740,7 @@ function invApontar(id){
 function invNovaDoLanc(){
   var l=ST.invPergunta; if(!l) return;
   ST.invNovo={ aplicado:l.valor, aplicadoEm:l.data, lancamento:l.id };
-  ST.invEdit='novo'; ST.abrePatInv=true; fecharInvPerg();
+  ST.invEdit='novo'; ST.abrePatInv=true; ST.abrePatBens=false; fecharInvPerg();
   ST.patrimonio=null; irParaTela('patrimonio');
 }
 
