@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.17.1 \u00b7 10/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.17.2 \u00b7 10/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10112,7 +10112,7 @@ function renderPlano(){
     '<div class="row"><div class="lbl">O plano: guardar por mês</div>'+
       (p.alvo.nome?'<span class="pill">'+p.alvo.nome+'</span>':'')+'</div>'+
     '<div class="big" style="font-size:28px">'+moeda(p.aporteMes)+'</div>'+
-    '<div class="m" style="font-size:11.5px;margin-top:4px">para chegar a '+mil(p.alvo.alvo)+
+    '<div class="m" style="font-size:11.5px;margin-top:4px">para chegar a '+mil(p.chegada?p.chegada.liquido:p.alvo.alvo)+
       ' em '+p.alvo.ano+'. Na média dos próximos '+p.capacidade.meses+' meses sobram '+
       mil(p.capacidade.mes)+' por mês.</div>'+
     '<details style="margin-top:8px"><summary class="m" style="font-size:12px;cursor:pointer">'+
