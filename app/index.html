@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.16.1 \u00b7 10/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.17.0 \u00b7 10/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -2359,10 +2359,10 @@ window.pedirTexto = function (o, feito) {
                  + (ALVO.getMonth() - hoje.getMonth());
       var idade = Math.floor((hoje - NASC) / 31557600000);
 
-      /* O rendimento real vem das aplicações (média ponderada pelo valor);
-         sem nenhuma com taxa conhecida, o ajuste antigo (padrão 8%). */
-      var taxa       = (pat.inv && pat.inv.taxaRealMedia !== null && pat.inv.taxaRealMedia !== undefined)
-                       ? pat.inv.taxaRealMedia : cfgNum(c, 'RENTABILIDADE_REAL', 0.08);
+      /* O plano é o Norte: rende o que a pessoa escolheu como alvo (padrão 5%
+         acima da inflação), não o que as aplicações de hoje rendem. Se elas
+         renderem mais ou menos, isso aparece no "Plano × onde estamos". */
+      var taxa       = cfgNum(c, 'RENTABILIDADE_PLANO', 0.05);
       // o que já está investido entra no começo da conta (antes partia do zero)
       var investidoHoje = Math.max(0, Number(pat.totalInvestido) || 0);
       /* Valorização, depreciação e juros moram em cada bem e cada dívida
@@ -2595,7 +2595,8 @@ window.pedirTexto = function (o, feito) {
       return {
         idade: idade, idadeMeta: IDADE_META, nascimento: nascTxt, anoMeta: ALVO.getFullYear(), mesesAte: nMeses, anosAte: Math.round(nMeses / 12 * 10) / 10,
         taxa: taxa, valorizacaoImovel: valorizIm, retirada: retirada,
-        taxaFonte: (pat.inv && pat.inv.taxaRealMedia !== null && pat.inv.taxaRealMedia !== undefined) ? 'aplicacoes' : 'ajuste',
+        taxaFonte: 'plano',
+        taxaAplicacoes: (pat.inv && pat.inv.taxaRealMedia !== null && pat.inv.taxaRealMedia !== undefined) ? pat.inv.taxaRealMedia : null,
         receitaMes: Math.round(receita), despesaMes: Math.round(despesa),
         sobraMes: Math.round(sobra), mesesDaMedia: janela,
         porAno: porAno, alavancas: alavancas,
@@ -3275,14 +3276,16 @@ window.pedirTexto = function (o, feito) {
   function planoSimples() {
     return Promise.all([retaDoPlano(), capacidadeReal(), alvoGuardado(),
                         projetarPorConta(0), gastoRecentePorConta(),
-                        investimentos().catch(function () { return null; })])
+                        investimentos().catch(function () { return null; }),
+                        config(), fotoDoPatrimonio()])
       .then(function (R) {
         // o mês corrente precisa do alvo, que só chega aqui
         return planoDoMes(R[2]).catch(function () { return null; })
           .then(function (m) { R.push(m); return R; });
       })
       .then(function (R) {
-        var r = R[0], cap = R[1], alvo = R[2], inv = R[5], doMes = R[6];
+        var r = R[0], cap = R[1], alvo = R[2], inv = R[5], doMes = R[8];
+        var cfg = R[6], fotos = R[7] || [];
         // o que foi aportado de verdade neste mês (aportes − resgates das aplicações)
         var mesIni = hojeRef() + '-01', aportadoMes = null;
         if (inv && inv.posicoes && inv.posicoes.length) {
@@ -3326,8 +3329,9 @@ window.pedirTexto = function (o, feito) {
         var chegadaRitmo = patrimonioNoAno(r, anoAlvo, aporteRitmo);
 
         var pat = p.patrimonioDetalhe || {};
+        var norte = montarNorte(alvo, composicao, p, pat, inv, fotos, cfgNum(cfg, 'INFLACAO', 0.045));
         return {
-          ok: true,
+          ok: true, norte: norte, taxaAplicacoes: p.taxaAplicacoes,
           hoje: { caixa: Math.round(pat.caixa || 0), bens: Math.round(pat.totalBens || 0),
                   dividas: Math.round(pat.totalDividas || 0),
                   liquido: Math.round(pat.liquido || 0) },
@@ -3350,6 +3354,99 @@ window.pedirTexto = function (o, feito) {
           })
         };
       });
+  }
+
+  /* ===================================================== O NORTE =====
+   * O plano é congelado no dia em que é definido (a curva ano a ano, a
+   * taxa e o patrimônio de partida) e não muda mais quando a vida muda:
+   * é a régua. Todo mês o app tira uma foto do patrimônio real, e a
+   * distância entre a foto e a régua é "onde estamos de verdade".
+   * A base é a mesma da projeção: investido + bens − dívidas (o caixa do
+   * dia a dia e as reservas, que existem para ser gastas, ficam fora).
+   */
+  function basePlano(pat) {
+    return { liquido: Math.round((pat.totalInvestido || 0) + (pat.totalBens || 0) - (pat.totalDividas || 0)),
+             investido: Math.round(pat.totalInvestido || 0), bens: Math.round(pat.totalBens || 0),
+             dividas: Math.round(pat.totalDividas || 0), caixa: Math.round(pat.caixa || 0),
+             reservas: Math.round(pat.totalReservas || 0) };
+  }
+
+  var _fotoFeita = null;
+  /* Grava a foto do mês (uma linha por mês, a última do mês vale) e devolve
+     todas. Sem a tabela (migração 042 não rodada) devolve vazio, calado. */
+  function fotoDoPatrimonio() {
+    var mes = hojeRef();
+    var grava = (_fotoFeita === mes) ? Promise.resolve() :
+      patrimonio().then(function (pat) {
+        var b = basePlano(pat); b.mes = mes;
+        return gravar('patrimonio_fotos', [b], 'user_id,mes').then(function () { _fotoFeita = mes; });
+      }).catch(function () { return null; });
+    return grava.then(function () {
+      return rest('/rest/v1/patrimonio_fotos?select=mes,liquido,investido,bens,dividas&order=mes');
+    }).catch(function () { return []; });
+  }
+
+  function montarNorte(alvo, composicao, p, pat, inv, fotos, infl) {
+    if (!alvo || !composicao || !composicao.length) return null;
+    var hoje = new Date(), hojeIso = hoje.toISOString().slice(0, 10), base = basePlano(pat);
+    // congela na primeira vez (ou quando a pessoa troca o rendimento-alvo)
+    if (!alvo.curva || !alvo.inicio || Number(alvo.taxa) !== Number(p.taxa)) {
+      alvo.inicio = hojeIso; alvo.taxa = p.taxa;
+      alvo.liquidoInicio = base.liquido; alvo.investidoInicio = base.investido;
+      alvo.curva = composicao.map(function (x) {
+        return { ano: x.ano, liquido: x.liquido, investido: x.investido };
+      });
+      gravar('config', [{ chave: 'PLANO_ALVO', valor: JSON.stringify(alvo) }], 'user_id,chave')
+        .then(function () { _cfgCache = null; }).catch(function () {});
+    }
+    var ini = new Date(alvo.inicio + 'T12:00:00');
+    var mesesDe = function (d) {
+      return Math.max(0, (d.getFullYear() - ini.getFullYear()) * 12 + (d.getMonth() - ini.getMonth())
+                         + (d.getDate() - ini.getDate()) / 30);
+    };
+    var meses = mesesDe(hoje);
+    // dinheiro de hoje vira dinheiro do dia do plano (o plano é em valores reais)
+    var deflator = function (m) { return Math.pow(1 + infl, m / 12); };
+    var mesHoje = hojeRef();
+    var lista = (fotos || []).filter(function (f) { return f.mes >= alvo.inicio.slice(0, 7) && f.mes !== mesHoje; })
+      .map(function (f) {
+        var y = Number(f.mes.slice(0, 4)), mm = Number(f.mes.slice(5, 7));
+        // a foto de um mês passado vale no fim dele
+        var m = mesesDe(new Date(y, mm, 0));
+        return { mes: f.mes, meses: Math.round(m * 10) / 10, nominal: Math.round(Number(f.liquido) || 0),
+                 liquido: Math.round((Number(f.liquido) || 0) / deflator(m)) };
+      });
+    lista.push({ mes: mesHoje, meses: Math.round(meses * 10) / 10, nominal: base.liquido,
+                 liquido: Math.round(base.liquido / deflator(meses)), hoje: true });
+
+    // o que entrou nas aplicações de longo prazo desde o início (aportes − resgates)
+    var aportado = null;
+    if (inv && inv.posicoes && inv.posicoes.length) {
+      aportado = 0;
+      inv.posicoes.forEach(function (x) {
+        if (x.objetivo === 'RESERVA') return;
+        x.movimentos.forEach(function (m) {
+          if (m.data >= alvo.inicio && m.data <= hojeIso) aportado += m.tipo === 'RESGATE' ? -m.valor : m.valor;
+        });
+      });
+      aportado = Math.round(aportado);
+    }
+    // rendimento que de fato veio: só com 2 meses ou mais, antes é ruído
+    var obtido = null;
+    if (meses >= 2 && aportado !== null) {
+      var capital = (Number(alvo.investidoInicio) || 0) + Math.max(0, aportado) / 2;
+      var ganho = base.investido - (Number(alvo.investidoInicio) || 0) - aportado;
+      if (capital > 0) {
+        var noPeriodo = ganho / capital;
+        var anual = Math.pow(Math.max(0.0001, 1 + noPeriodo), 12 / meses) - 1;
+        obtido = (1 + anual) / (1 + infl) - 1;
+      }
+    }
+    return { inicio: alvo.inicio, taxa: Number(alvo.taxa), aporte: Number(alvo.aporte),
+             liquidoInicio: Number(alvo.liquidoInicio) || 0, investidoInicio: Number(alvo.investidoInicio) || 0,
+             curva: alvo.curva, fotos: lista, meses: Math.round(meses * 10) / 10, inflacao: infl,
+             guardadoPrevisto: Math.round(Number(alvo.aporte) * meses), aportado: aportado,
+             rendimentoObtido: obtido, taxaAplicacoes: p.taxaAplicacoes, base: base };
   }
 
   function calcularAlvo(valor, a) {
@@ -3435,6 +3532,7 @@ window.pedirTexto = function (o, feito) {
        mas continua gravável por salvarAjuste. */
     ['NASCIMENTO', 'texto', 'Sua data de nascimento', '', 'plano'],
     ['IDADE_APOSENTADORIA', 'inteiro', 'Com quantos anos quer parar', '', 'plano'],
+    ['RENTABILIDADE_PLANO', 'percent', 'Rendimento-alvo do plano (acima da inflação)', '', 'plano'],
     ['AUTO_CONFIRMAR_CONHECIDOS', 'simnao', 'Confirmar sozinho fornecedor já conhecido',
      'SIM deixa o app lançar sem perguntar quando já sabe a conta do fornecedor.'],
     ['AUTO_CONFIRMAR_ABAIXO_DE', 'dinheiro', 'Confirmar sozinho abaixo de',
@@ -3447,7 +3545,7 @@ window.pedirTexto = function (o, feito) {
      plano corrigia 4,5% ao ano por baixo. */
   var PADRAO_AJUSTE = {
     META_CARTAO: 0, DIA_FECHAMENTO_FATURA: 29, INFLACAO: 0.045,
-    REAJUSTE_CONTRATO: 0.05, MES_REAJUSTE_CONTRATO: 10, RENTABILIDADE_REAL: 0.08,
+    REAJUSTE_CONTRATO: 0.05, MES_REAJUSTE_CONTRATO: 10, RENTABILIDADE_REAL: 0.08, RENTABILIDADE_PLANO: 0.05,
     VALORIZACAO_IMOVEL: 0.05, DEPRECIACAO_CARRO_ANO: 0.10, JUROS_FINANCIAMENTO: 0.10,
     TROCA_CARRO_ANOS: 5, CUSTO_TROCA_CARRO: 0, RESERVA_VIAGEM_ANO: 0,
     NASCIMENTO: '', IDADE_APOSENTADORIA: 60,
@@ -10006,6 +10104,7 @@ function renderPlano(){
   // O que importa no dia a dia vem primeiro: como fecha ESTE mês, quanto
   // falta e onde cortar. A reta até a meta fica recolhida embaixo.
   h+=blocoDoMes(p.doMes);
+  h+=graficoNorte(p);
   h+=graficoEvolucao(p);
 
   var cor = p.viavel ? 'var(--ok)' : 'var(--warn)';
@@ -10175,6 +10274,107 @@ function pontePlano(ini, ent, sai, fim){
   return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;display:block">'+g+'</svg>';
 }
 
+/* 🧭 Plano × onde estamos. A linha verde é o plano congelado no dia em que
+   foi definido (o Norte: não muda quando a vida muda). Os pontos laranja são
+   as fotos do patrimônio real, mês a mês, trazidas para o dinheiro do dia do
+   plano (descontada a inflação), na mesma base: investido + bens − dívidas. */
+function graficoNorte(p){
+  var N=p.norte;
+  if(!N || !N.curva || !N.curva.length) return '';
+  var ini=new Date(N.inicio+'T12:00:00');
+  var mDe=function(d){ return (d.getFullYear()-ini.getFullYear())*12+(d.getMonth()-ini.getMonth())+(d.getDate()-ini.getDate())/30; };
+  var ideal=[{m:0,v:N.liquidoInicio}].concat(N.curva.map(function(x){
+    return {m:mDe(new Date(x.ano,5,30,12)), v:x.liquido};
+  }).filter(function(x){ return x.m>0; }));
+  var idealEm=function(m){
+    for(var i=0;i<ideal.length-1;i++){
+      if(m<=ideal[i+1].m){ var f=(m-ideal[i].m)/((ideal[i+1].m-ideal[i].m)||1); return ideal[i].v+(ideal[i+1].v-ideal[i].v)*f; }
+    }
+    return ideal[ideal.length-1].v;
+  };
+  var fotos=N.fotos||[], agora=fotos.length?fotos[fotos.length-1]:{meses:N.meses,liquido:N.base.liquido};
+  var deveria=Math.round(idealEm(agora.meses)), esta=agora.liquido, dif=esta-deveria;
+  var modo=ST.norteModo||'perto';
+  var fimM=modo==='perto' ? Math.max(24, Math.ceil(agora.meses)+6) : ideal[ideal.length-1].m;
+  fimM=Math.min(fimM, ideal[ideal.length-1].m);
+  // a linha ideal, ponto a ponto, dentro da janela
+  var pts=[], passoM=Math.max(1, Math.round(fimM/60));
+  for(var m=0;m<fimM;m+=passoM) pts.push({m:m,v:idealEm(m)});
+  pts.push({m:fimM,v:idealEm(fimM)});
+  var reais=fotos.filter(function(f){ return f.meses<=fimM; });
+  var vals=pts.map(function(x){return x.v;}).concat(reais.map(function(x){return x.liquido;}));
+  var mx=Math.max.apply(null,vals), mn=Math.min.apply(null,vals);
+  var folga=(mx-mn)*0.15||Math.abs(mx)*0.05||1000; mx+=folga; mn-=folga;
+  var W=320,H=170,L=6,R=8,T=18,B=24;
+  var X=function(m){ return L+m/((fimM)||1)*(W-L-R); };
+  var Y=function(v){ return T+(mx-v)/((mx-mn)||1)*(H-T-B); };
+  var linha=pts.map(function(x,i){ return (i?'L':'M')+X(x.m).toFixed(1)+','+Y(x.v).toFixed(1); }).join(' ');
+  var linhaR=reais.map(function(x,i){ return (i?'L':'M')+X(x.meses).toFixed(1)+','+Y(x.liquido).toFixed(1); }).join(' ');
+  var nomes=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'], rot='';
+  var marcas=modo==='perto'?[0,Math.round(fimM/3),Math.round(fimM*2/3),fimM]:[0,Math.round(fimM/2),fimM];
+  marcas.forEach(function(m,i){
+    var d=new Date(ini.getFullYear(), ini.getMonth()+m, 1);
+    var txt=modo==='perto'?nomes[d.getMonth()]+'/'+String(d.getFullYear()).slice(2):String(d.getFullYear());
+    rot+='<text x="'+X(m).toFixed(1)+'" y="'+(H-6)+'" text-anchor="'+(i===0?'start':i===marcas.length-1?'end':'middle')+
+      '" font-size="10" fill="#8b99b5">'+txt+'</text>';
+  });
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;display:block">'+
+    '<line x1="'+X(agora.meses).toFixed(1)+'" x2="'+X(agora.meses).toFixed(1)+'" y1="'+T+'" y2="'+(H-B)+'" stroke="#8b99b5" stroke-width="1" stroke-dasharray="2 3"/>'+
+    '<path d="'+linha+'" fill="none" stroke="#22c55e" stroke-width="3" stroke-linejoin="round"/>'+
+    (reais.length>1?'<path d="'+linhaR+'" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linejoin="round"/>':'')+
+    reais.map(function(x){ return '<circle cx="'+X(x.meses).toFixed(1)+'" cy="'+Y(x.liquido).toFixed(1)+'" r="'+(x.hoje?5:3.5)+'" fill="#f59e0b"'+(x.hoje?' stroke="#0f1420" stroke-width="2"':'')+'/>'; }).join('')+
+    '<text x="'+(X(fimM)-2).toFixed(1)+'" y="'+(Y(pts[pts.length-1].v)-8).toFixed(1)+'" text-anchor="end" font-size="11.5" font-weight="800" fill="#22c55e">'+mil(pts[pts.length-1].v)+'</text>'+
+    rot+'</svg>';
+  var cor=dif>=0?'var(--ok)':'var(--warn)';
+  var dataIni=N.inicio.split('-').reverse().join('/');
+  var linhaPl=function(rot, plano, real, bom){
+    return '<div class="ln" style="grid-template-columns:1.3fr 1fr 1fr;padding:6px 0">'+
+      '<span style="font-size:12px">'+rot+'</span><span class="n" style="color:#22c55e">'+plano+'</span>'+
+      '<span class="n" style="color:'+(bom===null?'var(--dim)':bom?'var(--ok)':'var(--warn)')+'">'+real+'</span></div>';
+  };
+  var pctTxt=function(x){ return num(Math.round(x*1000)/10)+'%'; };
+  var placar='<div class="cab-ln fica" style="grid-template-columns:1.3fr 1fr 1fr;margin-top:10px">'+
+      '<span style="text-align:left">desde '+dataIni+'</span><span>plano</span><span>real</span></div>'+
+    linhaPl('Guardado nas aplicações', mil(N.guardadoPrevisto),
+      N.aportado===null?'sem aplicações':mil(N.aportado), N.aportado===null?null:N.aportado>=N.guardadoPrevisto)+
+    linhaPl('Rendimento ao ano', pctTxt(N.taxa),
+      N.rendimentoObtido!==null?pctTxt(N.rendimentoObtido):'aguardando', N.rendimentoObtido===null?null:N.rendimentoObtido>=N.taxa)+
+    linhaPl('Patrimônio', mil(deveria), mil(esta), dif>=0);
+  var obs=N.rendimentoObtido===null?'<div class="m" style="font-size:11px;margin-top:4px">O rendimento real aparece depois de 2 meses de fotos'+
+    (N.taxaAplicacoes!==null&&N.taxaAplicacoes!==undefined?' · hoje suas aplicações prometem <b>'+pctTxt(N.taxaAplicacoes)+'</b> acima da inflação':'')+'.</div>':'';
+  return '<div class="card"><div class="row" style="margin-bottom:6px"><div class="lbl">🧭 Plano × onde estamos</div></div>'+
+    '<div class="row" style="align-items:flex-end;gap:10px;margin-bottom:6px">'+
+      '<div><div class="m" style="font-size:11px">hoje o plano previa</div><div style="font-size:18px;font-weight:800;color:#22c55e">'+mil(deveria)+'</div></div>'+
+      '<div style="text-align:right"><div class="m" style="font-size:11px">você está em</div><div style="font-size:18px;font-weight:800;color:#f59e0b">'+mil(esta)+'</div></div></div>'+
+    '<div class="m" style="font-size:12px;margin-bottom:8px;color:'+cor+'"><b>'+(dif>=0?'▲ '+mil(dif)+' à frente do plano':'▼ '+mil(-dif)+' atrás do plano')+'</b></div>'+
+    '<div class="evo-tabs" style="margin-bottom:8px">'+
+      '<button class="'+(modo==='perto'?'on':'')+'" onclick="ST.norteModo=\'perto\';renderPlano()">perto de hoje</button>'+
+      '<button class="'+(modo==='tudo'?'on':'')+'" onclick="ST.norteModo=\'tudo\';renderPlano()">até '+(p.alvo?p.alvo.ano:'a meta')+'</button></div>'+
+    svg+
+    '<div class="m" style="font-size:10.5px;margin-top:4px"><span style="color:#22c55e">━</span> o plano (definido em '+dataIni+') · '+
+      '<span style="color:#f59e0b">●</span> onde você está, mês a mês</div>'+
+    placar+obs+
+    '<div class="m" style="font-size:10.5px;margin-top:6px">Conta: aplicações + bens − dívidas, sem o caixa do dia a dia e sem as reservas. '+
+      'Valores reais (inflação de '+num(Math.round(N.inflacao*1000)/10)+'% ao ano descontada).</div>'+
+    '<div class="row" style="gap:6px;align-items:flex-end;margin-top:10px;border-top:1px solid var(--line);padding-top:9px">'+
+      '<div style="flex:1;min-width:0"><div class="lbl" style="font-size:10px">Rendimento-alvo do plano (% ao ano acima da inflação)</div>'+
+      '<input id="pvTaxa" value="'+num(Math.round(N.taxa*1000)/10)+'" inputmode="decimal" maxlength="5" style="margin:0;padding:7px 8px;font-size:13px"></div>'+
+      '<button class="bt-no" style="padding:7px 11px;font-size:12.5px" onclick="salvarTaxaPlano()">Salvar</button></div>'+
+    '<div class="m" style="font-size:10.5px;margin-top:4px">Trocar o rendimento refaz o plano a partir de hoje.</div></div>';
+}
+function salvarTaxaPlano(){
+  var v=parseFloat(String(el('pvTaxa').value||'').replace(',','.'));
+  if(isNaN(v)||v<0||v>20){ toast('Use um percentual entre 0 e 20'); return; }
+  if(!confirm('Refazer o plano com '+num(v)+'% ao ano? A linha verde recomeça a partir de hoje.')) return;
+  toast('Salvando...');
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
+    toast('Salvo — refazendo o plano');
+    ST.plano=null; ST.projLonga=null; ST.ano=null; ST.extras=null; ST.cacheMes={};
+    carregarPlano();
+  }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); }).apiSalvarAjuste('RENTABILIDADE_PLANO', v/100);
+}
+
 /* Rumo à aposentadoria: a curva verde do patrimônio, como na página do app.
    "12 meses" é o caminho perto (o que dá para acompanhar mês a mês); "até
    o ano do alvo" é a viagem inteira. O app não guarda nada semanal - por isso
@@ -10270,7 +10470,7 @@ function graficoEvolucao(p){
       (perto?'':' · <span style="color:#3b82f6">╌</span> só o investido')+'</div>'+
     // a taxa que a projeção usa: está sempre à vista (antes ninguém sabia qual era)
     (p.taxa!==undefined&&p.taxa!==null?'<div class="m" style="font-size:11px;margin-top:6px">📈 rendimento usado: <b>'+num(p.taxa*100)+'% ao ano acima da inflação</b> · '+
-      (p.taxaFonte==='aplicacoes'?'média das suas aplicações de longo prazo (Patrimônio → Investimentos)':'padrão do app: cadastre suas aplicações para usar a taxa delas')+
+      'o rendimento-alvo do plano (troque no 🧭 Plano × onde estamos)'+
       (p.retirada?' · renda: retirada de '+num(p.retirada*100)+'% ao ano':'')+'</div>':'')+'</div>';
 }
 
