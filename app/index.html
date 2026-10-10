@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.18.4 \u00b7 10/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.18.5 \u00b7 10/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -9656,7 +9656,7 @@ var IC_CARTAO='<svg width="16" height="12" viewBox="0 0 16 12" style="width:16px
 function iconePagaPor(t){
   var ic={CC:[IC_BANCO,'paga pela conta corrente'],CARTAO:[IC_CARTAO,'paga no cartão: cai na fatura'],
           AMBOS:[IC_BANCO+IC_CARTAO,'parte pela conta corrente, parte no cartão']}[t];
-  return ic ? '<span title="'+ic[1]+'" style="display:inline-flex;gap:4px;align-items:center;margin-left:7px;flex:0 0 auto;width:auto;max-width:40px;vertical-align:middle">'+ic[0]+'</span>' : '';
+  return ic ? '<span title="'+ic[1]+'" style="display:inline-flex;gap:4px;align-items:center;margin-left:auto;padding-left:8px;flex:0 0 auto;width:auto;max-width:48px;vertical-align:middle">'+ic[0]+'</span>' : '';
 }
 function notaDaVerba(d){
   // um selo em vez de frase: 💳 = o previsto veio da verba do cartão
