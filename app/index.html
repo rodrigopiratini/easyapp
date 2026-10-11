@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.18.5 \u00b7 10/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.19.0 \u00b7 11/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1079,6 +1079,49 @@ window.pedirTexto = function (o, feito) {
       var prev = l ? Number(l.previsto) || 0 : 0;
       return salvarPrevisto(mes, categoria, Math.min(prev, pago))
         .then(function (x) { return x.ok ? { ok: true, categoria: categoria, previsto: n(Math.min(prev, pago)) } : x; });
+    });
+  }
+
+  /* Reprogramar o que sobrou da verba: o previsto que não vai ser gasto neste
+     mês sai daqui e vai para a frente - tudo num mês escolhido, ou dividido
+     em partes iguais nos meses seguintes. Se o mês de destino já tem previsto
+     dessa conta, SOMA (a festa de 3.854 com 1.567 gastos: os 2.287 vão para
+     novembro, que já tinha o dele). Nunca tira mais do que o que sobrou. */
+  function reprogramarPrevisto(mes, categoria, valor, modo, alvo, vezes) {
+    return Promise.all([idDaCategoria(categoria),
+      rest('/rest/v1/resumo_mes?select=previsto,realizado&mes_ref=eq.' + mes
+           + '&categoria=eq.' + encodeURIComponent(categoria))]).then(function (R) {
+      var cid = R[0], l = R[1] && R[1][0];
+      if (!cid || !l) return { ok: false, erro: 'não achei a conta ' + categoria };
+      var prev = Number(l.previsto) || 0, sobra = Math.max(0, prev - Math.max(0, Number(l.realizado) || 0));
+      var v = Math.round(Math.min(Number(valor) || 0, sobra) * 100);
+      if (v <= 0) return { ok: false, erro: 'não sobrou nada para reprogramar' };
+      var destinos = [];
+      if (modo === 'dividir') {
+        vezes = Math.max(2, Math.min(24, parseInt(vezes, 10) || 2));
+        var parte = Math.floor(v / vezes), ref = mes;
+        for (var k = 0; k < vezes; k++) {
+          ref = mesSeguinte(ref);
+          destinos.push({ ref: ref, cent: parte + (k === 0 ? v - parte * vezes : 0) });
+        }
+      } else {
+        if (!/^\d{4}-\d{2}$/.test(String(alvo || '')) || alvo <= mes) return { ok: false, erro: 'escolha um mês depois deste' };
+        destinos.push({ ref: alvo, cent: v });
+      }
+      var refs = destinos.map(function (d) { return d.ref; });
+      return rest('/rest/v1/previstos?select=mes_ref,valor&categoria_id=eq.' + cid
+                  + '&mes_ref=in.(' + refs.join(',') + ')').then(function (ex) {
+        var ja = {};
+        (ex || []).forEach(function (x) { ja[x.mes_ref] = Number(x.valor) || 0; });
+        var linhas = [{ categoria_id: cid, mes_ref: mes, valor: n(prev - v / 100) }].concat(destinos.map(function (d) {
+          return { categoria_id: cid, mes_ref: d.ref, valor: n((ja[d.ref] || 0) + d.cent / 100) };
+        }));
+        return gravar('previstos', linhas, 'user_id,categoria_id,mes_ref').then(function () {
+          return { ok: true, valor: v / 100, destinos: destinos.map(function (d) {
+            return { ref: d.ref, somou: d.cent / 100, antes: n(ja[d.ref] || 0), agora: n((ja[d.ref] || 0) + d.cent / 100) };
+          }) };
+        });
+      });
     });
   }
 
@@ -4230,6 +4273,7 @@ window.pedirTexto = function (o, feito) {
     apiAbrirAnoNaFC: abrirAno,
     apiAuditoria: auditoria,
     apiBaixarPrevisto: baixarPrevisto,
+    apiReprogramarPrevisto: reprogramarPrevisto,
     apiRestaurarPrevisto: function (mes, cat) { return salvarPrevisto(mes, cat, 0); },
     apiExtras: extras,
     apiPagarFatura: pagarFatura,
@@ -9480,12 +9524,16 @@ function renderMes(){
         h+='<div class="m" style="font-size:11px;margin:4px 0 6px">marque o que já '+
            'resolveu ou não vai acontecer — o previsto fica no que já foi pago</div>';
         cx.itens.forEach(function(x,n){
-          h+='<label class="lc">'+
+          var podeReprog = !x.fatura && x.natureza!=='RECEITA';
+          h+='<div style="display:flex;align-items:center;gap:6px"><label class="lc" style="flex:1;min-width:0">'+
              '<input type="checkbox" onchange="'+(x.fatura ? 'baixarFatura(this)'
                : 'baixarPrevisto('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+',this)')+'">'+
              '<span class="t">'+tx(x.categoria)+'</span>'+
              '<span class="n '+(x.natureza==='RECEITA'?'pos':'neg')+'">'+
-             (x.natureza==='RECEITA'?'+':'-')+moeda(x.falta)+'</span></label>';
+             (x.natureza==='RECEITA'?'+':'-')+moeda(x.falta)+'</span></label>'+
+             (podeReprog?'<button class="bt-x" title="reprogramar para os próximos meses" style="color:#93b8ff;font-size:15px" '+
+               'onclick="abrirReprog('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+',\'caixa\')">&#8618;</button>':'')+'</div>';
+          if(podeReprog && ST.reprog===x.categoria && ST.reprogOnde==='caixa') h+=painelReprog(x);
         });
       }
       h+='</div>';
@@ -9577,7 +9625,11 @@ function renderMes(){
      '<div class="cab-mob"><span>previsto</span><span>realizado</span><span>saldo</span></div>';
   lista.forEach(function(d,i){
     h+='<div class="ln tab" title="'+tx(d.grupo)+'">'+
-       '<div class="nm">'+ponto(d.grupo)+'<span>'+tx(d.categoria)+'</span>'+iconePagaPor(d.pagaPor)+'</div>'+
+       '<div class="nm">'+ponto(d.grupo)+'<span>'+tx(d.categoria)+'</span>'+
+         (d.saldo>0.005 && !d.daVerba && d.categoria!=='CARTAO - A CLASSIFICAR'
+           ? '<button class="bt-x" title="reprogramar a sobra para os próximos meses" style="color:#93b8ff;font-size:14px;flex:none;margin-left:4px" '+
+             'onclick="abrirReprog('+JSON.stringify(d.categoria).replace(/"/g,'&quot;')+',\'linha\')">&#8618;</button>' : '')+
+         iconePagaPor(d.pagaPor)+'</div>'+
        '<input id="pv'+i+'"'+((d.daVerba>0.005||d.distribuido>0.005)?' class="vb" title="o previsto veio da verba do cartão"':'')+' value="'+(d.previsto>0.005?num(d.previsto):'')+'" '+
          'placeholder="0,00"'+(Number(d.padrao)>0.005&&d.previsto<=0.005?' title="sem previsto neste mês (o padrão da conta é '+num(d.padrao)+')"':'')+' inputmode="decimal" '+
          'onfocus="this.select()" onblur="salvarPrevisto('+i+')" '+
@@ -9585,7 +9637,8 @@ function renderMes(){
        '<span class="n">'+moeda(d.realizado)+'</span>'+
        '<span class="n dif '+(d.saldo<0?'neg':'pos')+'">'+moeda(d.saldo)+
          botaoLinhaMes(d)+
-       '</span></div>';
+       '</span></div>'+
+       (ST.reprog===d.categoria && ST.reprogOnde==='linha' ? painelReprog({categoria:d.categoria, falta:d.saldo}) : '');
   });
   ST.linhasMes=lista;
   h+=linhaMais('DESPESA')+
@@ -9773,6 +9826,50 @@ function baixarFatura(box){
   }).withFailureHandler(function(){
     box.checked=false; box.disabled=false; toast('Falhou');
   }).apiPagarFatura(ST.mes);
+}
+
+/* ↪ Reprogramar: o que não vai ser gasto neste mês vai para a frente -
+   tudo num mês, ou dividido nos próximos. Soma com o previsto que já existe lá. */
+function abrirReprog(cat, onde){
+  if(ST.reprog===cat && ST.reprogOnde===onde){ ST.reprog=null; } else { ST.reprog=cat; ST.reprogOnde=onde; }
+  renderMes();
+}
+function painelReprog(x){
+  var modo=ST.reprogModo||'mes', ref=ST.mes, ops='';
+  for(var k=1;k<=12;k++){
+    ref=(function(r){ var a=+r.slice(0,4), m=+r.slice(5,7)+1; if(m>12){m=1;a++;} return a+'-'+('0'+m).slice(-2); })(ref);
+    ops+='<option value="'+ref+'">'+NOMES_MES[+ref.slice(5,7)]+' '+ref.slice(0,4)+'</option>';
+  }
+  var vz=''; for(var v=2;v<=12;v++) vz+='<option value="'+v+'">'+v+' meses</option>';
+  return '<div class="card" style="margin:4px 0 8px;padding:10px 11px;border:1px solid #2b3a57">'+
+    '<div class="m" style="font-size:11.5px;margin-bottom:7px">Levar o que não vai ser gasto de <b>'+tx(x.categoria)+'</b> para os próximos meses. '+
+      'Se o mês já tem previsto dessa conta, soma.</div>'+
+    '<div class="lbl" style="font-size:10px">Valor</div>'+
+    '<input id="rpVal" inputmode="decimal" value="'+num(x.falta)+'" oninput="mascaraMoeda(this)" style="margin:0 0 8px">'+
+    '<div class="evo-tabs" style="margin-bottom:8px">'+
+      '<button class="'+(modo==='mes'?'on':'')+'" onclick="ST.reprogModo=\'mes\';renderMes()">tudo num mês</button>'+
+      '<button class="'+(modo==='dividir'?'on':'')+'" onclick="ST.reprogModo=\'dividir\';renderMes()">dividir nos próximos</button></div>'+
+    (modo==='mes'
+      ? '<select id="rpMes" style="margin:0">'+ops+'</select>'
+      : '<select id="rpVezes" style="margin:0">'+vz+'</select>')+
+    '<div class="row" style="gap:8px;margin-top:9px">'+
+      '<button class="bt-no" style="flex:1" onclick="ST.reprog=null;renderMes()">Cancelar</button>'+
+      '<button class="bt-ok" style="flex:2" onclick="reprogramar('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+')">Reprogramar</button></div></div>';
+}
+function reprogramar(cat){
+  var v=parseFloat(String(el('rpVal').value||'0').replace(/\./g,'').replace(',','.'))||0;
+  if(!(v>0)){ toast('Informe o valor'); return; }
+  var modo=ST.reprogModo||'mes', alvo=el('rpMes')?el('rpMes').value:'', vezes=el('rpVezes')?el('rpVezes').value:0;
+  toast('Reprogramando...');
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
+    var nm=function(ref){ return NOMES_MES[+ref.slice(5,7)].slice(0,3).toLowerCase()+'/'+ref.slice(2,4); };
+    toast(moeda(r.valor)+' → '+(r.destinos.length===1
+      ? nm(r.destinos[0].ref)+(r.destinos[0].antes>0.005?' (somou: agora '+moeda(r.destinos[0].agora)+')':'')
+      : r.destinos.length+' meses de '+moeda(r.destinos[r.destinos.length-1].somou)));
+    ST.reprog=null; ST.cacheMes={}; ST.extras=null; ST.ano=null; carregar(ST.mes);
+  }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
+    .apiReprogramarPrevisto(ST.mes, cat, v, modo, alvo, vezes);
 }
 
 function baixarPrevisto(cat, box){
