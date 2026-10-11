@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.19.0 \u00b7 11/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.19.1 \u00b7 11/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -4335,7 +4335,12 @@ window.pedirTexto = function (o, feito) {
               marcarTempo(nome, (window.performance || Date).now() - t0);
               // Qualquer gravacao limpa o que foi guardado - senao a projecao
               // continuava mostrando o previsto de antes da sua mudanca.
-              if (!LEITURAS.test(nome)) { _cfgCache = null; _projCache = {}; _aberturaCache = {}; }
+              if (!LEITURAS.test(nome)) {
+                _cfgCache = null; _projCache = {}; _aberturaCache = {};
+                // avisa as telas que guardam conta pronta (o Plano): os dados mudaram
+                window.EASYAPP_MUDOU = Date.now();
+                try { window.dispatchEvent(new Event('easyapp:mudou')); } catch (e) {}
+              }
               if (ok) ok(r);
             })
             .catch(function (e) {
@@ -10113,12 +10118,14 @@ function adiantarExtras(){
   if(ST.buscandoExtras) return;
   if(ST.extras && ST.extras.mes===ST.mes) return;
   ST.buscandoExtras=true;
-  var pedido=ST.mes;
+  var pedido=ST.mes, t0=Date.now();
   google.script.run.withSuccessHandler(function(x){
     ST.buscandoExtras=false;
     if(!x || !x.ok || x.mes!==pedido) return;
-    ST.extras=x;
-    if(!ST.plano) ST.plano=x.plano;
+    // algo foi gravado enquanto isto vinha: já nasceu velho
+    if((window.EASYAPP_MUDOU||0)>t0) return;
+    ST.extras=x; ST.extrasEm=t0;
+    if(!ST.plano){ ST.plano=x.plano; ST.planoEm=t0; }
     if(!ST.metas) ST.metas=x.metas;
     if(ST.telaAtual==='analise'){
       if(ST.modoAnalise==='PLANO') renderPlano();
@@ -10142,17 +10149,45 @@ function extratoAdiantado(){
   return (x.mes===ST.mes) ? x.extratoConta : null;
 }
 
+/* O plano se refaz sozinho: qualquer gravação (previsto, lançamento, ajuste,
+   o banco chegando) marca os dados como mudados, e o plano guardado de antes
+   disso é refeito por trás - mostra o que tem e troca quando o novo chega. */
+function planoVelho(){ return !!ST.plano && (window.EASYAPP_MUDOU||0) > (ST.planoEm||0); }
 function carregarPlano(){
-  if(!ST.plano && ST.extras && ST.extras.mes===ST.mes) ST.plano=ST.extras.plano;
-  if(ST.plano){ renderPlano(); return; }
+  if(!ST.plano && ST.extras && ST.extras.mes===ST.mes && !((window.EASYAPP_MUDOU||0)>(ST.extrasEm||0))){
+    ST.plano=ST.extras.plano; ST.planoEm=ST.extrasEm||0;
+  }
+  if(ST.plano && !planoVelho()){ renderPlano(); return; }
+  if(ST.plano){ renderPlano(); refazerPlano(); return; }
   el('tela-plano').innerHTML=abasAnalise()+'<div class="load">Montando o plano...</div>';
+  var t0=Date.now();
   google.script.run.withSuccessHandler(function(p){
-    ST.plano=p; renderPlano();
+    ST.plano=p; ST.planoEm=t0; renderPlano();
   }).withFailureHandler(function(e){
     el('tela-plano').innerHTML=abasAnalise()+'<div class="vazio">Não consegui.<br>'+
       ((e&&e.message)||e)+'</div>';
   }).apiPlanoSimples();
 }
+
+function refazerPlano(){
+  if(ST.refazendoPlano) return;
+  ST.refazendoPlano=true;
+  var t0=Date.now();
+  google.script.run.withSuccessHandler(function(p){
+    ST.refazendoPlano=false;
+    if(!p) return;
+    ST.plano=p; ST.planoEm=t0;
+    if(ST.telaAtual==='analise' && ST.modoAnalise==='PLANO' && !ST.trocandoAlvo) renderPlano();
+    if(planoVelho()) refazerPlano();   // mudou de novo enquanto refazia
+  }).withFailureHandler(function(){ ST.refazendoPlano=false; }).apiPlanoSimples();
+}
+// gravou algo com o Plano aberto: refaz em seguida (um só, mesmo com várias gravações juntas)
+window.addEventListener('easyapp:mudou', function(){
+  clearTimeout(ST._tPlano);
+  ST._tPlano=setTimeout(function(){
+    if(ST.telaAtual==='analise' && ST.modoAnalise==='PLANO' && ST.plano && planoVelho()) refazerPlano();
+  }, 900);
+});
 
 function renderPlano(){
   var p=ST.plano, c=el('tela-plano');
