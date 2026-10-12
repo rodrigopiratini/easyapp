@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.20.0 \u00b7 12/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.20.1 \u00b7 12/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -8861,8 +8861,8 @@ function renderPendentes(){
   if(novos){
     h+='<div class="card" style="border-color:#7c5310;background:#2a1f0d">'+
        '<b>'+novos+' fornecedor'+(novos>1?'es':'')+' novo'+(novos>1?'s':'')+'</b>'+
-       '<div class="m" style="margin-top:3px">Classifique uma vez — nas próximas compras '+
-       'no mesmo lugar já vem preenchido.</div></div>';
+       '<div class="m" style="margin-top:3px">Escolha a conta e se vale <b>só para esta</b> ou <b>sempre</b> '+
+       'para o fornecedor — no "sempre", as próximas compras no mesmo lugar já vêm preenchidas.</div></div>';
   }
   ST.pendentes.forEach(function(p,i){
     var op = p.novo
@@ -8909,6 +8909,7 @@ function renderPendentes(){
            ' onclick="confirmar('+i+')">✓</button>'+
        '</div>'+
        '<div id="nc'+i+'"></div>'+
+       linhaLembrar(p,i)+
        // parcelas: sempre à vista na compra no crédito (escondido no ⋯ ninguém achava)
        (cartaoCred && tipo!=='DEBITO'
          ? '<div class="row" style="gap:6px;margin-top:6px;align-items:center"><span class="m" style="font-size:12px">Parcelas</span>'+
@@ -9124,10 +9125,38 @@ function confirmar(i){
         .apiParcelar(p.uuid||p.id, vezes);
       return;
     }
-    toast('Confirmado'); carregar();
+    if(lembrarDe(p)){
+      // e as próximas: a regra do fornecedor (e as antigas dele sem conta)
+      google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){})
+        .apiClassificarFornecedor(chaveFornecedor(p), cat);
+      toast('Confirmado · as próximas de '+chaveFornecedor(p)+' já vêm nesta conta');
+    } else toast('Confirmado');
+    carregar();
     perguntarInvestimento(r && r.lancamento);
   }).apiConfirmar(p.linha, cat, p.valor, p.id);
 }
+/* Só esta ou sempre: com o fornecedor de verdade no nome ("SUPERLEGAL"), o
+   padrão é lembrar - as próximas compras já chegam nesta conta. Aviso
+   genérico ("PIX ENVIADO") não tem o que lembrar: ensinar "PIX ENVIADO =
+   presentes" classificaria todo Pix do mundo igual. */
+var GENERICO=/^(PIX (ENVIADO|RECEBIDO|AGENDADO)|TRANSFER[EÊ]NCIA (ENVIADA|RECEBIDA)|TED (ENVIADA|RECEBIDA)|DOC ENVIADO|COMPRA APROVADA)\s*(\||$)/i;
+function chaveFornecedor(p){ return String(p.fornecedor||p.descricao||'').split('|')[0].trim().slice(0,40); }
+function lembrarDe(p){
+  ST.lembrar=ST.lembrar||{};
+  if(ST.lembrar[p.uuid]!==undefined) return ST.lembrar[p.uuid];
+  return !GENERICO.test(String(p.descricao||'').trim()) && chaveFornecedor(p).length>=3;
+}
+function linhaLembrar(p,i){
+  if(p.natureza!=='DESPESA' && p.natureza!=='RECEITA') return '';
+  var ch=chaveFornecedor(p);
+  if(GENERICO.test(String(p.descricao||'').trim()) || ch.length<3)
+    return '<div class="m" style="font-size:11px;margin-top:5px">só esta: aviso sem nome de fornecedor, não dá para lembrar</div>';
+  var on=lembrarDe(p);
+  return '<div class="seg" style="margin-top:6px;width:100%">'+
+    '<button style="flex:1;padding:5px;font-size:12px" class="'+(on?'':'on')+'" onclick="ST.lembrar=ST.lembrar||{};ST.lembrar[\''+p.uuid+'\']=false;renderPendentes()">só esta</button>'+
+    '<button style="flex:1;padding:5px;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" class="'+(on?'on':'')+'" onclick="ST.lembrar=ST.lembrar||{};ST.lembrar[\''+p.uuid+'\']=true;renderPendentes()">sempre '+tx(ch)+'</button></div>';
+}
+
 function escolherTipo(i, t){
   var p=ST.pendentes[i]; ST.tipoEscolhido=ST.tipoEscolhido||{};
   ST.tipoEscolhido[p.uuid]=t; renderPendentes();
