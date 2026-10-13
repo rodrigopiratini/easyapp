@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.20.2 \u00b7 13/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.20.3 \u00b7 14/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -850,11 +850,28 @@ window.pedirTexto = function (o, feito) {
   }
 
   /* ------------------------------------------------------------ extrato */
+  /* Busca em QUALQUER campo do lançamento: descrição, fornecedor, conta do
+     plano, conta/cartão, data, valor (100 / 100,00 / 1.234,56), observação,
+     parcela. Sem acento e sem maiúscula; várias palavras = todas precisam
+     estar ("santander presentes"). */
+  function semAcento(t) {
+    return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+  function bateBusca(x, busca) {
+    var termos = semAcento(busca).split(/\s+/).filter(function (t) { return t; });
+    if (!termos.length) return true;
+    var v = Math.abs(Number(x.valor) || Number(x.credito) || Number(x.debito) || 0);
+    var br = v.toFixed(2).replace('.', ','), milhar = br.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    var tudo = semAcento([x.data, x.fornecedor, x.descricao, x.categoria, x.conta, x.cartao, x.obs,
+      x.parcela, x.meio, x.natureza === 'RECEITA' || x.credito ? 'credito entrada recebido' : 'debito saida',
+      br, milhar, v.toFixed(2), String(v)].join(' | '));
+    return termos.every(function (t) { return tudo.indexOf(t) >= 0; });
+  }
   function extratoConta(mes, filtro, busca) {
     var q = '/rest/v1/lancamentos?select=id,data,valor,natureza,descricao,fornecedor,meio,'
           + 'status,origem,origem_id,conta_id,categoria_id,criado_em,contas(nome),categorias(nome)'
           + '&mes_ref=eq.' + mes + '&meio=neq.CARTAO_CREDITO&order=data.desc,criado_em.desc,id.desc';
-    if (busca) q += '&fornecedor=ilike.*' + encodeURIComponent(busca) + '*';
+    // a busca é feita aqui, em todos os campos (antes: só o fornecedor, no banco)
     // o mês inteiro (antes: só os 400 primeiros, e os totais saíam errados)
     return Promise.all([lerTudo(q), saldoAberturaDoMes(mes, filtro)]).then(function (r) {
       // o mais recente em cima; no mesmo dia, o que entrou por último
@@ -885,6 +902,13 @@ window.pedirTexto = function (o, feito) {
         if (anula[x.id]) { x.entreContas = true; return; }
         cred += x.credito || 0; deb += x.debito || 0;
       });
+      // com busca: a lista e o Entrou/Saiu mostram só o que bateu; o saldo de
+      // cada linha continua o de verdade (calculado com o mês inteiro)
+      if (busca) {
+        itens = itens.filter(function (x) { return bateBusca(x, busca); });
+        cred = 0; deb = 0;
+        itens.forEach(function (x) { if (!x.entreContas) { cred += x.credito || 0; deb += x.debito || 0; } });
+      }
       return { mes: mes, itens: itens, total: itens.length,
                creditos: n(cred), debitos: n(deb),
                saldoInicial: n(inicial), saldoFinal: n(saldo) };
@@ -900,12 +924,9 @@ window.pedirTexto = function (o, feito) {
           + '&natureza=eq.DESPESA&order=data.desc,id.desc';
     return lerTudo(q).then(function (linhas) {
       var itens = linhas.map(function (l) { return paraItem(l); });
-      var alvo = String(busca || '').toLowerCase();
       itens = itens.filter(function (x) {
         if (cartaoSel && cartaoSel !== 'TUDO' && x.cartao !== cartaoSel) return false;
-        if (alvo && [x.data, x.fornecedor, x.categoria, x.cartao, String(x.valor)]
-                      .join(' ').toLowerCase().indexOf(alvo) < 0) return false;
-        return true;
+        return bateBusca(x, busca);
       });
       // Toda compra parcelada vai para o FIM, com o selo X/N: em cima ficam
       // as compras do ciclo, embaixo o que e prestacao. A parcela gerada pelo
@@ -966,6 +987,7 @@ window.pedirTexto = function (o, feito) {
       credito: entrou ? Math.abs(v) : 0,
       debito: entrou ? 0 : v,
       fornecedor: l.fornecedor || l.descricao,
+      descricao: l.descricao || '',
       categoria: (l.categorias || {}).nome || '',
       conta: (l.contas || {}).nome || '',
       cartao: l.meio === 'CARTAO_CREDITO' ? ((l.contas || {}).nome || '') : '',
