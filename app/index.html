@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.20.1 \u00b7 12/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.20.2 \u00b7 13/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1519,13 +1519,22 @@ window.pedirTexto = function (o, feito) {
         .then(function (r) { return r[0].id; });
     });
   }
-  function espelhoTransferencia(linha, id, contaDestino) {
+  function espelhoTransferencia(linha, id, contaDestino, contaEsta) {
     if (!contaDestino) return Promise.resolve({ ok: false, erro: 'escolha a outra conta' });
-    return Promise.all([acharLinha(id || linha), idDaConta(contaDestino), categoriaTransferencia()]).then(function (r) {
-      var uuid = r[0], destino = r[1], cat = r[2];
+    return Promise.all([acharLinha(id || linha), idDaConta(contaDestino), categoriaTransferencia(),
+                        contaEsta ? idDaConta(contaEsta) : Promise.resolve(null)]).then(function (r) {
+      var uuid = r[0], destino = r[1], cat = r[2], esta = r[3];
       if (!uuid) return { ok: false, erro: 'não achei esse lançamento' };
       if (!destino) return { ok: false, erro: 'não conheço a conta ' + contaDestino };
-      return rest('/rest/v1/lancamentos?select=id,data,valor,natureza,meio,conta_id,fornecedor,contas(nome)&id=eq.' + uuid)
+      if (esta && esta === destino) return { ok: false, erro: 'as duas contas têm que ser diferentes' };
+      // este lado caiu na conta errada (o aviso citava o outro banco): muda antes de parear
+      var mover = rest('/rest/v1/lancamentos?select=conta_id&id=eq.' + uuid).then(function (y) {
+        if (!esta || !y[0] || y[0].conta_id === esta) return null;
+        return mudar('lancamentos', 'id=eq.' + uuid, { conta_id: esta });
+      });
+      return mover.then(function () {
+        return rest('/rest/v1/lancamentos?select=id,data,valor,natureza,meio,conta_id,fornecedor,contas(nome)&id=eq.' + uuid);
+      })
         .then(function (x) {
           var l = x[0];
           if (!l) return { ok: false, erro: 'não achei esse lançamento' };
@@ -9089,14 +9098,16 @@ function confirmar(i){
   // o outro lado quem cria e o app - senao o saldo de uma das contas nunca mexe
   if(cat===CAT_TRANSFER){
     var destino = el('tr'+i) ? el('tr'+i).value : '';
+    var esta = el('tra'+i) ? el('tra'+i).value : '';
     if(!destino){ toast('Escolha a outra conta'); return; }
+    if(esta && esta===destino){ toast('As duas contas têm que ser diferentes'); return; }
     el('p'+i).style.opacity=.35;
     google.script.run.withSuccessHandler(function(r){
       toast(r && r.ok ? (r.criou?'Transferência lançada nas duas contas':'Os dois lados pareados')
                       : ((r&&r.erro)||'Não consegui'));
       carregar();
     }).withFailureHandler(function(){ toast('Falhou'); carregar(); })
-      .apiEspelhoTransferencia(p.linha, p.id, destino);
+      .apiEspelhoTransferencia(p.linha, p.id, destino, esta);
     return;
   }
   if(p.perguntarTitular){ toast('Antes: esse dinheiro é da sua conta?'); return; }
@@ -9203,16 +9214,19 @@ function definirConta(i){
 }
 
 /* Lista das suas contas, para dizer de onde veio / para onde foi. */
+/* Os dois lados da transferência. Este lado vem com a conta do aviso, mas dá
+   para trocar: o aviso da CAIXA ("recebeu um Pix de ... Santander") caía no
+   Santander, e aqui se corrige na hora - entrou na CEF, saiu do Santander. */
 function seletorOutraConta(i, natureza, contaAtual){
-  var contas=((ST.saldos&&ST.saldos.contas)||[]).filter(function(c){
-    return c.conta!==contaAtual; });
-  if(!contas.length) return '';
-  var rotulo = (natureza==='RECEITA') ? 'De qual conta sua saiu?' : 'Para qual conta sua foi?';
+  var todas=((ST.saldos&&ST.saldos.contas)||[]);
+  if(todas.length<2) return '';
+  var itens=todas.map(function(c){ return { valor:c.conta, rotulo:c.conta, grupo:c.titular }; });
+  var receita = natureza==='RECEITA';
   return '<div style="border:1px solid var(--acc);border-radius:10px;padding:9px;margin-top:8px">'+
-    '<div class="lbl" style="margin-bottom:5px">'+rotulo+'</div>'+
-    botaoEscolha('tr'+i, '', 'escolher…', 'conta',
-                 contas.map(function(c){
-                   return { valor:c.conta, rotulo:c.conta, grupo:c.titular }; }), '')+
+    '<div class="lbl" style="margin-bottom:5px">'+(receita?'Entrou em':'Saiu de')+'</div>'+
+    botaoEscolha('tra'+i, contaAtual||'', 'escolher…', 'conta', itens, '')+
+    '<div class="lbl" style="margin:8px 0 5px">'+(receita?'Saiu de (qual conta sua)':'Foi para (qual conta sua)')+'</div>'+
+    botaoEscolha('tr'+i, '', 'escolher…', 'conta', itens, '')+
     '<div class="m" style="font-size:11px;margin-top:5px">O app cria o outro lado '+
     'sozinho: sai daqui, entra lá, e o mês não conta isso como gasto.</div></div>';
 }
