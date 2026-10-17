@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.20.4 \u00b7 17/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.20.5 \u00b7 17/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -2102,9 +2102,19 @@ window.pedirTexto = function (o, feito) {
         return v;
       }
 
-      var baseDez = previstosDoMes(a0 + '-12', prevPorMes);
       var anosAbertos = {};
       Object.keys(prevPorMes).forEach(function (r) { anosAbertos[Number(r.slice(0, 4))] = true; });
+      /* Depois do último ano com previsto, a projeção parte do ÚLTIMO dezembro
+         gravado - não do dezembro deste ano. Partindo de dez/2026, o que o
+         chat ajustou em 2027 (escola +10%, clube que acaba, salário) sumia em
+         2028 e a festa/clube voltavam até o fim do plano. Os reajustes contam
+         a partir desse ano-base. */
+      var anoBase = a0;
+      Object.keys(anosAbertos).forEach(function (y) {
+        y = Number(y);
+        if (y > anoBase && prevPorMes[y + '-12']) anoBase = y;
+      });
+      var baseDez = previstosDoMes(anoBase + '-12', prevPorMes);
       var prevCache = {};
       function prevDe(ref) { return prevCache[ref] || (prevCache[ref] = previstosDoMes(ref, prevPorMes)); }
 
@@ -2144,7 +2154,7 @@ window.pedirTexto = function (o, feito) {
             return n(sz.valor);
           }
           if (nome === 'OUTROS CREDITOS - PLU') return pluxeeDe(serie, r.ref, base);
-          var passados = r.ano - a0;
+          var passados = Math.max(0, r.ano - anoBase);
           if (nome === 'SALARIO MENSAL') {
             // a base é dezembro deste ano, que já tem o reajuste deste ano:
             // conta só os reajustes DEPOIS dela (antes contava um a mais por ano)
@@ -2155,7 +2165,7 @@ window.pedirTexto = function (o, feito) {
             if (rj.mes) {
               // reajuste com data marcada: conta quantos já aconteceram até aqui
               quantos = 0;
-              for (var y = (rj.desde || (a0 + 1)); y <= r.ano; y++) {
+              for (var y = Math.max(rj.desde || 0, anoBase + 1); y <= r.ano; y++) {
                 if (y < r.ano || r.mes >= rj.mes) quantos++;
               }
             }
