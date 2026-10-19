@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.22.0 \u00b7 19/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.23.0 \u00b7 19/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -7198,6 +7198,11 @@ window.pedirTexto = function (o, feito) {
     }).catch(function () {});
   }
 
+  // E-mail de lançamentos (<token>@domínio): o banco avisa por e-mail, a pessoa
+  // encaminha, o Worker de email/ manda para a receber_push. Vazio = a porta
+  // ainda não está ligada (o DNS do domínio tem que estar na Cloudflare).
+  var EMAIL_DOMINIO = '';
+
   // ===================================== TEMPO GRÁTIS DO MACRODROID
   // O MacroDroid grátis para quando acabam os dias (ganha mais vendo anúncio)
   // e não deixa outro app ler esse contador: a pessoa informa aqui, o app
@@ -7383,7 +7388,7 @@ window.pedirTexto = function (o, feito) {
       h += '<div class="card"><div class="lbl">Compras automáticas</div>' +
         '<div class="m" style="font-size:12px;margin:2px 0 10px">Toque para ver como ligar.</div><div class="c-tiles">' +
         (android ? tile('md', '<img src="data:image/png;base64,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" alt="">', 'MacroDroid', 'aviso do celular · chega na hora', stAv + (av.length ? stMd : ''))
-                 : tile('at', '<span class="ico-at">📱</span>', 'Atalhos (iPhone)', 'compras com Apple Pay', stAv)) +
+                 : tile('at', '<span class="ico-at">📱</span>', 'Atalhos (iPhone)', EMAIL_DOMINIO ? 'Apple Pay, SMS e e-mail' : 'Apple Pay e SMS do banco', stAv)) +
         tile('of', '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAIKADAAQAAAABAAAAIAAAAACshmLzAAAEeklEQVRYCe2WXWxURRTHZ+9utx/ULQVZC0iFUKpoLFajUQOKhIBoMMiDr1QlfkSjxkRCwpuJMVGi0Qc1ikI0vEFQI5AQqBKCojFGKbRaK5C64aOsFGlLu233Xn7/zZ1luNvyIm/2JL+dmXPPnTkz58y5a8yE/N9PIHa1A+id/6gey6YsxKfNgVpT27FTjQnt1I1DEjwYhhEo2qkflRIHnEVnYLwI7oO5kAJNeBp+hf1wGLRYMzwITZCGBJyHLjgYovdKnCk64OxiGnYtsAZuBk02lpxD+R3odB6AGhhL5HQ7fApfgBwrOlJwwFl8Ac/ehiWg47yWMspku2Ad/KGJFcKYs/id6D4DOTGuxILABLHiwY1rd5UHP/DsaeiQjT1exftdiC4eoDsJbXDK97zqc+nUklRv/9SKwRHjeyWOnMHuWxiCmXA73ACuoXJqIyjEWTmghy+A4uhKL4NPYAscW9r+fq7hz8zdydzIwsa2brNi2yHT0J6JnsYAtq+DdlcBjbAWWuA6sPIwnafgrfj6aY3K4DdgMlj5h87L8B70tOzZkE9dGPDyifiGXGXyocyctOlonm3Sp86buoxysSi19P6FVlDMdSJ7IQvaYDlItOlZsEdXaDXUgxWfzjuwFfKFRCEQscDcxHi5ciCe983ZulqzvWVx53B54jh6V1YyqJMirBO6BboBH0rnSAP9lXJgGbgx0pX5HAJbaOhLlB/yuiCe7/sn5k3fWNWf+8DqwnYu7a1WF86h09gEx6yeVuFfJgcUJ1cOMshYxaru721XNaHMDmjPDE4q358YzbfSV75YqaIzTwPnhmmok/pJHUfmy4EaR6HuX5GxHV5vO2GbzSe8LNFRnK9IBMZTI7Ya5sE9AemmyAHmuELGK0DKDVdivKmKoDmEK1Fb+yw6d6AX3eOToUISnVD6Hv04kk6M+ko23ffojs86drar8BVCYxW0WS2kpHNlEYM5VvFl/f22+zsdfQmtpKv6h5YPJxMrUKSskrYPOjWOJPEtqO6R3pE2ObAbFB8ruh7PQVkkiX5DV7xyftwzjUe6X6UuPGtfDFvV+eKmwjlUlFTsbgxt1AzDbjmwA7rAFTnwIlRoApXcvpqqDN+ArwP6Wry+67R5YlPrTCqjSq0r2xmokNlbMInua7BGOkeO0t9lP0brGLwJbuwHGW8D3d8jkzsO9L2yb3MTO95x2y/HZy396mczvTtr5JAj2v0qULYrLAtAJ/QYlIMVFaeX4CPrwBQGm0GGUVFp1YQ9QcxUXqyuvKNyYCgVH/Wji+s9JbRCpePVyagoVUNUtqJ4HvqsAzJQ7PXxWQzjyjX4HO9kci3+txbxnExVHjwJ8s7NdoaX5T/8F7jILNrgM1BYXGsXA+hkvJLmcVgLd8FYR6hbo0m+gSQ8AjPAzSGGBbnA74/wMWj3g86mLzvAg4I4jtSgaAbdXYVHYyXPSVCcD8EJ0CYU63uhCVScEqB86AQtfhhUH6K1odQBGbniOKTdqWyLkokidjIplGN3t1JOyMQJRE/gEiRdQ2K8noRVAAAAAElFTkSuQmCC" alt="">', 'Open Finance', 'direto do banco · 1 a 3 dias', stOf) +
         '</div>';
 
@@ -7435,14 +7440,46 @@ window.pedirTexto = function (o, feito) {
           linha('URL', URLp) + linha('Corpo', corpoMD) +
           '<div class="m" style="font-size:11.5px;margin-top:6px">Guarde o token só com você: quem tem ele consegue lançar no seu app. ' +
           'O MacroDroid grátis pede para ver anúncios de tempos em tempos; a versão Pro (taxa única) acaba com isso.</div></div>';
-        h += '<div class="c-guia" id="guia-at" hidden><div class="c-gt">📱 Atalhos do iPhone · passo a passo</div><ol>' +
-          '<li>Abra o app <b>Atalhos</b> → aba <b>Automação</b> → <b>+</b> → <b>Transação</b>.</li>' +
-          '<li>Escolha os cartões, marque <b>Executar Imediatamente</b> → <b>Avançar</b> → <b>Nova Automação em Branco</b>.</li>' +
-          '<li>Adicione a ação <b>Obter Conteúdo do URL</b>, toque em <b>Mostrar Mais</b>, método <b>POST</b>, e preencha com os dados abaixo.</li>' +
-          '<li>No corpo (JSON): <code>token</code> (abaixo), <code>valor</code> = Valor, <code>estabelecimento</code> = Comerciante, <code>cartao</code> = Cartão.</li>' +
-          '</ol><div class="lbl" style="margin:10px 0 2px">Dados para copiar</div>' +
+        // iPhone: o iOS não deixa app nenhum ler a notificação de outro app.
+        // Três portas que ele deixa abertas, todas pelo app Atalhos (grátis):
+        // a Carteira (Apple Pay), o SMS do banco e, com o domínio ligado, o
+        // e-mail do banco encaminhado (o Worker em email/ manda para cá).
+        var passoAt = function (titulo, sub, corpo) {
+          return '<div class="c-passo" style="margin:4px 0 10px;padding:10px;border:1px solid var(--line);border-radius:10px">' +
+            '<b>' + titulo + '</b><div class="m" style="font-size:12px;margin:4px 0 4px">' + sub + '</div><ol>' + corpo + '</ol></div>';
+        };
+        var urlAt = '<li>Adicione a ação <b>Obter Conteúdo do URL</b> e cole a <i>URL</i> daqui. Toque em <b>Mostrar Mais</b>: ' +
+          'Método <b>POST</b>, Corpo da Solicitação <b>JSON</b>, e adicione os campos (tipo <b>Texto</b>, menos onde diz outro):';
+        h += '<div class="c-guia" id="guia-at" hidden><div class="c-gt">📱 iPhone · passo a passo</div>' +
+          '<div class="m" style="font-size:12px;margin-bottom:8px">O iPhone não deixa nenhum app ler os avisos dos bancos. ' +
+          'O app <b>Atalhos</b> (já vem no iPhone) pega a mesma informação por outras portas. Ligue as que servirem para você: ' +
+          'quanto mais, menos coisa fica para o Open Finance trazer depois.</div>' +
+          passoAt('💳 1. Compras com Apple Pay', 'Pega na hora toda compra feita encostando o iPhone ou o relógio.',
+            '<li>Abra o app <b>Atalhos</b> → aba <b>Automação</b> → <b>+</b> → <b>Transação</b>.</li>' +
+            '<li>Escolha os cartões, marque <b>Executar Imediatamente</b> → <b>Avançar</b> → <b>Nova Automação em Branco</b>.</li>' +
+            urlAt + '<br><code>token</code> = o token daqui · <code>valor</code> (tipo <b>Número</b>) = <b>Valor</b> · <code>estabelecimento</code> = <b>Comerciante</b> · ' +
+              '<code>cartao</code> = <b>Cartão</b> (os três últimos são variáveis: toque no campo e escolha em <i>Entrada do Atalho</i>).</li>') +
+          passoAt('💬 2. SMS do banco', 'Pega na hora compra, Pix e débito de qualquer banco que mande SMS. ' +
+              'Antes, ligue no app do banco os <b>alertas por SMS</b> (em alguns bancos é pago).',
+            '<li>Quando chegar um SMS do banco, toque no número dele → <b>Criar Novo Contato</b> e salve como <b>Banco · SMS</b> (ex.: <i>Itaú · SMS</i>).</li>' +
+            '<li>No <b>Atalhos</b> → <b>Automação</b> → <b>+</b> → <b>Mensagem</b>. Em <b>Remetente</b>, escolha o contato do banco ' +
+              '(pode marcar vários bancos). Marque <b>Executar Imediatamente</b> → <b>Avançar</b> → <b>Nova Automação em Branco</b>.</li>' +
+            urlAt + '<br><code>token</code> = o token daqui · <code>app</code> = <b>SMS</b> · ' +
+              '<code>title</code> = <b>Entrada do Atalho</b> → toque nela → <b>Remetente</b> · <code>text</code> = <b>Entrada do Atalho</b> → <b>Conteúdo</b>.</li>' +
+            '<li><b>Teste</b>: toque no <b>▶</b> da automação, ou espere o próximo SMS. O aviso aparece em <i>Últimos avisos recebidos</i>.</li>') +
+          (EMAIL_DOMINIO ? passoAt('✉️ 3. E-mail do banco', 'Pega Pix, compra online e débito de quase todos os bancos (é a porta que mais cobre). ' +
+              'Antes, ligue no app do banco os <b>avisos por e-mail</b> de cada movimentação. Seu endereço de lançamentos ' +
+              '(só seu, não passe a ninguém):' + linha('E-mail', tk + '@' + EMAIL_DOMINIO),
+            '<li>No <b>Gmail</b> (pelo computador): ⚙️ → <b>Ver todas as configurações</b> → <b>Encaminhamento e POP/IMAP</b> → ' +
+              '<b>Adicionar um endereço de encaminhamento</b> → cole o endereço. O Gmail manda um código para ele: em alguns segundos o ' +
+              'código aparece aqui embaixo, em <i>Últimos avisos recebidos</i>. Confirme com ele e deixe marcado <b>Desativar encaminhamento</b> (não é para mandar tudo).</li>' +
+            '<li>Crie um <b>filtro</b>: em <b>De</b>, o endereço que manda os avisos do banco (vale juntar vários com <b>OR</b>) → ' +
+              '<b>Criar filtro</b> → <b>Encaminhar para</b> o endereço daqui. Só os e-mails do banco saem da sua caixa.</li>' +
+            '<li>No <b>iCloud</b> ou <b>Outlook</b>: crie uma <b>regra</b> "se o remetente for o banco, encaminhar para" o endereço daqui.</li>') : '') +
+          '<div class="lbl" style="margin:10px 0 2px">Dados para copiar</div>' +
           linha('URL', URLp) + linha('token', tk) +
-          '<div class="m" style="font-size:11.5px;margin-top:6px">Guarde o token só com você: quem tem ele consegue lançar no seu app.</div></div>';
+          '<div class="m" style="font-size:11.5px;margin-top:6px">Guarde o token só com você: quem tem ele consegue lançar no seu app. ' +
+          'O que os Atalhos não pegam (compra online no cartão sem SMS, por exemplo) chega pelo <b>Open Finance</b>.</div></div>';
       }
 
       // open finance: o guia e, depois de ligado, os bancos
