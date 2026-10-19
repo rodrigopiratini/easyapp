@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.21.0 \u00b7 19/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.21.1 \u00b7 19/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -3823,6 +3823,11 @@ window.pedirTexto = function (o, feito) {
   var INV_ISENTO = { LCI: 1, LCA: 1, POUPANCA: 1 };
   var INV_RV = { ACAO: 1, FII: 1, ETF: 1, CRIPTO: 1 };
   var INV_SEM_IR = { ACAO: 1, FII: 1, ETF: 1, CRIPTO: 1, PREVIDENCIA: 1, CONSORCIO: 1 };
+  // IOF regressivo (resgate antes de 30 dias) é da renda fixa e dos fundos
+  var INV_SEM_IOF = { POUPANCA: 1, ACAO: 1, FII: 1, ETF: 1, CRIPTO: 1, PREVIDENCIA: 1, CONSORCIO: 1 };
+  // % do rendimento que vai de IOF, pelos dias corridos desde a aplicação (1 a 29)
+  var IOF_TAB = [96, 96, 93, 90, 86, 83, 80, 76, 73, 70, 66, 63, 60, 56, 53, 50, 46, 43, 40, 36, 33, 30, 26, 23, 20, 16, 13, 10, 6, 3];
+  function aliquotaIOF(dias) { return dias >= 30 ? 0 : IOF_TAB[Math.max(1, dias)] / 100; }
 
   function aliquotaIR(dias) {
     return dias <= 180 ? 0.225 : dias <= 360 ? 0.20 : dias <= 720 ? 0.175 : 0.15;
@@ -3948,6 +3953,46 @@ window.pedirTexto = function (o, feito) {
       return null;
     }
 
+    /* O que sai de imposto se resgatar hoje, APORTE A APORTE: cada um tem a
+       sua idade (IR 22,5% -> 15%; IOF nos primeiros 30 dias). Antes a posição
+       inteira usava a idade do primeiro aporte - um aporte novo numa aplicação
+       antiga saía com IR de 15% e sem IOF. O resgate consome os aportes mais
+       antigos primeiro, como o banco. Com valor de extrato informado (ou renda
+       variável) não há como separar: vale a data do primeiro aporte. */
+    function impostosDeSaida(p, movs, bruto, aplicado, primeira) {
+      var semIR = INV_ISENTO[p.tipo] || INV_SEM_IR[p.tipo], semIOF = INV_SEM_IOF[p.tipo];
+      if (semIR && semIOF) return { ir: 0, iof: 0 };
+      var fim = (p.vencimento && p.vencimento < hoje) ? p.vencimento : hoje;
+      var manual = p.valor_manual !== null && p.valor_manual !== undefined && p.valor_manual_em;
+      var lotes = [];
+      if (!manual && p.indexador !== 'VARIAVEL' && p.indexador !== 'MANUAL') {
+        movs.forEach(function (m) {
+          if (m.data > hoje) return;
+          if (m.tipo !== 'RESGATE') { lotes.push({ d: m.data, p: Number(m.valor) }); return; }
+          var falta = Number(m.valor);
+          for (var i = 0; i < lotes.length && falta > 0.005; i++) {
+            var vale = lotes[i].p * fator(p, lotes[i].d, m.data);
+            if (!(vale > 0)) continue;
+            var usa = Math.min(1, falta / vale);
+            lotes[i].p *= 1 - usa; falta -= vale * usa;
+          }
+        });
+        lotes.forEach(function (l) { l.v = l.p * fator(p, l.d, fim); });
+      } else {
+        lotes = [{ d: primeira, p: aplicado, v: bruto }];
+      }
+      var ir = 0, iof = 0;
+      lotes.forEach(function (l) {
+        var ganho = l.v - l.p;
+        if (!(ganho > 0)) return;
+        var dias = diasEntre(l.d, fim);
+        var io = semIOF ? 0 : ganho * aliquotaIOF(dias);
+        iof += io;
+        if (!semIR) ir += (ganho - io) * aliquotaIR(dias);
+      });
+      return { ir: ir, iof: iof };
+    }
+
     var mesIni = hoje.slice(0, 8) + '01';
     var lista = pos.map(function (p) {
       var movs = porInv[p.id] || [];
@@ -3960,7 +4005,7 @@ window.pedirTexto = function (o, feito) {
       var aportesMes = movs.filter(function (m) { return m.data >= mesIni && m.data <= hoje; })
         .reduce(function (t, m) { return t + (m.tipo === 'RESGATE' ? -1 : 1) * Number(m.valor); }, 0);
       var bruto = agora.v, ganho = bruto - aplicado;
-      var ir = (!INV_ISENTO[p.tipo] && !INV_SEM_IR[p.tipo] && ganho > 0) ? ganho * aliquotaIR(diasEntre(primeira, hoje)) : 0;
+      var imp = impostosDeSaida(p, movs, bruto, aplicado, primeira), ir = imp.ir, iof = imp.iof;
       var ta = taxaAno(p);
       var venceEm = p.vencimento ? diasEntre(hoje, p.vencimento) : null;
       return {
@@ -3969,7 +4014,7 @@ window.pedirTexto = function (o, feito) {
         vencimento: p.vencimento || '', liquidez: p.liquidez, quantidade: p.quantidade, precoMedio: p.preco_medio,
         objetivo: p.objetivo, reserva: p.reserva || '', titular: p.titular,
         valorManual: p.valor_manual, valorManualEm: p.valor_manual_em || '',
-        aplicado: n(aplicado), valor: n(bruto), rendimento: n(ganho), ir: n(ir), liquido: n(bruto - ir),
+        aplicado: n(aplicado), valor: n(bruto), rendimento: n(ganho), ir: n(ir), iof: n(iof), liquido: n(bruto - ir - iof),
         rendeuMes: (p.indexador === 'VARIAVEL' || p.indexador === 'MANUAL') ? null : n(bruto - inicioMes.v - aportesMes),
         cotacao: agora.cotacao || null, cotacaoEm: agora.cotEm || null,
         taxaAno: ta, taxaReal: ta === null ? null : (1 + ta) / (1 + infl) - 1,
@@ -12737,7 +12782,9 @@ function invDetalhe(x, p){
   var h='<div style="padding:0 0 10px 30px" onclick="event.stopPropagation()">'+
     linha('aplicado (aportes − resgates)', moeda(x.aplicado))+
     linha('rendimento bruto', (x.rendimento>=0?'+':'')+moeda(x.rendimento), x.rendimento>=0?'pos':'neg')+
-    (x.ir>0?linha('IR estimado se resgatar hoje', '−'+moeda(x.ir), 'neg')+linha('líquido', moeda(x.liquido)):'')+
+    (x.iof>0?linha('IOF (resgate antes de 30 dias)', '−'+moeda(x.iof), 'neg'):'')+
+    (x.ir>0?linha('IR estimado se resgatar hoje', '−'+moeda(x.ir), 'neg'):'')+
+    (x.ir>0||x.iof>0?linha('líquido (se resgatar hoje)', moeda(x.liquido)):'')+
     (x.rendeuMes!==null?linha('rendeu neste mês', (x.rendeuMes>=0?'+':'')+moeda(x.rendeuMes), x.rendeuMes>=0?'pos':'neg'):'')+
     (x.cotacao?linha('cotação ('+invData(x.cotacaoEm)+')', moeda(x.cotacao)+(x.precoMedio?' · PM '+moeda(x.precoMedio):'')):'')+
     (x.taxaAno!==null?linha('rende ao ano (estimado)', num(x.taxaAno*100)+'% · real '+num(x.taxaReal*100)+'%'):'')+
