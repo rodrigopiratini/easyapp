@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.21.2 \u00b7 19/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.22.0 \u00b7 19/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1802,14 +1802,56 @@ window.pedirTexto = function (o, feito) {
      As somas vêm prontas do banco (ano_mes e ano_categoria); aqui só se
      monta o formato que a tela espera e se calculam os três números que
      dependem do total - taxa de poupança, peso do cartão e meses com dado. */
+  /* Janela que anda sozinha: o previsto fica gravado até 12 meses à frente.
+     A cada mês que passa, o mês que entra na janela nasce pela projeção (a
+     mesma do Plano). Sem isto, em jan/2028 os meses de 2028 não teriam
+     previsto e o Mês mostraria tudo zerado. Só preenche conta SEM previsto
+     naquele mês - o que você ou o chat gravaram não é tocado. Um mês conta
+     como aberto quando tem ao menos metade das contas do mês de hoje (uma
+     parcela gravada até 2030 sozinha não "abre" 2030). Uma vez por sessão. */
+  var _horizonteFeito = false;
+  function garantirHorizonte() {
+    if (_horizonteFeito) return Promise.resolve(0);
+    _horizonteFeito = true;
+    var hoje = hojeRef(), alvo = hoje;
+    for (var i = 0; i < 12; i++) alvo = mesSeguinte(alvo);
+    return lerTudo('/rest/v1/previstos?select=mes_ref,categoria_id&mes_ref=gte.' + hoje + '&mes_ref=lte.' + alvo)
+      .then(function (prev) {
+        var porMes = {}, tem = {};
+        prev.forEach(function (p) { porMes[p.mes_ref] = (porMes[p.mes_ref] || 0) + 1; tem[p.categoria_id + '|' + p.mes_ref] = 1; });
+        var base = porMes[hoje] || 0;
+        if (!base) return 0;          // conta nova, sem previsto: o primeiro acesso cuida
+        var faltam = [], m = hoje;
+        for (var k = 0; k <= 12; k++) { if ((porMes[m] || 0) < base / 2) faltam.push(m); m = mesSeguinte(m); }
+        if (!faltam.length) return 0;
+        var anos = Number(alvo.slice(0, 4)) - Number(hoje.slice(0, 4)) + 1;
+        return Promise.all([projetarPorConta(Math.max(3, anos)), rest('/rest/v1/categorias?select=id,nome')]).then(function (R) {
+          var pc = R[0], idPorNome = {}, linhas = [];
+          R[1].forEach(function (c) { idPorNome[c.nome] = c.id; });
+          pc.refs.forEach(function (r, i) {
+            if (faltam.indexOf(r.ref) < 0) return;
+            pc.linhas.forEach(function (l) {
+              var id = idPorNome[l.conta], v = n(l.previsto[i]);
+              if (id && v && !tem[id + '|' + r.ref]) linhas.push({ categoria_id: id, mes_ref: r.ref, valor: v });
+            });
+          });
+          if (!linhas.length) return 0;
+          return gravar('previstos', linhas, 'user_id,categoria_id,mes_ref')
+            .then(function () { _projCache = {}; return linhas.length; });
+        });
+      }).catch(function () { return 0; });
+  }
+
   function ano(a) {
     a = Number(a) || Number(hojeRef().slice(0, 4));
-    return Promise.all([
+    return garantirHorizonte().then(function () { return Promise.all([
       rest('/rest/v1/ano_mes?select=*&mes_ref=gte.' + a + '-01&mes_ref=lte.' + a + '-12&order=mes_ref'),
       rest('/rest/v1/ano_categoria?select=categoria,grupo,valor&ano=eq.' + a),
       rest('/rest/v1/lancamentos?select=mes_ref&order=mes_ref.asc&limit=1'),
-      rest('/rest/v1/lancamentos?select=mes_ref&order=mes_ref.desc&limit=1')
-    ]).then(function (r) {
+      rest('/rest/v1/lancamentos?select=mes_ref&order=mes_ref.desc&limit=1'),
+      rest('/rest/v1/previstos?select=mes_ref&order=mes_ref.desc&limit=1'),
+      config()
+    ]); }).then(function (r) {
       var porMes = {};
       r[0].forEach(function (x) { porMes[x.mes_ref] = x; });
 
@@ -1875,7 +1917,15 @@ window.pedirTexto = function (o, feito) {
         // que ele responde e "quanto do que entra ja esta comprometido com a
         // fatura", e nao "que fatia do gasto passa no cartao".
         pesoCartao: receitaTotal ? Math.round(cartaoTotal / receitaTotal * 1000) / 10 : 0,
-        anosDisponiveis: Object.keys(anos).sort()
+        anosDisponiveis: Object.keys(anos).sort(),
+        // os anos depois do último previsto, até o fim do plano: o filtro de
+        // ano oferece "2029 · abrir" (grava o ano pela projeção)
+        paraAbrir: (function () {
+          var ult = r[4][0] ? Number(r[4][0].mes_ref.slice(0, 4)) : new Date().getFullYear();
+          var fim = new Date().getFullYear() + anosDaProjecao(r[5] || {}), l = [];
+          for (var y = Math.max(ult + 1, Number(Object.keys(anos).sort().slice(-1)[0] || 0) + 1); y <= fim; y++) l.push(String(y));
+          return l;
+        })()
       };
     });
   }
@@ -8708,6 +8758,22 @@ function mesDeHoje(){
 }
 var CURTO=['','JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 
+/* Ano ainda fechado ("2029 · abrir"): grava o ano pela projeção e vai para ele. */
+function anoEscolhido(sel, mes){
+  var v=String(sel.value);
+  if(v.indexOf('abrir:')!==0){ irPara(v, mes); return; }
+  var y=Number(v.slice(6));
+  if(!confirm('Abrir '+y+'? Ele é gravado com o que a projeção prevê para cada conta; depois você ajusta o que quiser.')){
+    renderCabecalho(); return;
+  }
+  toast('Abrindo '+y+'...');
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); renderCabecalho(); return; }
+    toast(y+' aberto'); ST.ano=null; ST.plano=null; irPara(y, 1);
+  }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); renderCabecalho(); })
+    .apiAbrirAnoNaFC(y);
+}
+
 function irPara(ano, mes){
   if(ST.ano && ST.ano.ano !== Number(ano)) ST.ano=null;   // forca rebuscar o painel
   carregar(ano+'-'+('0'+mes).slice(-2), true);
@@ -8721,10 +8787,12 @@ function renderCabecalho(){
 
   // o ano é uma caixa de seleção: com o plano até 2040 eram anos demais em botões
   if(anos.indexOf(anoAtual)<0) anos=anos.concat([anoAtual]).sort();
-  el('anos').innerHTML = '<select aria-label="Ano" onchange="irPara(this.value,'+mesAtual+')">'+
+  el('anos').innerHTML = '<select aria-label="Ano" onchange="anoEscolhido(this,'+mesAtual+')">'+
     anos.map(function(y){
       return '<option value="'+y+'"'+(String(y)===anoAtual?' selected':'')+'>'+y+'</option>';
-    }).join('')+'</select>';
+    }).join('')+
+    (a.paraAbrir||[]).map(function(y){ return '<option value="abrir:'+y+'">'+y+' · abrir</option>'; }).join('')+
+    '</select>';
 
   var comDados={};
   (a.serie||[]).forEach(function(s){ if(s.temDados) comDados[s.mes]=true; });
