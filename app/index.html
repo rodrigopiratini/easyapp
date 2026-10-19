@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.20.6 \u00b7 17/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.21.0 \u00b7 19/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -4019,9 +4019,13 @@ window.pedirTexto = function (o, feito) {
       // investimento novo com valor aplicado: vira o primeiro aporte
       var v = Number(d.aplicado) || 0;
       if (d.id || !(v > 0)) return id;
-      return gravar('investimento_movimentos', [{ investimento_id: id, data: campos.aplicado_em || new Date().toISOString().slice(0, 10),
-                                                  tipo: 'APORTE', valor: n(v), lancamento_id: d.lancamento || null }])
-        .then(function () { return id; });
+      var dia = campos.aplicado_em || new Date().toISOString().slice(0, 10);
+      // veio de um lançamento do mês: liga a ele; senão, sai da conta escolhida
+      var lanc = d.lancamento ? Promise.resolve(d.lancamento) : lancamentoDoMovimento(d.conta, 'APORTE', v, dia, id, nome);
+      return lanc.then(function (lid) {
+        return gravar('investimento_movimentos', [{ investimento_id: id, data: dia,
+                                                    tipo: 'APORTE', valor: n(v), lancamento_id: lid || null }]);
+      }).then(function () { return id; });
     }).then(function (id) { _projCache = {}; return { ok: true, id: id }; })
       .catch(function (e) {
         var t = String((e && e.message) || e);
@@ -4036,13 +4040,46 @@ window.pedirTexto = function (o, feito) {
       .then(function () { _projCache = {}; return { ok: true }; });
   }
 
-  function movimentoInvestimento(id, tipo, valor, data, lancamento) {
+  /* Aplicação mexe na conta corrente: o aporte SAI da conta escolhida e o
+     resgate ENTRA nela (antes o movimento ficava solto e o saldo da conta não
+     mudava - os R$ 2.500 em CDB na ROR, 19/10). Entra como MANUAL: se a conta
+     tem Open Finance, o banco adota este lançamento e não duplica. */
+  var CAT_APLICACAO = 'INVESTIMENTO - APLICACOES', CAT_RESGATE = 'INVESTIMENTO - RESGATES';
+  function categoriaDoMovimento(tipo) {
+    var nome = tipo === 'RESGATE' ? CAT_RESGATE : CAT_APLICACAO;
+    return idDaCategoria(nome).then(function (id) {
+      if (id) return id;
+      return gravar('categorias', [{ nome: nome, grupo: 'INVESTIMENTO', sai_por: 'CAIXA',
+                                     natureza: tipo === 'RESGATE' ? 'RECEITA' : 'INVESTIMENTO' }], 'user_id,nome')
+        .then(function (r) { return r[0].id; });
+    });
+  }
+  function lancamentoDoMovimento(conta, tipo, valor, data, invId, invNome) {
+    if (!conta) return Promise.resolve(null);
+    return Promise.all([idDaConta(conta), categoriaDoMovimento(tipo),
+                        invNome ? [{ nome: invNome }] : rest('/rest/v1/investimentos?select=nome&id=eq.' + Number(invId))])
+      .then(function (r) {
+        if (!r[0]) throw new Error('não conheço a conta ' + conta);
+        var desc = (tipo === 'RESGATE' ? 'RESGATE ' : 'APLICACAO ') + String(((r[2] || [])[0] || {}).nome || 'INVESTIMENTO').toUpperCase();
+        return gravar('lancamentos', [{
+          data: data, mes_ref: String(data).slice(0, 7), valor: n(valor),
+          natureza: tipo === 'RESGATE' ? 'RECEITA' : 'DESPESA', descricao: desc, fornecedor: desc,
+          conta_id: r[0], categoria_id: r[1], meio: 'TED', status: 'CONFIRMADO', origem: 'MANUAL',
+          dados: { investimento: Number(invId), obs: 'lançado pela aplicação' }
+        }]).then(function (x) { return x[0].id; });
+      });
+  }
+
+  function movimentoInvestimento(id, tipo, valor, data, lancamento, conta) {
     valor = n(valor);
     if (!(valor > 0)) return Promise.resolve({ ok: false, erro: 'diga o valor' });
-    var linha = { investimento_id: Number(id), tipo: tipo === 'RESGATE' ? 'RESGATE' : 'APORTE', valor: valor,
-                  data: /^\d{4}-\d{2}-\d{2}$/.test(String(data || '')) ? data : new Date().toISOString().slice(0, 10),
-                  lancamento_id: lancamento ? Number(lancamento) : null };
-    return gravar('investimento_movimentos', [linha])
+    tipo = tipo === 'RESGATE' ? 'RESGATE' : 'APORTE';
+    var dia = /^\d{4}-\d{2}-\d{2}$/.test(String(data || '')) ? data : new Date().toISOString().slice(0, 10);
+    var lanc = lancamento ? Promise.resolve(lancamento) : lancamentoDoMovimento(conta, tipo, valor, dia, id);
+    return lanc.then(function (lid) {
+      return gravar('investimento_movimentos', [{ investimento_id: Number(id), tipo: tipo, valor: valor, data: dia,
+                                                  lancamento_id: lid || null }]);
+    })
       .then(function () { _projCache = {}; return { ok: true }; })
       .catch(function (e) {
         if (/duplicate|23505/.test(String((e && e.message) || e))) return { ok: false, erro: 'esse lançamento já foi apontado para um investimento' };
@@ -4051,7 +4088,17 @@ window.pedirTexto = function (o, feito) {
   }
 
   function excluirMovimento(id) {
-    return rest('/rest/v1/investimento_movimentos?id=eq.' + Number(id), { metodo: 'DELETE' })
+    // o lançamento que a própria aplicação criou na conta sai junto; o que veio
+    // do mês (banco, aviso, lançado à mão) fica - só deixa de apontar
+    return rest('/rest/v1/investimento_movimentos?select=lancamento_id,lancamentos(origem,dados)&id=eq.' + Number(id))
+      .then(function (r) {
+        var m = r[0] || {}, l = m.lancamentos || {};
+        return rest('/rest/v1/investimento_movimentos?id=eq.' + Number(id), { metodo: 'DELETE' }).then(function () {
+          if (m.lancamento_id && l.origem === 'MANUAL' && l.dados && l.dados.investimento) {
+            return rest('/rest/v1/lancamentos?id=eq.' + m.lancamento_id, { metodo: 'DELETE' });
+          }
+        });
+      })
       .then(function () { _projCache = {}; return { ok: true }; });
   }
 
@@ -12713,9 +12760,39 @@ function invDetalhe(x, p){
   return h;
 }
 
+/* De que conta corrente sai o aporte (ou para qual volta o resgate). Sugere a
+   do mesmo banco e titular, e a que tem o nome da aplicação ("ROR" ->
+   SANTANDER ROR). "Não mexer" deixa como era: só o registro da aplicação. */
+function invContaSel(idSel, x, rotulo){
+  if(!ST.saldos){
+    if(!ST.invCarregandoSaldos){
+      ST.invCarregandoSaldos=true;
+      google.script.run.withSuccessHandler(function(s){ ST.saldos=s; ST.invCarregandoSaldos=false; renderPatrimonio(); })
+        .withFailureHandler(function(){ ST.invCarregandoSaldos=false; }).apiSaldos();
+    }
+    return '<div class="m" style="font-size:11px">carregando as contas...</div>';
+  }
+  var sem=function(t){ return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); };
+  var ctas=(ST.saldos.contas||[]).filter(function(c){ return c.titular!=='INV'; });
+  var inst=sem(x.instituicao).split(/\s+/)[0], nome=sem(x.nome), melhor='', nota=0;
+  ctas.forEach(function(c){
+    var cn=sem(c.conta), pts=0;
+    if(inst && cn.indexOf(inst)>=0) pts+=2;
+    if(x.titular && c.titular===x.titular) pts+=1;
+    nome.split(/\s+/).forEach(function(w){ if(w.length>=3 && w!==inst && cn.indexOf(w)>=0) pts+=3; });
+    if(pts>nota){ nota=pts; melhor=c.conta; }
+  });
+  if(nota<2) melhor='';
+  return '<div class="lbl" style="font-size:10px;margin-top:6px">'+rotulo+'</div>'+
+    '<select id="'+idSel+'" style="margin:0;padding:6px 8px;font-size:12.5px">'+
+      '<option value="">— não mexer em conta —</option>'+
+      ctas.map(function(c){ return '<option'+(c.conta===melhor?' selected':'')+'>'+tx(c.conta)+'</option>'; }).join('')+
+    '</select>';
+}
 function invFormMov(x){
   var t=ST.invMov.tipo, hoje=new Date().toISOString().slice(0,10);
-  return '<div class="row" style="gap:6px;margin-top:8px;align-items:flex-end">'+
+  return invContaSel('imConta', x, t==='APORTE'?'Saiu da conta':'Voltou para a conta')+
+    '<div class="row" style="gap:6px;margin-top:8px;align-items:flex-end">'+
     '<div style="flex:1.2"><div class="lbl" style="font-size:10px">'+(t==='APORTE'?'Aporte':'Resgate')+'</div>'+
       '<input id="imVal" inputmode="decimal" placeholder="0,00" oninput="mascaraMoeda(this)" style="margin:0;padding:7px 8px;font-size:13px"></div>'+
     '<div style="flex:1.2"><div class="lbl" style="font-size:10px">Dia</div>'+
@@ -12728,7 +12805,7 @@ function invSalvarMov(id){
     if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
     toast('Lançado'); ST.invMov=null; invRecarregar();
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
-    .apiMovimentoInvestimento(id, ST.invMov.tipo, v, el('imData').value, null);
+    .apiMovimentoInvestimento(id, ST.invMov.tipo, v, el('imData').value, null, el('imConta')?el('imConta').value:'');
 }
 function invApagarMov(id){
   if(!confirm('Apagar este movimento?')) return;
@@ -12762,7 +12839,8 @@ function invForm(x, p){
           campo('Quantidade', inp('ifQtd', x.quantidade!==null&&x.quantidade!==undefined?String(x.quantidade).replace('.',','):'', '100', 'decimal', ' oninput="invCalc(\'qtd\')"')),
           campo('Preço de compra', inp('ifPM', x.precoMedio?num(x.precoMedio):'', '0,00', 'decimal', ' oninput="mascaraMoeda(this);invCalc(\'pm\')"')))+
       '<div id="ifSugA" style="margin:-4px 0 8px"></div><div id="ifGanho" class="m" style="font-size:12px;margin:-2px 0 8px"></div></div>'+
-    (novo?linha(campo('Valor aplicado (total)', inp('ifApl', x.aplicado?num(x.aplicado):'', '0,00', 'decimal', ' oninput="mascaraMoeda(this);invCalc(\'apl\')"')), campo('Valor hoje (extrato)', dinheiro('ifVM', x.valorManual, 'opcional'))):
+    (novo?linha(campo('Valor aplicado (total)', inp('ifApl', x.aplicado?num(x.aplicado):'', '0,00', 'decimal', ' oninput="mascaraMoeda(this);invCalc(\'apl\')"')), campo('Valor hoje (extrato)', dinheiro('ifVM', x.valorManual, 'opcional')))+
+          (ST.invNovo&&ST.invNovo.lancamento ? '' : invContaSel('ifConta', x, 'Saiu da conta')+'<div style="height:8px"></div>'):
           linha(campo('Valor hoje pelo extrato', dinheiro('ifVM', x.valorManual, 'opcional')), campo('em', data('ifVMData', x.valorManualEm))))+
     '<div class="lbl" style="font-size:10px">Liquidez</div>'+patChips('ifLiq', x.liquidez||'DIARIA', INV_LIQ)+
     '<div class="lbl" style="font-size:10px">Para quê</div>'+patChips('ifObj', x.objetivo||'APOSENTADORIA', INV_OBJ, 'invMudouObj')+
@@ -12971,7 +13049,8 @@ function invSalvar(id){
           titular:el('ifTit').value,
           ativo:idx==='VARIAVEL'?el('ifAtivo').value:'', quantidade:idx==='VARIAVEL'?dec('ifQtd'):'', precoMedio:idx==='VARIAVEL'?dec('ifPM'):'',
           valorManual:el('ifVM').value?patNum('ifVM'):'', valorManualEm:el('ifVMData')?el('ifVMData').value:'' };
-  if(!id){ d.aplicado=patNum('ifApl'); if(ST.invNovo&&ST.invNovo.lancamento) d.lancamento=ST.invNovo.lancamento; }
+  if(!id){ d.aplicado=patNum('ifApl'); if(ST.invNovo&&ST.invNovo.lancamento) d.lancamento=ST.invNovo.lancamento;
+           else if(el('ifConta')) d.conta=el('ifConta').value; }
   if(!id && !d.aplicado && d.valorManual===''){ toast('Diga quanto aplicou (ou o valor de hoje)'); return; }
   toast('Salvando...');
   google.script.run.withSuccessHandler(function(r){
