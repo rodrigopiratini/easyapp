@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.21.1 \u00b7 19/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.21.2 \u00b7 19/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -2104,17 +2104,23 @@ window.pedirTexto = function (o, feito) {
 
       var anosAbertos = {};
       Object.keys(prevPorMes).forEach(function (r) { anosAbertos[Number(r.slice(0, 4))] = true; });
-      /* Depois do último ano com previsto, a projeção parte do ÚLTIMO dezembro
-         gravado - não do dezembro deste ano. Partindo de dez/2026, o que o
-         chat ajustou em 2027 (escola +10%, clube que acaba, salário) sumia em
-         2028 e a festa/clube voltavam até o fim do plano. Os reajustes contam
-         a partir desse ano-base. */
-      var anoBase = a0;
-      Object.keys(anosAbertos).forEach(function (y) {
-        y = Number(y);
-        if (y > anoBase && prevPorMes[y + '-12']) anoBase = y;
+      /* Ano sem previsto parte do ÚLTIMO dezembro gravado ANTES dele - não do
+         dezembro deste ano. Partindo de dez/2026, o que o chat ajustou em 2027
+         (escola +10%, clube que acaba, salário) sumia em 2028 e a festa/clube
+         voltavam até o fim do plano. E com um ano distante aberto (2033), os
+         anos do meio seguem o último dezembro antes deles, não o de 2033. Os
+         reajustes contam a partir desse ano-base. */
+      var anosDez = [a0];
+      Object.keys(anosAbertos).map(Number).sort(function (p, q) { return p - q; }).forEach(function (y) {
+        if (y > a0 && prevPorMes[y + '-12']) anosDez.push(y);
       });
-      var baseDez = previstosDoMes(anoBase + '-12', prevPorMes);
+      function anoBaseDe(ano) {
+        var b = a0;
+        anosDez.forEach(function (y) { if (y < ano && y > b) b = y; });
+        return b;
+      }
+      var dezCache = {};
+      function dezDe(y) { return dezCache[y] || (dezCache[y] = previstosDoMes(y + '-12', prevPorMes)); }
       var prevCache = {};
       function prevDe(ref) { return prevCache[ref] || (prevCache[ref] = previstosDoMes(ref, prevPorMes)); }
 
@@ -2130,8 +2136,8 @@ window.pedirTexto = function (o, feito) {
       });
 
       var linhas = nomes.map(function (nome) {
-        var base = n(baseDez[nome] || 0);
         var valores = refs.map(function (r) {
+          var anoBase = anoBaseDe(r.ano), base = n(dezDe(anoBase)[nome] || 0);
           // Ano com previsto próprio manda: é o que VOCÊ decidiu, não o que
           // o código inventou corrigindo pela inflação.
           // Mês SEM previsto nenhum segue a projeção. O primeiro acesso grava 12
@@ -3683,6 +3689,11 @@ window.pedirTexto = function (o, feito) {
       anosVistos[a] = true;
       var anos = Object.keys(anosVistos).map(Number).sort()
         .map(function (x) { return { ano: x, aberto: true }; });
+      // os anos ainda fechados, até o fim do plano: podem ser abertos (antes a
+      // lista só tinha os abertos e não havia como abrir um ano novo)
+      var anoHoje = Number(hojeRef().slice(0, 4)), anoFim = anoHoje + anosDaProjecao(c);
+      for (var y = anoHoje; y <= anoFim; y++) if (!anosVistos[y]) anos.push({ ano: y, aberto: false });
+      anos.sort(function (p, q) { return p.ano - q.ano; });
 
       var familias = {};
       cats.forEach(function (x) { familias[x.grupo] = true; });
@@ -4283,7 +4294,9 @@ window.pedirTexto = function (o, feito) {
   function abrirAno(a) {
     a = Number(a);
     if (!a) return Promise.resolve({ ok: false, erro: 'diga o ano' });
-    return Promise.all([projetarPorConta(3), categorias()]).then(function (R) {
+    // a projeção tem que alcançar o ano pedido (antes eram 3 anos: só até 2029)
+    var anosAte = Math.max(3, a - Number(hojeRef().slice(0, 4)) + 1);
+    return Promise.all([projetarPorConta(anosAte), categorias()]).then(function (R) {
       var pc = R[0], cats = R[1];
       var idPorNome = {};
       return rest('/rest/v1/categorias?select=id,nome').then(function (cs) {
@@ -13632,11 +13645,22 @@ function cfgFormMeses(x){
   var base = doAno ? (doAno[mesAtual-1] || doAno.filter(function(v){return v>0;})[0] || 0) : 0;
 
   // uma aba de FC por ano: 2027 e 2028 só aparecem depois de abertos
-  var abas = (ST.config.anos||[]).map(function(a){
+  // abas para os anos abertos (e o fechado que estiver escolhido); os outros
+  // fechados, até o fim do plano, numa caixa - eram anos demais para abas
+  var todos = ST.config.anos||[];
+  var abas = todos.filter(function(a){ return a.aberto || a.ano===ano; }).map(function(a){
     return '<button style="flex:1" class="'+(a.ano===ano?'on':'')+'" '+
       'onclick="cfgTrocarAno('+a.ano+','+(a.aberto?'true':'false')+')">'+a.ano+
       (a.aberto?'':' +')+'</button>';
   }).join('');
+  var fechados = todos.filter(function(a){ return !a.aberto && a.ano!==ano; });
+  if(fechados.length){
+    abas += '<select style="flex:1.3;width:auto;margin:0;padding:4px 6px;font-size:12px" '+
+      'onchange="if(this.value)cfgTrocarAno(Number(this.value),false)">'+
+      '<option value="">abrir outro ano</option>'+
+      fechados.map(function(a){ return '<option value="'+a.ano+'">'+a.ano+'</option>'; }).join('')+
+      '</select>';
+  }
 
   var aberto = (ST.config.anos||[]).some(function(a){ return a.ano===ano && a.aberto; });
   var h='<div style="border-top:1px solid var(--line);margin-top:9px;padding-top:9px">'+
