@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.24.4 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.25.0 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -5831,6 +5831,18 @@ window.pedirTexto = function (o, feito) {
     '.ia-motor{padding:6px 12px 4px}.ia-mt{display:flex;gap:3px;background:#0b101b;border:1px solid #2a3548;border-radius:12px;padding:3px}' +
     '.ia-mt button{flex:1;padding:6px 4px;border-radius:9px;border:0;background:transparent;color:#8b99b5;font-size:12.5px;font-weight:600}' +
     '.ia-mt button.on{color:#fff;background:#1e3a8a}' +
+    '.ia-foco{display:flex;align-items:center;gap:8px;margin:6px 12px 0;padding:6px 10px;border-radius:10px;background:#17284a;' +
+    ' border:1px solid #3b82f6;font-size:12.5px}.ia-foco[hidden]{display:none}.ia-foco span{flex:1}' +
+    '.ia-foco button{background:none;border:0;color:#8b99b5;font-size:17px;padding:0 2px;cursor:pointer}' +
+    '.ia-mod.off{border-color:#2a3548;opacity:.85}.ia-modtopo{display:flex;align-items:center;gap:10px}' +
+    '.ia-modnm{flex:1;min-width:0;cursor:pointer}.ia-mod .sub{margin-bottom:0}' +
+    '.ia-chave{flex:none;width:44px;height:26px;border-radius:13px;border:0;background:#2a3548;position:relative;cursor:pointer;padding:0}' +
+    '.ia-chave i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#8b99b5;transition:.2s}' +
+    '.ia-chave.on{background:#16a34a}.ia-chave.on i{left:21px;background:#fff}' +
+    '.ia-versoes{margin-top:10px;border-top:1px solid #2a3548;padding-top:4px}' +
+    '.ia-ver2{padding:8px 0;border-bottom:1px dashed #2a3548;font-size:12.5px}.ia-ver2:last-child{border:0}' +
+    '.ia-ver2 .tp{display:flex;gap:6px;align-items:baseline}.ia-ver2 .dt{margin-left:auto;color:#8b99b5;font-size:11.5px}' +
+    '.ia-ver2 .em{color:#22c55e;font-size:11px}.ia-ver2 .pd{color:#c7cfdf;margin:3px 0 6px;line-height:1.4}' +
     '.ia-vers{margin-top:8px;font-size:12.5px}.ia-vers summary{cursor:pointer;color:#8b99b5;padding:4px 0}' +
     '.ia-ver{display:flex;align-items:center;gap:6px;padding:4px 0}.ia-ver span{flex:1;color:#c7cfdf}' +
     '.ia-ver button{padding:5px 10px;border-radius:8px;border:1px solid #2a3548;background:#0f1420;color:#e8edf7;font-size:12px}' +
@@ -5939,6 +5951,7 @@ window.pedirTexto = function (o, feito) {
       '<button id="iaAbaMods">Módulos</button></div>' +
       '<div id="iaMsgs"></div><div id="iaHist" hidden></div><div id="iaMods" hidden></div>' +
       '<div class="ia-anx" id="iaAnx" hidden></div>' +
+      '<div class="ia-foco" id="iaFoco" hidden></div>' +
       '<div class="ia-pe" id="iaPe"><button class="ia-clip" id="iaClip" aria-label="anexar planilha, print ou PDF">📎</button>' +
       '<textarea id="iaTxt" placeholder="Peça algo ou anexe 📎" autocomplete="on" autocorrect="on" autocapitalize="sentences" spellcheck="true" enterkeyhint="send"></textarea>' +
       '<button id="iaVoz" aria-label="ditar pedido" title="Ditar pedido">🎤</button>' +
@@ -6163,6 +6176,7 @@ window.pedirTexto = function (o, feito) {
     $('iaMsgs').hidden = qual !== 'chat';
     $('iaPe').hidden = qual !== 'chat';
     $('iaAnx').hidden = qual !== 'chat' || !IA.anexos.length;
+    $('iaFoco').hidden = qual !== 'chat' || !IA.foco;
     $('iaHist').hidden = qual !== 'hist';
     $('iaMods').hidden = qual !== 'mods';
     if (qual === 'mods') listarModulos();
@@ -6170,9 +6184,22 @@ window.pedirTexto = function (o, feito) {
   }
 
   // ----------------------------------------------------------- abrir
+  /* Pedido "dentro do módulo": com um módulo aberto na tela (ou pelo botão
+     Pedir mudança do cartão dele), o chat fica focado nele - o pedido vai
+     ao assistente já dizendo qual módulo é, e entra no histórico de versões. */
+  function focar(m) {
+    IA.foco = m ? { id: m.id, nome: m.nome } : null;
+    var f = $('iaFoco'); if (!f) return;
+    f.hidden = !IA.foco;
+    if (IA.foco) f.innerHTML = '<span>🧩 Pedido sobre <b>' + esc(IA.foco.nome) + '</b></span><button aria-label="tirar o foco">×</button>';
+    if (IA.foco) f.querySelector('button').onclick = function () { focar(null); };
+  }
   function abrir() {
     if (!P() || !P().sessao()) return;
     $('ia').hidden = false; IA.aberto = true;
+    var tela = quadros.filter(function (x) { return x.tipo === 'tela'; })[0];
+    focar(tela && !$('iaTela').classList.contains('hide') ? { id: tela.modulo, nome: tela.nome } : (IA.fixo || null));
+    IA.fixo = null;
     desenharMotor();
     if (!IA.carregado) carregar();
   }
@@ -6353,7 +6380,8 @@ window.pedirTexto = function (o, feito) {
 
     // passa antes pela ponte: se o login venceu (vale 1 hora), ela renova
     atualizarMes().then(function () {
-      return P().chamar('assistente', { mensagem: t, historico: IA.hist.slice(-10), motor: motor(),
+      var pedido = IA.foco ? 'No módulo "' + IA.foco.nome + '" (id ' + IA.foco.id + '): ' + t : t;
+      return P().chamar('assistente', { mensagem: pedido, historico: IA.hist.slice(-10), motor: motor(),
           anexos: anexos.map(function (a) { return { nome: a.nome, tipo: a.tipo, mime: a.mime, base64: a.base64 }; }) });
     }).then(function (r) {
       if (!r.ok && r.status !== 200) throw new Error('o servidor respondeu ' + r.status);
@@ -6839,73 +6867,101 @@ window.pedirTexto = function (o, feito) {
   }
 
   // ------------------------------------------------------- meus módulos
-  /* Um cartão por módulo (e um só para o layout): a versão em uso em
-     destaque e as outras guardadas dentro, em "Versões anteriores", para
-     reaplicar se precisar. */
+  /* Um cartão por módulo (e um só para o layout), que nunca some: o botão
+     Ativo/Desativado tira do app ou põe de volta (sempre a versão mais nova);
+     tocar no cartão abre as versões, com o que foi pedido em cada uma, para
+     voltar a uma delas se precisar. Nada é apagado. */
+  var abertos = {};
+  function dataCurta(t) {
+    var d = new Date(t); if (isNaN(d)) return '';
+    return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + ' ' +
+      ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+  function desativarModulo(m) {
+    return rest('/rest/v1/modulo_versoes?modulo_id=eq.' + m.id + '&estado=eq.ativa',
+                { metodo: 'PATCH', corpo: { estado: 'antiga' }, prefer: 'return=minimal' })
+      .then(function () {
+        return rest('/rest/v1/modulos?id=eq.' + m.id, { metodo: 'PATCH', corpo: { versao_ativa: null }, prefer: 'return=minimal' });
+      });
+  }
   function listarModulos() {
     var c = $('iaMods');
-    c.innerHTML = barrinhas();
+    if (!c.children.length) c.innerHTML = barrinhas();
     return Promise.all([
-      rest('/rest/v1/modulos?select=id,nome,descricao,icone,versao_ativa&order=criado_em'),
-      rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado&order=numero.desc'),
-      rest('/rest/v1/aparencia_versoes?select=id,numero,estado,descricao,css,menus&order=numero.desc')
+      rest('/rest/v1/modulos?select=id,nome,descricao,icone,versao_ativa,lugar&order=criado_em'),
+      rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado,pedido,criado_em&order=numero.desc'),
+      rest('/rest/v1/aparencia_versoes?select=id,numero,estado,descricao,css,menus,pedido,criado_em&order=numero.desc')
     ]).then(function (r) {
       c.innerHTML = '';
-      var estadoTxt = function (e) { return e === 'ativa' ? 'em uso' : e === 'rascunho' ? 'rascunho' : 'guardada'; };
-      var anteriores = function (card, lista, linha) {
-        if (!lista.length) return;
-        var det = document.createElement('details'); det.className = 'ia-vers';
-        det.innerHTML = '<summary>Outras versões (' + lista.length + ')</summary>';
-        lista.forEach(function (v) { det.appendChild(linha(v)); });
-        card.appendChild(det);
-      };
-      var linhaVer = function (rot, ver, ok) {
-        var d = document.createElement('div'); d.className = 'ia-ver';
-        d.innerHTML = '<span>' + rot + '</span><button data-a="ver">Ver</button><button data-a="ok" class="ok">Aplicar</button>';
-        d.querySelector('[data-a=ver]').onclick = ver; d.querySelector('[data-a=ok]').onclick = ok;
-        return d;
+      var falha = function (e) { toastIA('Não consegui: ' + e.message); listarModulos(); };
+      // cartão genérico: cabeçalho (toca para abrir), chave liga/desliga, Abrir e a lista de versões
+      var cartao = function (o) {
+        var d = document.createElement('div'); d.className = 'ia-card ia-mod' + (o.ativo ? '' : ' off');
+        d.innerHTML = '<div class="ia-modtopo"><div class="ia-modnm"><div class="nm">' + o.titulo + '</div>' +
+            '<div class="sub">' + o.sub + '</div></div>' +
+            '<button class="ia-chave' + (o.ativo ? ' on' : '') + '" aria-label="ativar ou desativar"><i></i></button></div>' +
+          ((o.abrir || o.pedir) ? '<div class="ia-bts" style="margin-top:8px">' +
+            (o.abrir ? '<button class="ok" data-a="abrir">Abrir</button>' : '') +
+            (o.pedir ? '<button data-a="pedir">✦ Pedir mudança</button>' : '') + '</div>' : '') +
+          '<div class="ia-versoes"' + (abertos[o.chave] ? '' : ' hidden') + '></div>';
+        d.querySelector('.ia-modnm').onclick = function () {
+          abertos[o.chave] = !abertos[o.chave];
+          d.querySelector('.ia-versoes').hidden = !abertos[o.chave];
+        };
+        d.querySelector('.ia-chave').onclick = function () {
+          this.disabled = true;
+          (o.ativo ? o.desligar() : o.ligar()).then(listarModulos, falha);
+        };
+        if (o.abrir) d.querySelector('[data-a=abrir]').onclick = o.abrir;
+        if (o.pedir) d.querySelector('[data-a=pedir]').onclick = o.pedir;
+        var lv = d.querySelector('.ia-versoes');
+        o.versoes.forEach(function (v) {
+          var x = document.createElement('div'); x.className = 'ia-ver2' + (v.atual ? ' atual' : '');
+          x.innerHTML = '<div class="tp"><b>versão ' + v.numero + '</b>' + (v.atual ? ' <span class="em">em uso</span>' : '') +
+            '<span class="dt">' + dataCurta(v.criado_em) + '</span></div>' +
+            (v.pedido ? '<div class="pd">' + esc(String(v.pedido).replace(/^\[📎[^\]]*\]\s*/, '📎 ').slice(0, 220)) + '</div>' : '') +
+            (v.atual ? '' : '<div class="ia-bts"><button data-a="ver">Ver</button><button class="ok" data-a="usar">Usar esta</button></div>');
+          if (!v.atual) {
+            x.querySelector('[data-a=ver]').onclick = v.ver;
+            x.querySelector('[data-a=usar]').onclick = function () { this.disabled = true; v.usar().then(listarModulos, falha); };
+          }
+          lv.appendChild(x);
+        });
+        c.appendChild(d);
       };
       r[0].forEach(function (m) {
-        var vs = r[1].filter(function (v) { return v.modulo_id === m.id && v.estado !== 'descartada'; });
+        var vs = r[1].filter(function (v) { return v.modulo_id === m.id; });
         if (!vs.length) return;
-        var princ = vs.filter(function (v) { return v.id === m.versao_ativa; })[0] || vs[0];
-        var card = cartaoVersao(m, princ, c);
-        anteriores(card, vs.filter(function (v) { return v !== princ; }), function (v) {
-          return linhaVer('versão ' + v.numero + ' · ' + estadoTxt(v.estado),
-            function () { abrirModulo(m.id, v.id, iconeTexto(m.icone) + ' ' + m.nome + ' · v' + v.numero, card); },
-            function () {
-              if (!confirm('Voltar ' + m.nome + ' para a versão ' + v.numero + '? A atual fica guardada aqui.')) return;
-              aplicar(v.id, null).then(listarModulos);
-            });
+        var ativa = vs.filter(function (v) { return v.id === m.versao_ativa; })[0];
+        cartao({
+          chave: m.id, ativo: !!ativa,
+          titulo: iconeTexto(m.icone) + ' ' + esc(m.nome),
+          sub: (ativa ? 'ativo · versão ' + ativa.numero : 'desativado') + ' · ' + (m.lugar === 'mes' ? 'cartão na tela Mês' : 'menu de baixo') +
+               ' · ' + vs.length + (vs.length === 1 ? ' versão' : ' versões'),
+          abrir: ativa ? function () { abrirModulo(m.id, ativa.id, m.nome); } : null,
+          pedir: function () { aba('chat'); focar(m); $('iaTxt').focus(); },
+          ligar: function () { return aplicar(vs[0].id, null); },          // a mais nova
+          desligar: function () { return desativarModulo(m).then(menuDosModulos); },
+          versoes: vs.map(function (v) {
+            return { numero: v.numero, criado_em: v.criado_em, pedido: v.pedido, atual: ativa && v.id === ativa.id,
+                     ver: function () { abrirModulo(m.id, v.id, m.nome + ' · v' + v.numero); },
+                     usar: function () { return aplicar(v.id, null); } };
+          })
         });
       });
-      var lay = r[2].filter(function (v) { return v.estado !== 'descartada'; });
+      var lay = r[2];
       if (lay.length) {
-        var v0 = lay.filter(function (v) { return v.estado === 'ativa'; })[0] || lay[0];
-        var ativa = v0.estado === 'ativa';
-        var d = document.createElement('div'); d.className = 'ia-card';
-        d.innerHTML = '<div class="nm">🎨 Layout</div>' +
-          '<div class="sub">' + esc(v0.descricao || 'Aparência do app') + '<br>versão ' + v0.numero + ' · ' +
-          (ativa ? 'em uso' : v0.estado === 'rascunho' ? 'rascunho' : 'guardada (o app está no padrão)') +
-          '</div><div class="ia-bts">' + (ativa
-            ? '<button data-a="desf">Desfazer</button><button data-a="pad">Voltar ao padrão</button>'
-            : '<button data-a="ver">Ver prévia</button><button data-a="ok" class="ok">Aplicar</button>') + '</div>';
-        if (ativa) {
-          var desfazer = function (rpc) {
-            return rest('/rest/v1/rpc/' + rpc, { metodo: 'POST', corpo: {} })
-              .then(carregarTemaAtivo).then(listarModulos).catch(function (e) { toastIA(e.message); });
-          };
-          d.querySelector('[data-a=desf]').onclick = function () { desfazer('desfazer_aparencia'); };
-          d.querySelector('[data-a=pad]').onclick = function () { desfazer('aparencia_padrao'); };
-        } else {
-          d.querySelector('[data-a=ver]').onclick = function () { previaAparencia({ versao_id: v0.id, css: v0.css, menus: v0.menus }, d); };
-          d.querySelector('[data-a=ok]').onclick = function () { aplicarAparencia(v0.id, d).then(listarModulos); };
-        }
-        c.appendChild(d);
-        anteriores(d, lay.filter(function (v) { return v !== v0; }), function (v) {
-          return linhaVer('versão ' + v.numero + ' · ' + esc(v.descricao || '').slice(0, 40),
-            function () { previaAparencia({ versao_id: v.id, css: v.css, menus: v.menus }, d); },
-            function () { aplicarAparencia(v.id, null).then(listarModulos); });
+        var at = lay.filter(function (v) { return v.estado === 'ativa'; })[0];
+        cartao({
+          chave: 'layout', ativo: !!at, titulo: '🎨 Layout',
+          sub: (at ? 'ativo · versão ' + at.numero + ' · ' + esc(at.descricao || '') : 'desativado · o app está no visual padrão'),
+          ligar: function () { return aplicarAparencia(lay[0].id, null); },
+          desligar: function () { return rest('/rest/v1/rpc/aparencia_padrao', { metodo: 'POST', corpo: {} }).then(carregarTemaAtivo); },
+          versoes: lay.map(function (v) {
+            return { numero: v.numero, criado_em: v.criado_em, pedido: v.descricao || v.pedido, atual: at && v.id === at.id,
+                     ver: function () { previaAparencia({ versao_id: v.id, css: v.css, menus: v.menus }, null); },
+                     usar: function () { return aplicarAparencia(v.id, null); } };
+          })
         });
       }
       if (!c.children.length) c.innerHTML = '<div class="ia-vazio">Nenhum módulo ou layout ainda.<br>Peça um no Chat.</div>';
