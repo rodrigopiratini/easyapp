@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.24.2 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.24.3 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -5813,12 +5813,16 @@ window.pedirTexto = function (o, feito) {
     var e = $('iaMotor'); if (!e) return;
     var m = motor(), atual = MOTORES.filter(function (x) { return x[0] === m; })[0] || MOTORES[1];
     var trava = IA.plano === 'teste';
-    e.innerHTML = '<div class="ia-mt">' + MOTORES.map(function (x) {
+    // título MODO e um "i" em cada opção no lugar da frase embaixo
+    var i = function (t) { return typeof window.dica === 'function' ? window.dica(t) : ''; };
+    e.innerHTML = '<div class="ia-mtt">Modo</div><div class="ia-mt">' + MOTORES.map(function (x) {
       var off = trava && x[0] === 'profundo';
-      return '<button data-motor="' + x[0] + '" class="' + (x[0] === m ? 'on' : '') + '"' + (off ? ' disabled style="opacity:.45"' : '') + '>' + x[1] + '</button>';
-    }).join('') + '</div><div class="ia-mtd">' + esc(atual[2]) + (trava ? ' · ★ Profundo libera no plano mensal ou anual' : '') + '</div>';
+      var txt = x[2].charAt(0).toUpperCase() + x[2].slice(1) + (off ? '. Libera no plano mensal ou anual.' : '.');
+      return '<button data-motor="' + x[0] + '" class="' + (x[0] === m ? 'on' : '') + '"' + (off ? ' aria-disabled="true" style="opacity:.45"' : '') + '>' +
+        x[1] + i(txt) + '</button>';
+    }).join('') + '</div>';
     Array.prototype.forEach.call(e.querySelectorAll('[data-motor]'), function (b) {
-      b.onclick = function () { if (b.disabled) return; try { localStorage.setItem('easyapp:motor', b.dataset.motor); } catch (x) {} desenharMotor(); };
+      b.onclick = function () { if (b.getAttribute('aria-disabled')) return; try { localStorage.setItem('easyapp:motor', b.dataset.motor); } catch (x) {} desenharMotor(); };
     });
   }
 
@@ -5826,7 +5830,7 @@ window.pedirTexto = function (o, feito) {
     '.ia-motor{padding:0 14px 8px}.ia-mt{display:flex;gap:6px}' +
     '.ia-mt button{flex:1;padding:7px 4px;border-radius:10px;border:1px solid #2a3548;background:#161d2c;color:#8b99b5;font-size:13px;font-weight:600}' +
     '.ia-mt button.on{border-color:#3b82f6;color:#fff;background:#1e3a8a}' +
-    '.ia-mtd{font-size:11.5px;color:#8b99b5;margin-top:5px;text-align:center}' +
+    '.ia-mtt{font-size:10.5px;color:#8b99b5;text-transform:uppercase;letter-spacing:.4px;margin:0 0 5px 2px}' +
     '#iaBt{position:fixed;right:14px;bottom:calc(82px + env(safe-area-inset-bottom));z-index:900;' +
     ' width:52px;height:52px;border-radius:26px;border:0;background:#3b82f6;color:#fff;font-size:22px;' +
     ' box-shadow:0 6px 18px #0008;cursor:pointer}' +
@@ -9141,7 +9145,10 @@ function aplicarVisual(){
 /* Fica à vista: status colorido (folga, estouro), texto curto, e a
    descrição de cada item de uma lista (lançamento, conta, banco). */
 function dicasViramI(){
+  // Config → Contas fica com o texto aberto (é onde a pessoa lê o que cada conta faz)
+  var contas = ST.telaAtual==='config' && (ST.modoCfg||'CONTAS')==='CONTAS';
   document.querySelectorAll('.wrap .card .m:not([data-v2])').forEach(function(e){
+    if(contas && e.closest('#tela-config')) return;
     e.setAttribute('data-v2','1');
     var t=(e.textContent||'').replace(/\s+/g,' ').trim();
     if(t.length<24 || e.querySelector('button,input,select,a,textarea,svg,img,b.pos,b.neg,.pos,.neg')) return;
