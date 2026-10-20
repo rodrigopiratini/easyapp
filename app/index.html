@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.23.0 \u00b7 19/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.24.0 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -4720,17 +4720,14 @@ window.pedirTexto = function (o, feito) {
         '<button class="lk" data-ir="criar">Primeiro acesso? <b>Criar minha conta</b></button>';
     },
     criar: function () {
-      return '<h1>Criar conta</h1><p>leva um minuto. Depois a gente monta o app com você.</p>' +
-        '<label>Seu nome completo</label><input id="cNome" autocomplete="name" placeholder="como está na sua conta do banco">' +
-        '<label>E-mail</label><input id="cMail" type="email" autocomplete="email" value="' + esc(EMAIL) + '">' +
-        '<label>WhatsApp com DDD</label><input id="cZap" type="tel" inputmode="tel" autocomplete="tel" placeholder="(51) 99999-9999">' +
-        '<label>Senha (mínimo 8 caracteres)</label><input id="cSenha" type="password" autocomplete="new-password">' +
-        '<label>Repita a senha</label><input id="cSenha2" type="password" autocomplete="new-password">' +
-        '<label class="aceite"><input type="checkbox" id="cAceite"><span>Li e concordo com os <a href="#" data-site="termos.html">Termos de Uso</a> ' +
-        'e a <a href="#" data-site="privacidade.html">Política de Privacidade</a>.</span></label>' +
-        '<button id="cBt">Criar minha conta</button><div class="erro" id="eErro"></div>' +
-        '<p style="font-size:12px;margin-top:10px">O e-mail e o WhatsApp servem para recuperar a senha. Não mandamos propaganda.</p>' +
-        '<button class="lk" data-ir="entrar">Já tenho conta: <b>entrar</b></button>';
+      return '<h1>Criar conta</h1><p>14 dias grátis, sem cartão.</p>' +
+        '<input id="cNome" autocomplete="name" placeholder="nome completo (como no banco)">' +
+        '<input id="cMail" type="email" autocomplete="email" placeholder="e-mail" value="' + esc(EMAIL) + '">' +
+        '<input id="cSenha" type="password" autocomplete="new-password" placeholder="senha (8 caracteres ou mais)">' +
+        '<input id="cZap" type="tel" inputmode="tel" autocomplete="tel" placeholder="WhatsApp (opcional)">' +
+        '<label class="aceite"><input type="checkbox" id="cAceite"><span>Concordo com os <a href="#" data-site="termos.html">Termos</a> ' +
+        'e a <a href="#" data-site="privacidade.html">Privacidade</a>.</span></label>' +
+        '<button id="cBt">Criar minha conta</button><div class="erro" id="eErro"></div>';
     },
     confirmar: function () {
       return '<h1>Confirme o e-mail</h1><p>mandamos um código de 6 dígitos para <b>' + esc(EMAIL) + '</b>. Olhe também o spam.</p>' +
@@ -4813,14 +4810,15 @@ window.pedirTexto = function (o, feito) {
     criar: function () {
       function vai() {
         var nome = $('cNome').value.trim(), e = $('cMail').value.trim().toLowerCase();
-        var z = digitos($('cZap').value), s = $('cSenha').value, s2 = $('cSenha2').value;
+        var z = digitos($('cZap').value), s = $('cSenha').value;
+        if (z.length > 11 && z.slice(0, 2) === '55') z = z.slice(2);
         // nome COMPLETO: é por ele que o app reconhece, nos avisos do banco, o
         // dinheiro que é seu e o que é de outra pessoa ("Pix ... para Guilherme")
         if (nome.split(/\s+/).filter(function (w) { return w.length > 1; }).length < 2) return msg('diga o seu nome completo, como está no banco');
         if (!emailOk(e)) return msg('e-mail inválido');
-        if (z.length !== 10 && z.length !== 11) return msg('WhatsApp com DDD: (51) 99999-9999');
+        // WhatsApp é opcional (só serve para recuperar a senha); se veio, com DDD
+        if (z && z.length !== 10 && z.length !== 11) return msg('WhatsApp com DDD: (51) 99999-9999, ou deixe em branco');
         if (s.length < 8) return msg('a senha precisa de pelo menos 8 caracteres');
-        if (s !== s2) return msg('as duas senhas não são iguais');
         if (!$('cAceite').checked) return msg('para criar a conta, marque que concorda com os termos');
         window.EASYAPP_TERMOS_ACEITO = VERSAO_TERMOS;
         EMAIL = e; msg('criando...', true); ocupado(true);
@@ -4832,7 +4830,7 @@ window.pedirTexto = function (o, feito) {
         }).catch(function (x) { ocupado(false); msg(x.message); });
       }
       mascaraZap($('cZap'));
-      $('cBt').onclick = vai; enter('cSenha2', vai);
+      $('cBt').onclick = vai; enter('cSenha', vai); enter('cZap', vai);
     },
     confirmar: function () {
       function vai() {
@@ -5047,18 +5045,24 @@ window.pedirTexto = function (o, feito) {
     return 0;
   }
 
+  // o roteiro de teste mostra o caminho da conta nova quando o "Ver como conta nova" está ligado (ou #...-essencial)
+  function testeEssencial() {
+    if (/essencial/.test(location.hash)) return true;
+    try { return localStorage.getItem('easyapp:poc-essencial') === '1'; } catch (e) { return false; }
+  }
   function primeiroAcesso(teste) {
     if (window.EASYAPP_SUPORTE && !teste) return;   // suporte vê o app do cliente, não o roteiro
     TESTE = !!teste || /teste-primeiro-acesso/.test(location.hash);
     var s = P.sessao();
     if (!s) {                                 // simulação sem login (laboratório do painel de gestão)
-      if (TESTE) { B = novoB(''); montarBoas(); $('boas').style.zIndex = 10001; passo(0); }
+      if (TESTE) { B = novoB(''); B.essencial = testeEssencial(); montarBoas(); $('boas').style.zIndex = 10001; passo(0); }
       return;
     }
-    P.rest('/rest/v1/perfis?select=nome,onboarding_ok&id=eq.' + s.user_id).then(function (r) {
+    P.rest('/rest/v1/perfis?select=nome,onboarding_ok,modelo&id=eq.' + s.user_id).then(function (r) {
       var p = r && r[0];
       if (!TESTE && (!p || p.onboarding_ok !== false)) return;     // usuário antigo ou já passou por aqui
       var ini = retomar(p && p.nome);
+      B.essencial = (p && p.modelo === 'essencial') || (TESTE && testeEssencial());
       montarBoas(); passo(ini);
     }).catch(function () { /* banco sem a migração 018: segue o app normal */ });
   }
@@ -5120,13 +5124,19 @@ window.pedirTexto = function (o, feito) {
     document.body.appendChild(d);
     // cada campo preenchido já vai para o rascunho (não só ao trocar de etapa)
     d.addEventListener('change', function () { try { ler(); } catch (e) {} guardarRascunho(); });
-    $('bVolta').onclick = function () { ler(); passo(B.passo - 1); };
-    $('bVai').onclick = function () { ler(); var e = conferir(); if (e) { $('bErro').textContent = e; return; } passo(B.passo + 1); };
+    $('bVolta').onclick = function () { ler(); passo(vizinho(B.passo, -1)); };
+    $('bVai').onclick = function () { ler(); var e = conferir(); if (e) { $('bErro').textContent = e; return; } passo(vizinho(B.passo, 1)); };
   }
 
   var TELAS_BOAS = [corpoInicio, corpoBancos, corpoSaldos, corpoFamilias, corpoContas, corpoValores, corpoIndicadores, corpoPlano, corpoAutomacao];
   var CHAVES = ['inicio', 'bancos', 'saldos', 'familias', 'contas', 'valores', 'indicadores', 'plano', 'automacao'];
   function etapa() { return CHAVES[B.passo]; }
+  /* Conta no modelo Essencial (048): sem Metas (indicadores) e sem Plano de
+     aposentadoria - são da Análise, que nasce guardada. A meta do cartão vira
+     a soma do que a pessoa marcou "no cartão" (dá para mudar em Ajustes). */
+  var PULA_ESSENCIAL = ['indicadores', 'plano'];
+  function pula(i) { return !!(B && B.essencial && PULA_ESSENCIAL.indexOf(CHAVES[i]) >= 0); }
+  function vizinho(i, d) { i += d; while (i > 0 && i < CHAVES.length - 1 && pula(i)) i += d; return i; }
   function passo(i) {
     if (i < 0 || i >= TELAS_BOAS.length) return;
     // um toque redesenha a mesma etapa: a tela fica onde estava (antes voltava ao topo)
@@ -5135,6 +5145,7 @@ window.pedirTexto = function (o, feito) {
     guardarRascunho();
     $('bRot').innerHTML = (TESTE ? '<div class="teste">Modo de teste: nada do que você fizer aqui é gravado.</div>' : '') +
       (i ? '<div class="rot">' + ETAPAS.map(function (n, k) {
+        if (pula(k + 1)) return '';
         return '<span class="' + (k + 1 < i ? 'ok' : k + 1 === i ? 'at' : '') + '">' + (k + 1 < i ? '✓ ' : '') + n + '</span>';
       }).join('') + '</div>' : '');
     $('bCorpo').innerHTML = TELAS_BOAS[i]();
@@ -5679,6 +5690,7 @@ window.pedirTexto = function (o, feito) {
 
   function terminar(destino) {
     ler();
+    if (B.essencial && !B.ind.meta && somaCartao()) B.ind.meta = reaisTexto(somaCartao());
     var s = P.sessao(), uid = s ? s.user_id : 'teste';
     var G = destino === 'planilha' ? { contas: [], cats: [], prev: [], cfg: [] } : montarGravacao(uid);
     if (TESTE) {
@@ -5887,7 +5899,16 @@ window.pedirTexto = function (o, feito) {
     '.ia-prev .nova{font-size:10px;font-weight:700;color:#22c55e;background:#22c55e22;border-radius:5px;padding:1px 5px;margin-left:4px}' +
     '.ia-prev .meses{display:none;grid-template-columns:1fr 1fr 1fr;gap:3px 10px;margin-top:6px;font-size:11.5px;color:#c7cfdf}' +
     '.ia-prev .ln.on .meses{display:grid}' +
-    '.ia-prev .rec{color:#22c55e}.ia-prev .des{color:#e8edf7}';
+    '.ia-prev .rec{color:#22c55e}.ia-prev .des{color:#e8edf7}' +
+    '.ia-passos{font-size:12.5px;color:#8b99b5;line-height:1.6}.ia-passos .at{color:#e8edf7}' +
+    '#iaWidgets{padding-bottom:0}#iaWidgets.hide{display:none}.ia-wg{padding:10px 12px!important}' +
+    '.ia-wg iframe{display:block;width:100%;height:60px;border:0;background:transparent}' +
+    '#iaErroBar{position:fixed;left:10px;right:10px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:980;' +
+    ' background:#2a1414;border:1px solid #ef4444;border-radius:12px;padding:8px 10px;display:flex;align-items:center;gap:8px;' +
+    ' box-shadow:0 6px 18px #0009;font:13px -apple-system,system-ui,sans-serif;color:#fecaca;max-width:520px;margin:0 auto}' +
+    '#iaErroBar[hidden]{display:none}#iaErroBar .sp{flex:1}' +
+    '#iaErroBar button{padding:7px 10px;border-radius:8px;border:1px solid #7f1d1d;background:#0f1420;color:#fecaca;font-size:12.5px}' +
+    '#iaErroBar button.ok{background:#ef4444;border-color:#ef4444;color:#fff}';
 
   function montar() {
     var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
@@ -5962,7 +5983,9 @@ window.pedirTexto = function (o, feito) {
       window.irParaTela = function () {
         $('iaTela').classList.add('hide');
         Array.prototype.forEach.call(document.querySelectorAll('nav a.ia-navmod'), function (a) { a.classList.remove('on'); });
-        return orig.apply(this, arguments);
+        var r = orig.apply(this, arguments);
+        mostrarWidgets();
+        return r;
       };
       window.irParaTela.__ia = true;
     }
@@ -6034,10 +6057,15 @@ window.pedirTexto = function (o, feito) {
   // ------------------------------------------- módulos no menu de baixo
   // Todo módulo aplicado vira um item do menu, ao lado de Mês, Cartão...
   function menuDosModulos() {
-    return rest('/rest/v1/modulos?select=id,nome,icone,versao_ativa&versao_ativa=not.is.null&order=criado_em')
-      .then(function (mods) {
+    return rest('/rest/v1/modulos?select=id,nome,icone,versao_ativa,lugar&versao_ativa=not.is.null&order=criado_em')
+      .catch(function () {   // banco sem a 048 (sem lugar): todos no menu
+        return rest('/rest/v1/modulos?select=id,nome,icone,versao_ativa&versao_ativa=not.is.null&order=criado_em');
+      })
+      .then(function (todos) {
         var nav = document.querySelector('nav'); if (!nav) return;
         Array.prototype.forEach.call(nav.querySelectorAll('a.ia-navmod'), function (a) { a.remove(); });
+        widgets(todos.filter(function (m) { return m.lugar === 'mes'; }));
+        var mods = todos.filter(function (m) { return m.lugar !== 'mes'; });
         mods.forEach(function (m) {
           var a = document.createElement('a');
           a.href = '#'; a.className = 'ia-navmod'; a.dataset.t = 'mod-' + m.id;
@@ -6045,9 +6073,37 @@ window.pedirTexto = function (o, feito) {
           a.onclick = function (e) { e.preventDefault(); abrirNaTela(m, a); };
           nav.appendChild(a);
         });
-        nav.classList.toggle('ia-muitos', nav.querySelectorAll('a').length > 6);
+        nav.classList.toggle('ia-muitos', Array.prototype.filter.call(nav.querySelectorAll('a'), function (x) { return x.style.display !== 'none'; }).length > 6);
       }).catch(function () {});
   }
+  /* Widgets: módulos com lugar 'mes' viram cartões no alto da tela Mês, cada
+     um no seu quadro isolado (a mesma ponte EASY), com a altura do conteúdo. */
+  function widgets(lista) {
+    var box = $('iaWidgets');
+    quadros = quadros.filter(function (x) { return x.tipo !== 'widget'; });
+    if (!lista.length) { if (box) box.remove(); return; }
+    if (!box) {
+      box = document.createElement('div'); box.id = 'iaWidgets'; box.className = 'wrap';
+      var mes = $('tela-mes'); mes.parentNode.insertBefore(box, mes);
+    }
+    box.innerHTML = '';
+    lista.forEach(function (m) {
+      var d = document.createElement('div'); d.className = 'card ia-wg';
+      d.innerHTML = '<iframe sandbox="allow-scripts allow-modals allow-forms" title="' + esc(m.nome) + '"></iframe>';
+      box.appendChild(d);
+      var f = d.querySelector('iframe');
+      quadros.push({ frame: f, modulo: m.id, nome: m.nome, tipo: 'widget' });
+      rest('/rest/v1/modulo_versoes?select=html&id=eq.' + m.versao_ativa).then(function (r) {
+        f.srcdoc = pagina(r[0] ? r[0].html : '', true);
+      });
+    });
+    mostrarWidgets();
+  }
+  function mostrarWidgets() {
+    var box = $('iaWidgets'), mes = $('tela-mes');
+    if (box && mes) box.classList.toggle('hide', mes.classList.contains('hide'));
+  }
+
   /* Um quadro NOVO a cada módulo aberto, com o conteúdo posto uma vez só.
      Reaproveitar o mesmo quadro (vazio primeiro, o módulo depois) deixava a
      tela em branco: a segunda troca não chegava a desenhar. */
@@ -6063,12 +6119,13 @@ window.pedirTexto = function (o, feito) {
 
   function abrirNaTela(m, link) {
     (window.TELAS || []).forEach(function (x) { var e = $('tela-' + x); if (e) e.classList.add('hide'); });
+    mostrarWidgets();
     Array.prototype.forEach.call(document.querySelectorAll('nav a'), function (a) { a.classList.toggle('on', a === link); });
     $('iaTela').classList.remove('hide');
     quadros = quadros.filter(function (x) { return x.tipo !== 'tela'; });
     rest('/rest/v1/modulo_versoes?select=html&id=eq.' + m.versao_ativa).then(function (r) {
       var f = novoQuadro('iaTelaFrame', r[0] ? r[0].html : '<p>módulo sem versão</p>');
-      quadros.push({ frame: f, modulo: m.id, tipo: 'tela' });
+      quadros.push({ frame: f, modulo: m.id, nome: m.nome, tipo: 'tela' });
     });
     window.scrollTo(0, 0);
   }
@@ -6167,11 +6224,14 @@ window.pedirTexto = function (o, feito) {
   }
 
   function boasVindas() {
-    var sug = ['Cria um controle dos meus investimentos, com aportes e total por ativo',
-               'Cria um menu da minha empresa com clientes e contas a receber',
-               'Cria uma lista de metas de economia com quanto falta para cada uma'];
-    var h = '<div class="ia-vazio">Peça uma funcionalidade nova e eu monto para você ver antes de aplicar.' +
-            '<br>Cada pedido mostra quanto custou.</div>';
+    var sug = ['Põe no alto da tela Mês um cartão com quanto ainda posso gastar por dia até o fim do mês',
+               'Cria um gráfico dos meus gastos por família nos últimos 6 meses',
+               'Cria um controle da minha empresa: clientes, serviços e contas a receber',
+               'Cria uma lista de metas de economia com quanto falta para cada uma',
+               'Cria um simulador: se eu cortar 20% do delivery, quanto sobra no ano?'];
+    var h = '<div class="ia-vazio"><b style="color:#e8edf7;font-size:15px">Seu app, do seu jeito ✦</b><br>' +
+            'Descreva o que quer e eu programo: telas novas, gráficos, cartões na tela inicial, ajustes de visual. ' +
+            'Você vê a prévia antes de aplicar.</div>';
     sug.forEach(function (s) { h += '<button class="ia-sug">' + esc(s) + '</button>'; });
     $('iaMsgs').innerHTML = h;
     Array.prototype.forEach.call(document.querySelectorAll('.ia-sug'), function (b) {
@@ -6260,7 +6320,7 @@ window.pedirTexto = function (o, feito) {
       minha.insertBefore(ax, minha.firstChild);
     }
     var nomesAnx = anexos.map(function (a) { return a.nome; }).join(', ');
-    var espera = bolha('assistant', '');
+    var espera = bolha('assistant', ''), passos = [];
     espera.innerHTML = barrinhas();
     rolar();
     var desde = new Date(Date.now() - 5000).toISOString();
@@ -6271,7 +6331,13 @@ window.pedirTexto = function (o, feito) {
           anexos: anexos.map(function (a) { return { nome: a.nome, tipo: a.tipo, mime: a.mime, base64: a.base64 }; }) });
     }).then(function (r) {
       if (!r.ok && r.status !== 200) throw new Error('o servidor respondeu ' + r.status);
-      return lerLinhas(r);
+      return lerLinhas(r, function (txt) {
+        passos.push(txt);
+        espera.innerHTML = '<div class="ia-passos">' + passos.slice(-6).map(function (p, i, l) {
+          return '<div' + (i === l.length - 1 ? ' class="at"' : '') + '>' + (i === l.length - 1 ? '◌ ' : '✓ ') + esc(p) + '</div>';
+        }).join('') + '</div>' + barrinhas();
+        rolar();
+      });
     }).then(function (fim) {
       espera.remove();
       if (!fim) throw new Error('a conexão caiu antes da resposta');
@@ -6283,6 +6349,7 @@ window.pedirTexto = function (o, feito) {
       if (fim.rascunho) cartaoRascunho(fim.rascunho);
       if (fim.proposta) cartaoProposta(fim.proposta);
       if (fim.dados) { cartaoDados(fim.dados, fim.custo && fim.custo.cobrado); recarregarApp(); }
+      try { window.EASYAPP_MODELO && window.EASYAPP_MODELO.carregar(); } catch (x) {}
       atualizarMes();
     }).catch(function (e) {
       espera.remove();
@@ -6355,7 +6422,7 @@ window.pedirTexto = function (o, feito) {
   document.addEventListener('visibilitychange', function () { if (!document.hidden && IA.aguardando) checarAguardando(); });
 
   // a função responde em linhas de JSON: "status" enquanto trabalha, o resto no fim
-  function lerLinhas(r) {
+  function lerLinhas(r, aoPasso) {
     if (!r.body || !r.body.getReader) {
       return r.text().then(function (t) {
         var ls = t.trim().split('\n'); return JSON.parse(ls[ls.length - 1]);
@@ -6370,7 +6437,8 @@ window.pedirTexto = function (o, feito) {
         ls.forEach(function (l) {
           if (!l.trim()) return;
           var o = JSON.parse(l);
-          if (o.t !== 'status') fim = o;
+          if (o.t === 'passo') { if (aoPasso) try { aoPasso(o.txt); } catch (x) {} }
+          else if (o.t !== 'status') fim = o;
         });
         return passo();
       });
@@ -6601,7 +6669,7 @@ window.pedirTexto = function (o, feito) {
       .then(function () {
         if (cartao) cartao.querySelector('.sub').textContent = 'aplicado · está em Meus módulos';
         if (cartao) cartao.querySelector('.ia-bts').remove();
-        toastIA('Módulo aplicado: já está no menu de baixo');
+        toastIA('Módulo aplicado: já está no app');
         menuDosModulos();
       }).catch(function (e) { toastIA('Não consegui aplicar: ' + e.message); });
   }
@@ -6794,17 +6862,27 @@ window.pedirTexto = function (o, feito) {
     "function c(op,a){return new Promise(function(ok,f){var id=++n;e[id]=[ok,f];parent.postMessage({__easy:1,id:id,op:op,args:a},'*');});}" +
     "window.EASY={listar:function(x){return c('listar',[x])},salvar:function(x,d,id){return c('salvar',[x,d,id])}," +
     "apagar:function(id){return c('apagar',[id])},lancamentos:function(m){return c('lancamentos',[m])}," +
-    "contas:function(){return c('contas',[])},mesAtual:function(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)}," +
-    "moeda:function(v){return (Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}};})();";
+    "contas:function(){return c('contas',[])},previstos:function(m){return c('previstos',[m])}," +
+    "resumo:function(m){return c('resumo',[m])},bancos:function(){return c('bancos',[])}," +
+    "lancar:function(d){return c('lancar',[d])},abrir:function(t){return c('abrir',[t])},aviso:function(t){return c('aviso',[t])}," +
+    "mesAtual:function(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)}," +
+    "moeda:function(v){return (Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}};" +
+    // erros do módulo vão para o app (que oferece pedir a correção ao assistente)
+    "function er(m){try{parent.postMessage({__easy:1,op:'erro',args:[String(m).slice(0,600)]},'*')}catch(x){}}" +
+    "addEventListener('error',function(ev){er((ev.message||'erro')+(ev.lineno?' (linha '+ev.lineno+')':''))});" +
+    "addEventListener('unhandledrejection',function(ev){var r=ev.reason;er('Promise recusada: '+(r&&r.message||r))});" +
+    // a altura do conteúdo, para o cartão do widget crescer junto
+    "var ha=0;function alt(){var b=document.body;if(!b)return;var h=Math.ceil(b.getBoundingClientRect().height);if(h!==ha){ha=h;parent.postMessage({__easy:1,op:'altura',args:[h]},'*')}}" +
+    "addEventListener('load',alt);setInterval(alt,700);})();";
 
-  function pagina(html) {
+  function pagina(html, widget) {
     return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +
       // sem internet: nada sai do quadro além das mensagens para o app
       '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; ' +
       'style-src \'unsafe-inline\'; img-src data:; font-src data:; form-action \'none\'">' +
       '<style>html,body{margin:0;background:#0f1420;color:#e8edf7;font:14px -apple-system,system-ui,sans-serif}' +
-      'body{padding:12px}</style><script>' + SHIM + '<\/script></head><body>' + html + '</body></html>';
+      (widget ? 'html,body{background:transparent}body{padding:0}' : 'body{padding:12px}') + '</style><script>' + SHIM + '<\/script></head><body>' + html + '</body></html>';
   }
 
   function abrirModulo(moduloId, versaoId, titulo, cartao) {
@@ -6821,7 +6899,8 @@ window.pedirTexto = function (o, feito) {
     quadros = quadros.filter(function (x) { return x.tipo !== 'ver'; });
     var poe = function (html) {
       var f = novoQuadro('iaFrame', html);
-      quadros = quadros.filter(function (x) { return x.tipo !== 'ver'; }).concat({ frame: f, modulo: moduloId, tipo: 'ver' });
+      quadros = quadros.filter(function (x) { return x.tipo !== 'ver'; })
+        .concat({ frame: f, modulo: moduloId, nome: String(titulo || '').replace(/ · prévia.*$/, ''), tipo: 'ver' });
     };
     rest('/rest/v1/modulo_versoes?select=html&id=eq.' + versaoId).then(function (r) {
       if (!r.length) throw new Error('versão não encontrada');
@@ -6832,6 +6911,91 @@ window.pedirTexto = function (o, feito) {
     $('iaVer').hidden = true; novoQuadro('iaFrame', '');
     quadros = quadros.filter(function (x) { return x.tipo !== 'ver'; });
     if (!$('iaMods').hidden) listarModulos();
+  }
+
+  var mesOk = function (m) { return /^\d{4}-\d{2}$/.test(m) ? m : new Date().toISOString().slice(0, 7); };
+  function previstosDe(m) {
+    return rest('/rest/v1/previstos?select=valor,categorias(nome,grupo,natureza)&mes_ref=eq.' + mesOk(m) + '&limit=2000')
+      .then(function (r) {
+        return r.filter(function (x) { return x.categorias; }).map(function (x) {
+          return { categoria: x.categorias.nome, grupo: x.categorias.grupo, natureza: x.categorias.natureza, valor: Number(x.valor) || 0 };
+        });
+      });
+  }
+  // previsto x realizado do mês, por conta e no total (o que a tela Mês mostra, sem a verba do cartão)
+  function resumoDe(m) {
+    m = mesOk(m);
+    return Promise.all([previstosDe(m),
+      rest('/rest/v1/lancamentos?select=valor,natureza,categorias(nome,grupo,natureza)&mes_ref=eq.' + m + '&status=neq.IGNORADO&limit=5000')
+    ]).then(function (r) {
+      var por = {};
+      var linha = function (c) {
+        return por[c.nome] = por[c.nome] || { categoria: c.nome, grupo: c.grupo, natureza: c.natureza, previsto: 0, realizado: 0 };
+      };
+      r[0].forEach(function (x) { linha({ nome: x.categoria, grupo: x.grupo, natureza: x.natureza }).previsto += x.valor; });
+      r[1].forEach(function (l) {
+        var c = l.categorias || { nome: 'SEM CONTA', grupo: '', natureza: l.natureza };
+        if (c.natureza === 'TRANSFERENCIA') return;
+        linha(c).realizado += Number(l.valor) || 0;
+      });
+      var lista = Object.keys(por).map(function (k) { return por[k]; });
+      var soma = function (nat, campo) {
+        return Math.round(lista.filter(function (x) { return x.natureza === nat; })
+          .reduce(function (t, x) { return t + x[campo]; }, 0) * 100) / 100;
+      };
+      var rec = { previsto: soma('RECEITA', 'previsto'), realizado: soma('RECEITA', 'realizado') };
+      var des = { previsto: soma('DESPESA', 'previsto'), realizado: soma('DESPESA', 'realizado') };
+      return { mes: m, receitas: rec, despesas: des,
+               saldo: { previsto: Math.round((rec.previsto - des.previsto) * 100) / 100,
+                        realizado: Math.round((rec.realizado - des.realizado) * 100) / 100 },
+               porConta: lista };
+    });
+  }
+  // lançamento pedido por um módulo: só com o "sim" do cliente, pelo mesmo caminho do "+ lançar"
+  function lancarDoModulo(q, x) {
+    var v = Math.abs(Number(x.valor) || 0);
+    if (!v) return Promise.reject(new Error('valor zero'));
+    var data = /^\d{4}-\d{2}-\d{2}$/.test(x.data) ? x.data : new Date().toISOString().slice(0, 10);
+    var cat = String(x.categoria || '').trim();
+    if (!cat) return Promise.reject(new Error('informe a categoria (uma conta de EASY.contas())'));
+    var nat = x.natureza === 'RECEITA' ? 'RECEITA' : 'DESPESA';
+    var desc = String(x.descricao || cat).slice(0, 120);
+    if (!confirm('O módulo ' + (q.nome || '') + ' quer lançar:\n\n' + (nat === 'RECEITA' ? '+ ' : '- ') + reais(v) +
+                 ' · ' + desc + '\n' + cat + ' · ' + data.split('-').reverse().join('/') + '\n\nConfirmar?')) {
+      return Promise.reject(new Error('o cliente não confirmou'));
+    }
+    return new Promise(function (ok, falha) {
+      google.script.run.withSuccessHandler(function (r) {
+        if (!r || !r.ok) return falha(new Error((r && r.erro) || 'não consegui lançar'));
+        recarregarApp(); ok({ ok: true, id: r.id, mes: r.mes });
+      }).withFailureHandler(function (e) { falha(new Error((e && e.message) || String(e))); })
+        .apiLancarManual({ valor: v, descricao: desc.toUpperCase(), categoria: cat, natureza: nat, data: data,
+                           meio: 'PIX', conta: '', obs: 'lançado pelo módulo ' + (q.nome || '') });
+    });
+  }
+  /* Erro de JavaScript num módulo: uma barra oferece mandar o erro ao
+     assistente, que lê o código e salva a versão corrigida (o "conserta
+     sozinho" de um programador). Um aviso por módulo aberto. */
+  function erroDoModulo(q, msg) {
+    if (q.avisou) return;
+    q.avisou = true;
+    var b = $('iaErroBar');
+    if (!b) {
+      b = document.createElement('div'); b.id = 'iaErroBar';
+      document.body.appendChild(b);
+    }
+    b.innerHTML = '<span>⚠️ <b>' + esc(q.nome || 'O módulo') + '</b> deu erro</span><span class="sp"></span>' +
+      '<button class="ok" id="iaErroFix">Corrigir</button><button id="iaErroNo">×</button>';
+    b.hidden = false;
+    $('iaErroNo').onclick = function () { b.hidden = true; };
+    $('iaErroFix').onclick = function () {
+      b.hidden = true;
+      if ($('iaVer') && !$('iaVer').hidden) fecharModulo();
+      abrir();
+      $('iaTxt').value = 'O módulo "' + (q.nome || '') + '" (id ' + q.modulo + ') deu erro ao rodar: ' + msg +
+        '\nLeia o código, ache a causa e salve a versão corrigida.';
+      enviar();
+    };
   }
 
   // o que o módulo pode pedir ao app - e nada além disso
@@ -6873,6 +7037,30 @@ window.pedirTexto = function (o, feito) {
       });
     } else if (d.op === 'contas') {
       p = rest('/rest/v1/categorias?select=nome,grupo,natureza&ativa=is.true&order=nome');
+    } else if (d.op === 'previstos') {
+      p = previstosDe(a[0]);
+    } else if (d.op === 'resumo') {
+      p = resumoDe(a[0]);
+    } else if (d.op === 'bancos') {
+      p = Promise.all([rest('/rest/v1/contas?select=id,nome,tipo,titular&ativa=eq.true&order=nome'),
+                       rest('/rest/v1/saldos_contas?select=conta_id,saldo').catch(function () { return []; })])
+        .then(function (r) {
+          var sal = {}; r[1].forEach(function (x) { sal[x.conta_id] = Number(x.saldo) || 0; });
+          return r[0].map(function (c) { return { nome: c.nome, tipo: c.tipo, titular: c.titular, saldo: sal[c.id] || 0 }; });
+        });
+    } else if (d.op === 'lancar') {
+      p = lancarDoModulo(q, a[0] || {});
+    } else if (d.op === 'abrir') {
+      var tl = String(a[0] || '');
+      if (['mes', 'cartao', 'extrato', 'config', 'analise', 'patrimonio'].indexOf(tl) < 0) p = Promise.reject(new Error('tela desconhecida'));
+      else { fecharModulo(); $('ia').hidden = true; IA.aberto = false; window.irParaTela(tl); p = Promise.resolve(true); }
+    } else if (d.op === 'aviso') {
+      toastIA(String(a[0] || '').slice(0, 140)); p = Promise.resolve(true);
+    } else if (d.op === 'erro') {
+      erroDoModulo(q, String(a[0] || '')); return;
+    } else if (d.op === 'altura') {
+      if (q.tipo === 'widget') q.frame.style.height = Math.max(40, Math.min(640, Number(a[0]) || 0)) + 'px';
+      return;
     } else {
       p = Promise.reject(new Error('operação não permitida: ' + d.op));
     }
@@ -7125,9 +7313,9 @@ window.pedirTexto = function (o, feito) {
   }
   function botoesPlanos() {
     if (loja) return '';
-    return '<div class="c-plano"><b>Mensal · R$ 39,90</b><small>no cartão, renova sozinho; cancele quando quiser</small>' +
+    return '<div class="c-plano"><b>Mensal · R$ 19,90</b><small>no cartão, renova sozinho; cancele quando quiser</small>' +
       '<button class="c-bt" data-p="mensal">Assinar mensal</button></div>' +
-      '<div class="c-plano"><b>Anual · R$ 399</b><small>12 meses por R$ 33,25/mês · Pix, cartão ou boleto</small>' +
+      '<div class="c-plano"><b>Anual · R$ 199</b><small>12 meses por R$ 16,58/mês · Pix, cartão ou boleto</small>' +
       '<button class="c-bt" data-p="anual">Assinar anual</button></div>';
   }
   function ligarPlanos(raiz, depois) {
@@ -7346,8 +7534,8 @@ window.pedirTexto = function (o, feito) {
         (atual === 'teste' ? opc('teste', '🎁 Teste grátis', 'R$ 0', '14 dias para usar tudo, sem cartão', '') : '') +
         (atual === 'cortesia_app' ? opc('cortesia_app', '⭐ Cortesia (só o app)', 'R$ 0', 'app liberado sem cobrança; o assistente usa créditos comprados', '')
           : opc('cortesia', '⭐ Cortesia', 'R$ 0', 'acesso liberado sem cobrança (amigos do lançamento)', '')) +
-        opc('mensal', '📅 Mensal', 'R$ 39,90', 'no cartão, renova sozinho; cancele quando quiser', 'Assinar mensal') +
-        opc('anual', '🏆 Anual', 'R$ 399', '12 meses por R$ 33,25/mês · Pix, cartão ou boleto', 'Assinar anual') +
+        opc('mensal', '📅 Mensal', 'R$ 19,90', 'no cartão, renova sozinho; cancele quando quiser', 'Assinar mensal') +
+        opc('anual', '🏆 Anual', 'R$ 199', '12 meses por R$ 16,58/mês · Pix, cartão ou boleto', 'Assinar anual') +
         (a && a.plano === 'mensal' && a.status === 'ativa' ? '<div class="c-bts"><button class="bt-no" id="cCancelar">Cancelar a renovação</button></div>' : '') +
         '</div>';
 
@@ -8574,6 +8762,32 @@ window.pedirTexto = function (o, feito) {
   .ld i:nth-child(3){height:24px;background:var(--ok);animation-delay:.3s}
   @keyframes ldOnda{ from{transform:scaleY(.35)} to{transform:scaleY(1)} }
   @media (prefers-reduced-motion:reduce){ .ab-barras i,.ld i,.ab-nome,.ab-tile{animation:none} }
+
+  /* "i" de ajuda (vale nos dois visuais) e o balão que ele abre */
+  .ajuda{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;
+         margin-left:6px;vertical-align:1px;background:#2a3548;color:var(--dim);font:italic 700 10px/1 Georgia,serif;
+         text-transform:none;letter-spacing:0;cursor:help;flex:none}
+  .ajuda:hover{background:var(--acc);color:#fff}
+  #dicaPop{position:fixed;z-index:30000;background:#1e293b;color:var(--txt);border-radius:12px;padding:10px 12px;
+           font-size:12.5px;line-height:1.45;box-shadow:0 10px 30px #000a}
+
+  /* ---------- VISUAL NOVO (POC, body.v2) ---------- */
+  body.v2{--card2:#161e2e;--line:#222c40;background:#0c111b}
+  body.v2 header{border-bottom:0;background:#0c111bf0}
+  body.v2 .card,body.v2 .kpi,body.v2 .mini>div,body.v2 .sb-bloco{border:0!important;border-radius:18px;
+         box-shadow:0 1px 0 #ffffff08 inset,0 8px 24px #0005}
+  body.v2 .card{padding:16px;margin-bottom:14px}
+  body.v2 .ln,body.v2 .ex,body.v2 .tr,body.v2 .li,body.v2 .dia,body.v2 .it,body.v2 .grade div,body.v2 .forn,
+  body.v2 .grupo,body.v2 .tg,body.v2 .tg-cab,body.v2 .cab-ln,body.v2 #minhaConta .c-lin,body.v2 .sb-bloco .lbl{border-bottom:0!important}
+  body.v2 .ln,body.v2 .ex,body.v2 .tr,body.v2 .li,body.v2 .dia{border-radius:10px}
+  body.v2 .ex:nth-child(even),body.v2 .tr:nth-child(even),body.v2 .li:nth-child(even){background:#ffffff05}
+  body.v2 .lbl{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:600}
+  body.v2 .seg{border:0;background:#0f1626;border-radius:12px;padding:3px;gap:3px}
+  body.v2 .seg button{border-radius:9px!important;border:0!important}
+  body.v2 nav{border-top:0;background:#0f1626ee;backdrop-filter:blur(10px)}
+  body.v2 select,body.v2 input{border-color:transparent;background:#0f1626}
+  body.v2 .dica-oculta{display:none!important}
+  body.v2 .card [style*="border-top"],body.v2 .card [style*="border-bottom"]{border-top-color:transparent!important;border-bottom-color:transparent!important}
 </style>
 
 <div id="abertura">
@@ -8736,6 +8950,7 @@ var TELAS=['pendentes','mes','painel','cartao','extrato','plano','novo','config'
    do mesmo jeito que o Extrato tem conta corrente e cartao. Foi assim que
    abriu lugar na barra para o Configuracoes. */
 function irParaTela(t){
+  if(!recursoLiberado(t)) t='mes';
   document.querySelectorAll('nav a').forEach(function(x){
     x.classList.toggle('on', x.dataset.t===t); });
   ST.telaAtual=t;
@@ -8788,6 +9003,141 @@ function abasAnalise(){
 document.querySelectorAll('nav a').forEach(function(a){
   a.onclick=function(e){ e.preventDefault(); irParaTela(a.dataset.t); };
 });
+
+/* Modelo da conta (048). Conta nova nasce 'essencial': Mês, Cartão, Extrato
+   e Config. Análise e Patrimônio ficam guardados até a pessoa liberar
+   (Config → Ajustes → Recursos do app, ou pedindo ao assistente). Conta
+   antiga é 'completo' e não muda nada.
+   "Ver como conta nova" (POC, só neste aparelho) mostra o essencial a quem
+   é completo, sem gravar nada no perfil. */
+var RECURSOS_EXTRA={analise:'📊 Análise', patrimonio:'🏠 Patrimônio'};
+var RECURSOS_DICA={analise:'Painel do ano, plano de aposentadoria e metas',
+                   patrimonio:'Bens, investimentos, dívidas e reservas'};
+ST.modelo={modelo:'completo', recursos:[]};
+function lerLocal(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function gravarLocal(k,v){ try{ v===null?localStorage.removeItem(k):localStorage.setItem(k,v); }catch(e){} }
+function pocEssencial(){ return lerLocal('easyapp:poc-essencial')==='1'; }
+function modeloEssencial(){ return ST.modelo.modelo==='essencial' || pocEssencial(); }
+function recursosLiberados(){
+  if(ST.modelo.modelo!=='essencial' && pocEssencial())
+    return String(lerLocal('easyapp:poc-recursos')||'').split(',').filter(Boolean);
+  return ST.modelo.recursos||[];
+}
+function recursoLiberado(t){
+  if(!RECURSOS_EXTRA || !RECURSOS_EXTRA[t] || !ST.modelo || !modeloEssencial()) return true;
+  return recursosLiberados().indexOf(t)>=0;
+}
+function aplicarModelo(){
+  document.querySelectorAll('nav a[data-t]').forEach(function(a){
+    if(RECURSOS_EXTRA[a.dataset.t]) a.style.display=recursoLiberado(a.dataset.t)?'':'none';
+  });
+  document.body.classList.toggle('essencial', modeloEssencial());
+  if(ST.telaAtual && !recursoLiberado(ST.telaAtual)) irParaTela('mes');
+}
+function carregarModelo(){
+  if(!window.EASYAPP_PONTE) return;
+  window.EASYAPP_PONTE.rest('/rest/v1/perfis?select=modelo,recursos').then(function(r){
+    if(r&&r[0]) ST.modelo={modelo:r[0].modelo||'completo', recursos:r[0].recursos||[]};
+    aplicarModelo();
+  }).catch(function(){ aplicarModelo(); });
+}
+window.EASYAPP_MODELO={ carregar:carregarModelo, essencial:modeloEssencial };
+function liberarRecurso(t, sim){
+  var l=recursosLiberados().filter(function(x){ return x!==t; });
+  if(sim) l.push(t);
+  if(ST.modelo.modelo!=='essencial'){            // POC: só neste aparelho
+    gravarLocal('easyapp:poc-recursos', l.join(','));
+    aplicarModelo(); renderConfig(); toast(sim?'Liberado':'Guardado'); return;
+  }
+  window.EASYAPP_PONTE.rest('/rest/v1/perfis?id=eq.'+window.EASYAPP_PONTE.sessao().user_id,
+    { metodo:'PATCH', corpo:{ recursos:l }, prefer:'return=minimal' }).then(function(){
+    ST.modelo.recursos=l; aplicarModelo(); renderConfig();
+    toast(sim?RECURSOS_EXTRA[t].replace(/^\S+\s/,'')+' liberado no menu':'Guardado');
+  }).catch(function(e){ toast('Não consegui: '+e.message); });
+}
+function pocAlternar(k){
+  gravarLocal(k, lerLocal(k)==='1'?null:'1');
+  if(k==='easyapp:poc-visual') aplicarVisual();
+  aplicarModelo(); renderConfig();
+}
+/* Recursos do app (essencial) e os testes de POC (completo) - topo de Ajustes */
+function cfgRecursos(){
+  var h='';
+  if(modeloEssencial()){
+    h+='<div class="card"><div class="lbl" style="margin-bottom:8px">Recursos do app</div>'+
+      Object.keys(RECURSOS_EXTRA).map(function(t){
+        var on=recursoLiberado(t);
+        return '<div class="row" style="padding:6px 0" title="'+RECURSOS_DICA[t]+'">'+
+          '<span>'+RECURSOS_EXTRA[t]+' <span class="ajuda" data-dica="'+RECURSOS_DICA[t]+'">i</span></span>'+
+          '<button class="'+(on?'bt-no':'bt-ok')+'" style="padding:6px 12px;font-size:12.5px" '+
+            'onclick="liberarRecurso(\''+t+'\','+(!on)+')">'+(on?'Guardar':'Liberar')+'</button></div>';
+      }).join('')+
+      '<div class="m" style="font-size:11.5px;margin-top:6px">Quer outra coisa? Peça ao assistente ✦: ele cria para você.</div></div>';
+  }
+  if(ST.modelo.modelo!=='essencial'){
+    var vis=lerLocal('easyapp:poc-visual')==='1', ess=pocEssencial();
+    h+='<div class="card"><div class="lbl" style="margin-bottom:8px">🧪 Testes (só neste aparelho)</div>'+
+      '<div class="row" style="padding:6px 0"><span>Visual novo (POC)</span>'+
+        '<button class="'+(vis?'bt-ok':'bt-no')+'" style="padding:6px 12px;font-size:12.5px" onclick="pocAlternar(\'easyapp:poc-visual\')">'+(vis?'Ligado':'Desligado')+'</button></div>'+
+      '<div class="row" style="padding:6px 0"><span>Ver como conta nova (Essencial)</span>'+
+        '<button class="'+(ess?'bt-ok':'bt-no')+'" style="padding:6px 12px;font-size:12.5px" onclick="pocAlternar(\'easyapp:poc-essencial\')">'+(ess?'Ligado':'Desligado')+'</button></div>'+
+      '<div class="m" style="font-size:11.5px;margin-top:6px">Nada disso muda os seus dados: é para avaliar o visual e o modelo das contas novas antes de valer para todo mundo.</div></div>';
+  }
+  return h;
+}
+carregarModelo();
+
+/* ---------- VISUAL NOVO (POC) ----------
+   Liga em Config → Ajustes → Testes, ou com ?poc=1 no endereço. Só muda a
+   cara: cartões sem borda, listas sem linha entre os itens, menos texto.
+   As explicações longas dos cartões viram um "i": passar o mouse (ou tocar)
+   mostra o texto. Desligado, o app fica exatamente como era. */
+function visualNovo(){ return lerLocal('easyapp:poc-visual')==='1' || /[?&]poc=1(&|$)/.test(location.search); }
+var obsVisual=null, tVisual=null;
+function aplicarVisual(){
+  var on=visualNovo();
+  document.body.classList.toggle('v2', on);
+  if(on && !obsVisual && window.MutationObserver){
+    obsVisual=new MutationObserver(function(){ clearTimeout(tVisual); tVisual=setTimeout(dicasViramI,90); });
+    document.querySelectorAll('.wrap').forEach(function(w){ obsVisual.observe(w,{childList:true,subtree:true}); });
+  }
+  if(!on && obsVisual){ obsVisual.disconnect(); obsVisual=null; }
+  if(on) dicasViramI();
+  else document.querySelectorAll('.dica-oculta').forEach(function(e){ e.classList.remove('dica-oculta'); });
+}
+// texto corrido de ajuda (só texto, sem botão, campo ou link) -> "i" ao lado do título do cartão
+function dicasViramI(){
+  if(!document.body.classList.contains('v2')) return;
+  document.querySelectorAll('.wrap .card .m:not([data-v2])').forEach(function(e){
+    e.setAttribute('data-v2','1');
+    var t=(e.textContent||'').replace(/\s+/g,' ').trim();
+    if(t.length<48 || e.querySelector('button,input,select,a,textarea,svg,img')) return;
+    var card=e.closest('.card'), alvo=null;
+    if(card){ var l=card.querySelectorAll('.lbl'); for(var i=0;i<l.length;i++){
+      if(l[i].compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING){ alvo=l[i]; } } }
+    var i2=document.createElement('span'); i2.className='ajuda'; i2.textContent='i';
+    i2.setAttribute('data-dica', t); i2.title=t;
+    if(alvo && !alvo.querySelector('.ajuda')){ alvo.appendChild(i2); e.classList.add('dica-oculta'); }
+    else if(!alvo){ e.parentNode.insertBefore(i2, e); e.classList.add('dica-oculta'); }
+  });
+}
+/* O "i" de ajuda: no computador o title já mostra ao passar o mouse; no
+   celular (sem mouse) um toque abre o balão e outro toque fecha. */
+document.addEventListener('click', function(ev){
+  var a=ev.target && ev.target.closest && ev.target.closest('.ajuda');
+  var pop=el('dicaPop');
+  if(!a){ if(pop) pop.remove(); return; }
+  ev.preventDefault(); ev.stopPropagation();
+  if(pop){ var mesmo=pop._de===a; pop.remove(); if(mesmo) return; }
+  pop=document.createElement('div'); pop.id='dicaPop'; pop._de=a;
+  pop.textContent=a.getAttribute('data-dica')||'';
+  document.body.appendChild(pop);
+  var r=a.getBoundingClientRect(), w=Math.min(300, window.innerWidth-24);
+  pop.style.width=w+'px';
+  pop.style.left=Math.max(12, Math.min(window.innerWidth-w-12, r.left+r.width/2-w/2))+'px';
+  pop.style.top=(r.bottom+8)+'px';
+}, true);
+aplicarVisual();
 
 function mesDeHoje(){
   var d=new Date();
@@ -13910,7 +14260,7 @@ function cfgCriarConta(){
 
 /* ---------- AJUSTES ---------- */
 function cfgAjustes(){
-  var h='';
+  var h=cfgRecursos();
   ST.config.ajustes.forEach(function(a,i){
     var v=a.valor;
     var mostrar = a.tipo==='percent'  ? num(Number(v)*100)
