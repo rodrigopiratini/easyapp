@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.27.0 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.27.1 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -7850,12 +7850,10 @@ window.pedirTexto = function (o, feito) {
           if (gmAut) marcarGmailAutorizado();
           var dAut = gmAut ? new Date(gmAut) : null;
           h += '<div class="c-guia" id="guia-em" hidden><div class="c-gt">✉️ E-mail do banco</div>' +
-          '<div class="m" style="font-size:12px;margin-bottom:8px">Quase todo banco manda e-mail a cada Pix, compra e débito. ' +
-          'O Gmail encaminha esses e-mails para o seu endereço de lançamentos e eles entram sozinhos no app. iPhone e Android, sem instalar nada.</div>' +
+          '<div class="m" style="font-size:12px;margin-bottom:8px">Os e-mails do banco viram lançamentos sozinhos.</div>' +
           linha('Seu endereço', tk + '@' + EMAIL_DOMINIO) +
           (nativo ? '<div class="c-passo" style="margin:8px 0;padding:10px;border:1px solid var(--warn);border-radius:10px;font-size:12.5px">' +
-            '💻 As configurações do Gmail só existem no <b>computador</b>. Abra <b>easyappfinancial.com.br/app</b> no navegador do computador, ' +
-            'entre com a sua conta e faça os 3 passos por lá.</div>' : '') +
+            '💻 Faça pelo computador: <b>easyappfinancial.com.br/app</b> (o Gmail do celular não tem essas opções).</div>' : '') +
           (jaAut ? '<div class="c-passo" style="margin:8px 0;padding:10px;border:1px solid var(--ok);border-radius:10px;font-size:12.5px">' +
             '<b style="color:var(--ok)">✓ 1 e 2. Encaminhamento autorizado</b>' +
             (dAut ? ' <span class="m">(último e-mail recebido em ' + ('0' + dAut.getDate()).slice(-2) + '/' + ('0' + (dAut.getMonth() + 1)).slice(-2) +
@@ -7864,26 +7862,21 @@ window.pedirTexto = function (o, feito) {
           '<div id="cGmAut"' + (jaAut ? ' hidden' : '') + '>' +
           '<div class="c-passo" style="margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px">' +
             '<b>1. Autorizar o encaminhamento</b>' +
-            '<div class="m" style="font-size:12px;margin:4px 0 6px">Qual Gmail recebe os avisos do banco? (tem mais de uma conta Google no navegador? é esta que abre)</div>' +
+            '<div class="m" style="font-size:12px;margin:4px 0 6px">Seu Gmail (o que recebe os avisos do banco):</div>' +
             '<input id="cGmConta" type="email" autocomplete="email" placeholder="seu.email@gmail.com" value="' + esc(gmailGuardado()) + '" style="margin:0 0 6px">' +
-            '<div class="m" style="font-size:12px;margin:0 0 8px">Abre o Gmail na tela certa: toque em ' +
-            '<b>Adicionar um endereço de encaminhamento</b>, cole o seu endereço (botão copiar acima) → <b>Próximo</b> → <b>Continuar</b>.</div>' +
+            '<div class="m" style="font-size:12px;margin:0 0 8px"><b>Adicionar endereço de encaminhamento</b> → cole o seu endereço → <b>Próximo</b>.</div>' +
             '<button class="c-bt" id="cGmFwd" style="width:100%">Abrir o encaminhamento do Gmail</button></div>' +
           '<div class="c-passo" style="margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px">' +
-            '<b>2. Confirmar com o código</b><div class="m" style="font-size:12px;margin:4px 0 8px">O Gmail manda um código para o seu endereço e ele aparece aqui sozinho. ' +
-            'Cole no Gmail e toque em <b>Verificar</b>. Deixe marcado <b>Desativar encaminhamento</b>: o filtro do passo 3 manda só os e-mails do banco.</div>' +
+            '<b>2. Confirmar com o código</b><div class="m" style="font-size:12px;margin:4px 0 8px">O código aparece aqui. Cole no Gmail → <b>Verificar</b>. ' +
+            'Deixe <b>Desativar encaminhamento</b> marcado.</div>' +
             '<div id="cGmCod">' + (codGmail ? linha('Código', codGmail) : '<div class="m" style="font-size:12.5px">⏳ esperando o código do Gmail...</div>') + '</div>' +
             (jaAut ? '' : '<a href="#" id="cGmJaFiz" style="display:inline-block;margin-top:8px;font-size:12.5px">Já autorizei antes: pular para o filtro</a>') +
             '</div></div>' +
           '<div class="c-passo" style="margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px">' +
-            '<b>3. Importar o filtro pronto</b><div class="m" style="font-size:12px;margin:4px 0 8px">Marque os seus bancos e baixe o arquivo. No Gmail: ' +
-            '<b>Importar filtros</b> (no fim da página) → <b>Escolher arquivo</b> → o arquivo baixado → <b>Abrir arquivo</b> → marque ' +
-            '<b>Aplicar novo filtro</b> → <b>Criar filtros</b>.</div>' +
-            '<div class="chips" id="cGmBancos" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">' +
-              BANCOS_EMAIL.map(function (b, i) { return '<button class="c-chip on" data-gmb="' + i + '">' + esc(b[0]) + '</button>'; }).join('') + '</div>' +
+            '<b>3. Importar o filtro</b><div class="m" style="font-size:12px;margin:4px 0 8px">Baixe o filtro (já vem com todos os bancos). No Gmail: ' +
+            '<b>Importar filtros</b> → escolha o arquivo → <b>Criar filtros</b>.</div>' +
             '<div class="c-bts"><button class="c-bt" id="cGmBaixar">Baixar o filtro</button><button class="c-bt sec" id="cGmFiltros">Abrir os filtros do Gmail</button></div></div>' +
-          '<div class="m" style="font-size:11.5px;margin-top:6px">No app de cada banco, deixe ligados os <b>avisos por e-mail</b>. ' +
-            'iCloud ou Outlook: crie uma regra "remetente é o banco → encaminhar para" o seu endereço.</div></div>';
+          '<div class="m" style="font-size:11.5px;margin-top:6px">Ligue os <b>avisos por e-mail</b> no app de cada banco.</div></div>';
         }
       }
 
@@ -8039,13 +8032,9 @@ window.pedirTexto = function (o, feito) {
       if (jaFiz) jaFiz.onclick = function (e) { e.preventDefault(); marcarGmailAutorizado(); re(); };
       var refazer = $('cGmRefazer');
       if (refazer) refazer.onclick = function (e) { e.preventDefault(); var a = $('cGmAut'); if (a) a.hidden = !a.hidden; };
-      Array.prototype.forEach.call(raiz.querySelectorAll('[data-gmb]'), function (c) {
-        c.onclick = function () { c.classList.toggle('on'); };
-      });
       b('cGmBaixar', function () {
-        var dom = Array.prototype.filter.call(raiz.querySelectorAll('[data-gmb].on'), function () { return true; })
-          .map(function (c) { return BANCOS_EMAIL[+c.dataset.gmb][1]; });
-        if (!dom.length) return aviso('Marque pelo menos um banco');
+        // todos os bancos de uma vez: banco que a pessoa não usa não manda e-mail, então não atrapalha
+        var dom = BANCOS_EMAIL.map(function (x) { return x[1]; });
         var tkE = (raiz.querySelector('[data-copia$="@' + EMAIL_DOMINIO + '"]') || {}).dataset;
         var end = tkE ? tkE.copia : '';
         if (!end) return aviso('Não achei o seu endereço; abra de novo esta tela');
