@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.27.5 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.28.0 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -5408,10 +5408,14 @@ window.pedirTexto = function (o, feito) {
     return h;
   }
 
+  function celAndroid() { var c = window.Capacitor; return !!(c && c.isNativePlatform && c.isNativePlatform() && c.getPlatform && c.getPlatform() === 'android'); }
   function corpoAutomacao() {
     return '<h2>Última coisa: deixar os gastos entrarem sozinhos</h2>' +
       '<p class="sub">É o que faz o app funcionar sem trabalho: <b>avisos do celular</b> lançam cada compra na hora, e o <b>Open Finance</b> traz o extrato e o saldo do banco. ' +
       'Sem isso, você lança à mão.</p>' +
+      (celAndroid() ? '<div class="c-passo" style="margin:10px 0 14px;padding:12px;border:1px solid var(--line);border-radius:12px">' +
+        '<b>📲 Avisos do banco neste celular</b><p class="sub" style="font-size:12.5px;margin:4px 0 2px">Libere uma vez e cada compra e Pix entra na hora.</p>' +
+        '<div id="aCel"></div></div>' : '') +
       '<button class="escolha rec" id="aAgora"><b>⚡ Configurar a automação agora</b><span>Leva uns minutos. É o essencial para o app ficar fácil.</span></button>' +
       '<button class="escolha" id="aDepois"><b>👀 Antes, quero ver o app com as projeções</b><span>O app abre com o que você montou. A automação fica em Config → Minha conta.</span></button>';
   }
@@ -5509,6 +5513,7 @@ window.pedirTexto = function (o, feito) {
       if ($('pNasc')) mascaraData($('pNasc'));
     }
     if (k === 'automacao') {
+      if ($('aCel') && window.EASYAPP_CONTA && window.EASYAPP_CONTA.avisosCel) window.EASYAPP_CONTA.avisosCel($('aCel'));
       $('aAgora').onclick = function () { terminar('automacao'); };
       $('aDepois').onclick = function () { terminar('app'); };
     }
@@ -7245,8 +7250,8 @@ window.pedirTexto = function (o, feito) {
  *   - plano: teste de 14 dias, assinatura mensal/anual pelo Mercado Pago,
  *     e a tela de "seu teste terminou";
  *   - créditos do assistente (pré-pagos);
- *   - avisos de compra: os dados prontos para o MacroDroid (Android) e para
- *     o app Atalhos (iPhone);
+ *   - avisos de compra: no Android o próprio app lê os avisos dos bancos
+ *     (basta liberar); no iPhone, os dados prontos para o app Atalhos;
  *   - Open Finance com a conta Pluggy da própria pessoa;
  *   - excluir a conta.
  *
@@ -7376,8 +7381,6 @@ window.pedirTexto = function (o, feito) {
     '.c-chave{position:relative;flex:none;width:50px;height:28px;border-radius:14px;border:0;background:#2a3548;cursor:pointer;transition:.2s;padding:0}' +
     '.c-chave::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s}' +
     '.c-chave.on{background:#22c55e}.c-chave.on::after{left:25px}' +
-    '.c-dias{display:flex;gap:8px;align-items:center}.c-dias input{flex:1;min-width:0;margin:0!important;font-size:16px;padding:11px 12px}' +
-    '.c-dias .c-bt{flex:none;width:auto;margin:0;padding:11px 18px;font-size:15px}' +
     '.c-plano{background:#161d2c;border:1px solid #2a3548;border-radius:14px;padding:14px;margin-bottom:10px}' +
     '.c-plano b{font-size:18px}.c-plano small{display:block;color:#8b99b5;margin-top:2px}' +
     '#minhaConta .card{margin-bottom:10px}#minhaConta input{width:100%;box-sizing:border-box;margin:4px 0 8px}' +
@@ -7569,12 +7572,100 @@ window.pedirTexto = function (o, feito) {
   function configurarLembrete(ligado) {
     if (!nativo) return Promise.resolve();
     try { localStorage.setItem('easyapp:lembrete', ligado ? 'sim' : 'nao'); } catch (e) {}
-    var mv = macroVence();
     return token().then(function (t) {
-      if (!t) return cap.nativePromise('Lembrete', 'configurar', { ligado: !!ligado, macroVence: /^\d{4}/.test(mv) ? mv : '' });
-      return cap.nativePromise('Lembrete', 'configurar', { url: CFG.url, apikey: CFG.anon, token: t, ligado: !!ligado,
-                                                           macroVence: /^\d{4}/.test(mv) ? mv : '' });
+      if (!t) return cap.nativePromise('Lembrete', 'configurar', { ligado: !!ligado });
+      return cap.nativePromise('Lembrete', 'configurar', { url: CFG.url, apikey: CFG.anon, token: t, ligado: !!ligado });
     }).catch(function () {});
+  }
+
+  // ================================================ AVISOS DO CELULAR
+  // Android: o próprio app lê os avisos dos apps de banco (AvisosService no
+  // APK). O Android não deixa ligar sozinho: cada botão abre a chave certa, e
+  // ao voltar para o app a tela confere de novo.
+  function statusAvisos() {
+    if (!nativo || !cap.getPlatform || cap.getPlatform() !== 'android') return Promise.resolve(null);
+    return cap.nativePromise('Lembrete', 'status', {}).catch(function () { return null; });
+  }
+  function abrirAjuste(qual) {
+    return cap.nativePromise('Lembrete', 'abrirAjuste', { qual: qual }).catch(function () { aviso('Abra em Configurações do Android'); });
+  }
+  // desenha os passos em el; depois(): algo mudou (a tela de fora redesenha)
+  function avisosCel(el, depois) {
+    statusAvisos().then(function (st) {
+      if (!el.isConnected) return;
+      if (!st) { el.innerHTML = '<div class="m" style="font-size:12.5px">Atualize o app para a versão nova (Config → Minha conta) para ligar os avisos.</div>'; return; }
+      var passo = function (ok, txt, okTxt, qual) {
+        return ok ? '<div class="c-passo" style="margin:6px 0;padding:10px;border:1px solid var(--ok);border-radius:10px;font-size:13px"><b style="color:var(--ok)">✓ ' + okTxt + '</b></div>'
+          : '<button class="c-bt" data-cel="' + qual + '" style="width:100%;margin:6px 0;text-align:left">' + txt + '</button>';
+      };
+      var h = passo(st.avisos, '1. Liberar o acesso às notificações → ligue o <b>EasyAPP</b>', 'Acesso às notificações liberado', 'acesso-notificacoes');
+      if (!st.avisos && st.restrito) h += '<div class="m" style="font-size:12px;margin:0 0 8px">A chave está cinza ou aparece <b>Configuração restrita</b>? ' +
+        '<a href="#" data-cel="app">Toque aqui</a> → <b>⋮</b> (no canto de cima) → <b>Permitir configurações restritas</b>, e volte ao passo 1.</div>';
+      h += passo(st.permitido, '2. Permitir as notificações do EasyAPP (o aviso para classificar)', 'Notificações do EasyAPP permitidas', 'easyapp-notificacoes');
+      var b = st.bancos || [];
+      h += '<div class="m" style="font-size:12px;margin:8px 0 0">' + (b.length ? 'Apps de banco neste celular: <b>' + esc(b.join(', ')) + '</b>. ' +
+          'Deixe ligadas as notificações de compra e Pix no app de cada um.'
+        : 'Nenhum app de banco encontrado neste celular. Instale o app do seu banco e ligue as notificações de compra e Pix nele.') + '</div>';
+      if (st.avisos) h += '<button class="bt-no" data-cel="testar" style="width:100%;margin-top:10px">Testar agora</button>';
+      el.innerHTML = h;
+      Array.prototype.forEach.call(el.querySelectorAll('[data-cel]'), function (x) {
+        x.onclick = function (e) {
+          e.preventDefault();
+          if (x.dataset.cel !== 'testar') { esperarVolta(el, depois); abrirAjuste(x.dataset.cel); return; }
+          cap.nativePromise('Lembrete', 'testarAvisos', {}).then(function () {
+            aviso('Teste enviado: em segundos ele aparece em Últimos avisos recebidos');
+            setTimeout(function () { depois && depois(); }, 5000);
+          }).catch(function (er) {
+            aviso(String(er && er.message || er).indexOf('notificacoes') > -1 ? 'Permita as notificações do EasyAPP (passo 2)' : 'Libere o acesso às notificações (passo 1)');
+          });
+        };
+      });
+    });
+  }
+  // voltou das Configurações do Android: confere e redesenha
+  function esperarVolta(el, depois) {
+    var f = function () {
+      if (document.hidden) return;
+      document.removeEventListener('visibilitychange', f);
+      setTimeout(function () { if (depois) depois(); else avisosCel(el); }, 400);
+    };
+    document.addEventListener('visibilitychange', f);
+  }
+  /* Quem já usa o app e ainda não liberou: uma faixa para liberar (some por
+     3 dias no "Depois"). Durante o primeiro acesso não aparece: lá é um passo. */
+  function avisoLiberarCel() {
+    statusAvisos().then(function (st) {
+      if (!st || st.avisos || $('cLibCel')) return;
+      var b = document.getElementById('boas'); if (b && !b.hidden && b.offsetParent !== null) return;
+      var ult = 0; try { ult = +localStorage.getItem('easyapp:lib-cel') || 0; } catch (e) {}
+      if (Date.now() - ult < 3 * 864e5) return;
+      var f = document.createElement('div');
+      f.id = 'cLibCel';
+      f.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:8991;' +
+        'background:#1e3a8a;color:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 8px 24px #0009;font:14px -apple-system,system-ui,sans-serif';
+      f.innerHTML = '<b>📲 Lançar as compras sozinho</b>' +
+        '<div style="font-size:12.5px;opacity:.9;margin:3px 0 10px">O EasyAPP lê os avisos dos apps de banco e lança cada compra e Pix na hora. ' +
+        'Toque em <b>Liberar</b> e ligue o <b>EasyAPP</b>.</div>' +
+        '<div style="display:flex;gap:8px"><button id="cLibSim" style="flex:1;padding:10px;border:0;border-radius:10px;background:#3b82f6;color:#fff;font-weight:700">Liberar</button>' +
+        '<button id="cLibNao" style="flex:none;padding:10px 14px;border:0;border-radius:10px;background:transparent;color:#bfdbfe">Depois</button></div>';
+      document.body.appendChild(f);
+      $('cLibNao').onclick = function () { try { localStorage.setItem('easyapp:lib-cel', String(Date.now())); } catch (e) {} f.remove(); };
+      $('cLibSim').onclick = function () {
+        f.remove();
+        var volta = function () {
+          if (document.hidden) return;
+          document.removeEventListener('visibilitychange', volta);
+          setTimeout(function () {
+            statusAvisos().then(function (s2) {
+              if (s2 && s2.avisos) { aviso('Pronto ✅ as compras do banco agora entram sozinhas'); configurarLembrete(lembreteLigado()); }
+              else if (window.ST && typeof window.irParaTela === 'function') { window.ST.modoCfg = 'CONTA'; window.irParaTela('config'); }
+            });
+          }, 400);
+        };
+        document.addEventListener('visibilitychange', volta);
+        abrirAjuste('acesso-notificacoes');
+      };
+    });
   }
 
   // E-mail de lançamentos (<token>@domínio): o banco avisa por e-mail, a pessoa
@@ -7582,26 +7673,6 @@ window.pedirTexto = function (o, feito) {
   // ainda não está ligada (o DNS do domínio tem que estar na Cloudflare).
   var EMAIL_DOMINIO = 'easyappfinancial.com.br';
 
-  // ===================================== TEMPO GRÁTIS DO MACRODROID
-  // O MacroDroid grátis para quando acabam os dias (ganha mais vendo anúncio)
-  // e não deixa outro app ler esse contador: a pessoa informa aqui, o app
-  // conta, e a tarefa do Android avisa com 5 dias, com 1 e no dia. É do
-  // aparelho (cada celular tem o seu MacroDroid), por isso fica no celular.
-  // Valor: 'AAAA-MM-DD' (fim do tempo grátis), 'PRO' ou '' (não informado).
-  function macroVence() { try { return localStorage.getItem('easyapp:macro') || ''; } catch (e) { return ''; } }
-  function macroDias() {
-    var v = macroVence(); if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
-    var f = new Date(v + 'T12:00:00'), h = new Date(); h.setHours(12, 0, 0, 0);
-    return Math.round((f - h) / 864e5);
-  }
-  function salvarMacro(v) {
-    try { localStorage.setItem('easyapp:macro', v); } catch (e) {}
-    return configurarLembrete(lembreteLigado());
-  }
-  function hojeMais(n) {
-    var d = new Date(); d.setDate(d.getDate() + n);
-    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
-  }
 
   // ======================================================== OPEN FINANCE
   var PLUGGY_JS = 'https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js';
@@ -7750,19 +7821,13 @@ window.pedirTexto = function (o, feito) {
       var android = nativo || /Android/i.test(navigator.userAgent);
       var av = R[2] || [];
       var horasAv = av.length ? (Date.now() - new Date(av[0].recebido)) / 36e5 : null;
-      // o app só sabe que funciona quando chega o 1º aviso (uma compra, ou o "Testar ações" do MacroDroid)
+      // o app só sabe que funciona quando chega o 1º aviso (uma compra, ou o "Testar agora" do guia)
       var stAv = !av.length ? '<span class="st off">○ esperando o 1º aviso</span>'
         : horasAv > 24 ? '<span class="st warn">⚠️ parado há ' + Math.round(horasAv) + 'h</span>'
         : '<span class="st ok">✅ funcionando</span>';
       var nBancos = of && of.itens ? of.itens.length : 0;
       var stOf = !of ? '<span class="st off">indisponível</span>' : !of.configurado ? '<span class="st off">○ não ligado</span>'
         : nBancos ? '<span class="st ok">✅ ' + nBancos + (nBancos === 1 ? ' banco' : ' bancos') + '</span>' : '<span class="st warn">falta conectar banco</span>';
-      var md = macroVence(), mdD = macroDias();
-      var stMd = md === 'PRO' ? '<span class="st ok" style="display:block;margin-top:4px">⭐ Pro</span>'
-        : mdD === null ? '<span class="st off" style="display:block;margin-top:4px">⏳ informe os dias</span>'
-        : mdD <= 0 ? '<span class="st warn" style="display:block;margin-top:4px;color:var(--bad)">⛔ tempo grátis acabou</span>'
-        : '<span class="st ' + (mdD <= 5 ? 'warn' : 'ok') + '" style="display:block;margin-top:4px' + (mdD <= 5 ? ';color:var(--bad)' : '') + '">⏳ ' +
-            (mdD === 1 ? 'falta 1 dia' : 'faltam ' + mdD + ' dias') + '</span>';
       var tile = function (id, img, nome, sub, st) {
         return '<button class="c-tile" data-guia="' + id + '">' + img + '<b>' + nome + '</b><small>' + sub + '</small>' + st + '</button>';
       };
@@ -7770,59 +7835,26 @@ window.pedirTexto = function (o, feito) {
         '<div class="m" style="font-size:12px;margin:2px 0 10px">Toque para ver como ligar.</div><div class="c-tiles">' +
         (EMAIL_DOMINIO && tk ? tile('em', '<span class="ico-at">✉️</span>', 'E-mail do banco', 'Pix, compra e débito · sem instalar nada',
           (R[4] && R[4][0]) ? '<span class="st ok">✅ funcionando</span>' : '<span class="st off">não ligado</span>') : '') +
-        (android ? tile('md', '<img src="data:image/png;base64,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" alt="">', 'MacroDroid', 'aviso do celular · chega na hora', stAv + (av.length ? stMd : ''))
+        (android ? tile('cel', '<span class="ico-at">📲</span>', 'Avisos do celular', 'compra e Pix na hora · do próprio app', '<span id="cCelSt">' + stAv + '</span>')
                  : tile('at', '<span class="ico-at">📱</span>', 'Atalhos (iPhone)', 'Apple Pay e SMS do banco', stAv)) +
         tile('of', '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAIKADAAQAAAABAAAAIAAAAACshmLzAAAEeklEQVRYCe2WXWxURRTHZ+9utx/ULQVZC0iFUKpoLFajUQOKhIBoMMiDr1QlfkSjxkRCwpuJMVGi0Qc1ikI0vEFQI5AQqBKCojFGKbRaK5C64aOsFGlLu233Xn7/zZ1luNvyIm/2JL+dmXPPnTkz58y5a8yE/N9PIHa1A+id/6gey6YsxKfNgVpT27FTjQnt1I1DEjwYhhEo2qkflRIHnEVnYLwI7oO5kAJNeBp+hf1wGLRYMzwITZCGBJyHLjgYovdKnCk64OxiGnYtsAZuBk02lpxD+R3odB6AGhhL5HQ7fApfgBwrOlJwwFl8Ac/ehiWg47yWMspku2Ad/KGJFcKYs/id6D4DOTGuxILABLHiwY1rd5UHP/DsaeiQjT1exftdiC4eoDsJbXDK97zqc+nUklRv/9SKwRHjeyWOnMHuWxiCmXA73ACuoXJqIyjEWTmghy+A4uhKL4NPYAscW9r+fq7hz8zdydzIwsa2brNi2yHT0J6JnsYAtq+DdlcBjbAWWuA6sPIwnafgrfj6aY3K4DdgMlj5h87L8B70tOzZkE9dGPDyifiGXGXyocyctOlonm3Sp86buoxysSi19P6FVlDMdSJ7IQvaYDlItOlZsEdXaDXUgxWfzjuwFfKFRCEQscDcxHi5ciCe983ZulqzvWVx53B54jh6V1YyqJMirBO6BboBH0rnSAP9lXJgGbgx0pX5HAJbaOhLlB/yuiCe7/sn5k3fWNWf+8DqwnYu7a1WF86h09gEx6yeVuFfJgcUJ1cOMshYxaru721XNaHMDmjPDE4q358YzbfSV75YqaIzTwPnhmmok/pJHUfmy4EaR6HuX5GxHV5vO2GbzSe8LNFRnK9IBMZTI7Ya5sE9AemmyAHmuELGK0DKDVdivKmKoDmEK1Fb+yw6d6AX3eOToUISnVD6Hv04kk6M+ko23ffojs86drar8BVCYxW0WS2kpHNlEYM5VvFl/f22+zsdfQmtpKv6h5YPJxMrUKSskrYPOjWOJPEtqO6R3pE2ObAbFB8ruh7PQVkkiX5DV7xyftwzjUe6X6UuPGtfDFvV+eKmwjlUlFTsbgxt1AzDbjmwA7rAFTnwIlRoApXcvpqqDN+ArwP6Wry+67R5YlPrTCqjSq0r2xmokNlbMInua7BGOkeO0t9lP0brGLwJbuwHGW8D3d8jkzsO9L2yb3MTO95x2y/HZy396mczvTtr5JAj2v0qULYrLAtAJ/QYlIMVFaeX4CPrwBQGm0GGUVFp1YQ9QcxUXqyuvKNyYCgVH/Wji+s9JbRCpePVyagoVUNUtqJ4HvqsAzJQ7PXxWQzjyjX4HO9kci3+txbxnExVHjwJ8s7NdoaX5T/8F7jILNrgM1BYXGsXA+hkvJLmcVgLd8FYR6hbo0m+gSQ8AjPAzSGGBbnA74/wMWj3g86mLzvAg4I4jtSgaAbdXYVHYyXPSVCcD8EJ0CYU63uhCVScEqB86AQtfhhUH6K1odQBGbniOKTdqWyLkokidjIplGN3t1JOyMQJRE/gEiRdQ2K8noRVAAAAAElFTkSuQmCC" alt="">', 'Open Finance', 'direto do banco · 1 a 3 dias', stOf) +
         '</div>';
 
       if (tk) {
-        // a chave pública vai na própria URL: no MacroDroid não precisa de cabeçalho nenhum
+        // a chave pública vai na própria URL (os Atalhos do iPhone não precisam de cabeçalho)
         var URLp = CFG.url + '/rest/v1/rpc/receber_push?apikey=' + CFG.anon;
-        var corpoMD = '{"token":"' + tk + '","app":"[not_app_name]","title":"[not_title]","text":"[notification]","posted":"[notification_time]"}';
         var linha = function (rot, val) {
           return '<div class="c-lin"><span>' + rot + '</span><span style="text-align:right"><code>' + esc(val) + '</code> ' +
             '<a href="#" data-copia="' + esc(val) + '">copiar</a></span></div>';
         };
-        h += '<div class="c-guia" id="guia-md" hidden><div class="c-gt"><img src="data:image/png;base64,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" alt=""> MacroDroid · passo a passo</div>' +
-          (nativo ? '<div class="c-passo" style="margin:4px 0 10px;padding:10px;border:1px solid var(--line);border-radius:10px">' +
-            '<b>🔓 Liberar tudo no celular</b><div class="m" style="font-size:12px;margin:4px 0 8px">Cada botão abre a tela certa do Android; ' +
-            'ligue a chave e volte para cá. Faça depois de instalar o MacroDroid.</div>' +
-            '<button class="bt-no" data-ajuste="acesso-notificacoes" style="width:100%;margin-bottom:6px;text-align:left">1. Acesso às notificações → ligue o <b>MacroDroid</b></button>' +
-            '<button class="bt-no" data-ajuste="macrodroid" style="width:100%;margin-bottom:6px;text-align:left">2. MacroDroid → <b>Bateria</b> → <b>Sem restrições</b></button>' +
-            '<button class="bt-no" data-ajuste="easyapp-notificacoes" style="width:100%;text-align:left">3. Notificações do EasyAPP → <b>permitir</b></button></div>' : '') +
-          '<div class="c-passo" style="margin:4px 0 10px;padding:10px;border:1px solid var(--line);border-radius:10px">' +
-            '<b>⏳ Tempo grátis do MacroDroid</b><div class="m" style="font-size:12px;margin:4px 0 8px">O MacroDroid grátis para de funcionar quando acabam os dias ' +
-            '(você ganha mais assistindo um anúncio nele). Veja quantos dias faltam na tela inicial do MacroDroid e informe aqui: ' +
-            'o celular avisa 5 dias antes, 1 dia antes e no dia.</div>' +
-            (md === 'PRO' ? '<div class="m" style="font-size:12.5px">⭐ Você marcou que tem o <b>Pro</b>: sem prazo.</div>'
-              : (mdD !== null ? '<div class="m" style="font-size:12.5px;margin-bottom:6px">Hoje: <b>' + (mdD <= 0 ? 'acabou' : mdD + (mdD === 1 ? ' dia' : ' dias')) + '</b> (até ' + md.slice(8, 10) + '/' + md.slice(5, 7) + ')</div>' : '')) +
-            '<div class="c-dias"><input id="cMdDias" type="number" inputmode="numeric" min="0" max="999" placeholder="dias que faltam">' +
-            '<button class="c-bt" id="cMdSalvar">Salvar</button></div>' +
-            '<button class="bt-no" id="cMdPro" style="width:100%;margin-top:8px">' + (md === 'PRO' ? 'Não tenho o Pro' : 'Tenho o MacroDroid Pro') + '</button></div><ol>' +
-          '<li><b>Instale</b> o <a href="#" id="cMacro">MacroDroid</a> pela Play Store (é grátis) e abra.</li>' +
-          '<li>Toque em <b>Adicionar macro</b> (o + grande).</li>' +
-          '<li>Em <b>Gatilhos</b>, toque no <b>+</b> → <b>Eventos do Dispositivo</b> → <b>Notificação</b> → <b>Notificação recebida</b> (ou toque na 🔍 e busque "notificação"). ' +
-            'Escolha <b>Selecionar aplicativos</b> e marque os apps dos seus <b>bancos e cartões</b>. Em conteúdo, deixe <b>Qualquer</b>. ' +
-            'Se o celular pedir, <b>permita o acesso às notificações</b> para o MacroDroid.</li>' +
-          '<li>Em <b>Ações</b>, toque no <b>+</b> → <b>Interações Web</b> → <b>Requisição HTTP</b> (ou toque na 🔍 e busque "HTTP").<br>' +
-            '• Método: <b>POST</b><br>• URL: toque em <b>copiar</b> ao lado de <i>URL</i> aqui embaixo e cole<br>' +
-            '• <b>Parâmetros de cabeçalho</b>: não precisa, deixe vazio (a chave já vai na URL).<br>' +
-            '• Aba <b>Corpo da requisição</b>: tipo de conteúdo <b>application/json</b> e cole o <i>Corpo</i> daqui.<br>' +
-            '• Marque <b>Salvar resposta HTTP em uma variável</b> e crie a variável de texto <b>resposta</b> (é ela que o próximo passo lê).</li>' +
-          '<li><b>Aviso na hora para classificar</b> (recomendado): ainda em <b>Ações</b>, toque no <b>+</b> → <b>Condições/Loops</b> → <b>Se (If)</b> → ' +
-            'condição <b>Variável</b> → <b>resposta</b> → <b>contém</b> → digite <b>PENDENTE</b>. Dentro do <i>Se</i>, adicione <b>Notificação</b> → ' +
-            '<b>Exibir notificação</b>: título <b>EasyAPP · classificar</b>, texto <b>[notification]</b>, e em <i>Ao tocar</i> escolha <b>Abrir aplicativo</b> → <b>EasyAPP</b>. ' +
-            'Assim, a compra que o app ainda não conhece vira um aviso no mesmo segundo; a que ele já sabe classificar entra sozinha, sem aviso.</li>' +
-          '<li>Dê um nome (ex.: <b>EasyAPP</b>) e salve no <b>✓</b>.</li>' +
-          '<li><b>Importante:</b> Configurações do Android → Apps → MacroDroid → Bateria → <b>Sem restrições</b>. ' +
-            'Sem isso o celular "dorme" o MacroDroid e os avisos param.</li>' +
-          '<li><b>Teste</b>: no MacroDroid, abra o macro → <b>⋮</b> → <b>Testar ações</b>. Em segundos aparece um aviso em ' +
-            '<i>Últimos avisos recebidos</i> (como teste, sem lançar nada) e o cartão do MacroDroid fica <b>✅ funcionando</b>. ' +
-            'Depois, uma compra de verdade confirma que o banco está marcado.</li>' +
-          '</ol><div class="lbl" style="margin:10px 0 2px">Dados para copiar</div>' +
-          linha('URL', URLp) + linha('Corpo', corpoMD) +
-          '<div class="m" style="font-size:11.5px;margin-top:6px">Guarde o token só com você: quem tem ele consegue lançar no seu app. ' +
-          'O MacroDroid grátis pede para ver anúncios de tempos em tempos; a versão Pro (taxa única) acaba com isso.</div></div>';
+        // Android: o próprio app lê os avisos dos apps de banco (AvisosService no APK)
+        h += '<div class="c-guia" id="guia-cel" hidden><div class="c-gt">📲 Avisos do celular</div>' +
+          '<div class="m" style="font-size:12px;margin-bottom:8px">O EasyAPP lê os avisos dos apps de banco deste celular e lança cada compra e Pix na hora. ' +
+          'Não precisa instalar nada: é só liberar uma vez.</div>' +
+          (nativo ? '<div id="cCel"><div class="m">verificando...</div></div>'
+            : '<div class="c-passo" style="margin:4px 0 10px;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:12.5px">' +
+              'Funciona no <b>app EasyAPP para Android</b>: baixe em <b>easyappfinancial.com.br</b>, abra e toque em <b>Liberar</b>.</div>') +
+          '</div>';
         // iPhone: o iOS não deixa app nenhum ler a notificação de outro app.
         // Três portas que ele deixa abertas, todas pelo app Atalhos (grátis):
         // a Carteira (Apple Pay), o SMS do banco e, com o domínio ligado, o
@@ -7968,7 +8000,7 @@ window.pedirTexto = function (o, feito) {
         (av.length ? av.map(function (x) {
           var d = new Date(x.recebido), c = x.corpo || {};
           var st = ST_TXT[x.status] || (/^IGNORADA/.test(x.status || '') ? '⏭ ignorado (' + String(x.status).replace('IGNORADA ', '').toLowerCase() + ')' : esc(x.status || ''));
-          // quanto o aviso levou da notificação do banco até aqui (o MacroDroid manda a hora em ms)
+          // quanto o aviso levou da notificação do banco até aqui (o celular manda a hora em ms)
           var pz = String(c.posted || ''), t0 = /^\d{13}$/.test(pz) ? +pz : /^\d{10}$/.test(pz) ? pz * 1000 : 0;
           var atraso = t0 ? Math.round((d.getTime() - t0) / 60e3) : 0;
           if (atraso >= 1 && atraso < 1440) st += '<br><small style="color:' + (atraso >= 5 ? 'var(--warn)' : 'var(--dim)') + '">chegou ' + atraso + ' min depois</small>';
@@ -8119,13 +8151,7 @@ window.pedirTexto = function (o, feito) {
         };
       });
       b('cAtualizarApp', function (e) { e.preventDefault(); instalarAtualizacao(APK_BASE + 'EasyAPP-Financial.apk?v=' + versaoSite, aviso); });
-      b('cMdSalvar', function () {
-        var n = parseInt(($('cMdDias') || {}).value, 10);
-        if (!(n >= 0 && n < 1000)) { aviso('Digite quantos dias faltam (veja no MacroDroid)'); return; }
-        salvarMacro(hojeMais(n)).then(function () { aviso('Pronto: o celular avisa antes de acabar'); re(); });
-      });
-      b('cMdPro', function () { salvarMacro(macroVence() === 'PRO' ? '' : 'PRO').then(re); });
-      b('cMacro', function (e) { e.preventDefault(); abrirFora('https://play.google.com/store/apps/details?id=com.arlosoft.macrodroid'); });
+      if ($('cCel')) avisosCel($('cCel'), re);
       Array.prototype.forEach.call(raiz.querySelectorAll('[data-copia]'), function (x) {
         x.onclick = function (e) {
           e.preventDefault();
@@ -8253,6 +8279,7 @@ window.pedirTexto = function (o, feito) {
       configurarLembrete(lembreteLigado());
       autoOpenFinance();
       avisoReconectar();
+      avisoLiberarCel();
       checarVersao();
     });
   }
@@ -8383,7 +8410,7 @@ window.pedirTexto = function (o, feito) {
     vai(0);
   }
 
-  window.EASYAPP_CONTA = { render: render, iniciar: iniciar, conectarBanco: conectarBanco, tutorialPluggy: tutorialPluggy, conectarDireto: conectarDireto };
+  window.EASYAPP_CONTA = { render: render, iniciar: iniciar, conectarBanco: conectarBanco, tutorialPluggy: tutorialPluggy, conectarDireto: conectarDireto, avisosCel: avisosCel };
   if (P.sessao()) setTimeout(iniciar, 600);
 })();
 </script>
@@ -12255,7 +12282,7 @@ function seloManual(x){
          x.linha+')">manual · editar</b>';
 }
 
-/* De onde veio cada lançamento, num ícone: 📲 aviso do celular (MacroDroid),
+/* De onde veio cada lançamento, num ícone: 📲 aviso do celular,
    🏦 banco (Open Finance), ⇄ outro lado de transferência, ➗ dividido.
    O manual já tem o selo "manual · editar". */
 function origemIc(x){
