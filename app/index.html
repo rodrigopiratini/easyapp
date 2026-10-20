@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.28.0 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.28.1 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -7668,6 +7668,10 @@ window.pedirTexto = function (o, feito) {
     });
   }
 
+  // iPhone: o link do iCloud do atalho EasyAPP (docs/ATALHO-IPHONE.md). Vazio =
+  // ainda não publicado: o guia diz que chega em breve.
+  var ATALHO_ICLOUD = '';
+
   // E-mail de lançamentos (<token>@domínio): o banco avisa por e-mail, a pessoa
   // encaminha, o Worker de email/ manda para a receber_push. Vazio = a porta
   // ainda não está ligada (o DNS do domínio tem que estar na Cloudflare).
@@ -7863,29 +7867,28 @@ window.pedirTexto = function (o, feito) {
           return '<div class="c-passo" style="margin:4px 0 10px;padding:10px;border:1px solid var(--line);border-radius:10px">' +
             '<b>' + titulo + '</b><div class="m" style="font-size:12px;margin:4px 0 4px">' + sub + '</div><ol>' + corpo + '</ol></div>';
         };
-        var urlAt = '<li>Adicione a ação <b>Obter Conteúdo do URL</b> e cole a <i>URL</i> daqui. Toque em <b>Mostrar Mais</b>: ' +
-          'Método <b>POST</b>, Corpo da Solicitação <b>JSON</b>, e adicione os campos (tipo <b>Texto</b>, menos onde diz outro):';
+        // o atalho EasyAPP pronto (link do iCloud): pede o código ao ser adicionado
+        // e manda o que receber (a compra do Apple Pay, o SMS) para a receber_push
+        var execAt = '<li>Toque em <b>Adicionar Ação</b>, busque <b>Executar Atalho</b> e escolha o atalho <b>EasyAPP</b>.</li>' +
+          '<li>Toque na seta <b>›</b> da ação e, em <b>Entrada</b>, escolha <b>Entrada do Atalho</b>. Toque em <b>OK</b>.</li>';
         h += '<div class="c-guia" id="guia-at" hidden><div class="c-gt">📱 iPhone · passo a passo</div>' +
           '<div class="m" style="font-size:12px;margin-bottom:8px">O iPhone não deixa nenhum app ler os avisos dos bancos. ' +
-          'O app <b>Atalhos</b> (já vem no iPhone) pega a mesma informação por outras portas. Ligue as que servirem para você: ' +
-          'quanto mais, menos coisa fica para o Open Finance trazer depois.</div>' +
-          passoAt('💳 1. Compras com Apple Pay', 'Pega na hora toda compra feita encostando o iPhone ou o relógio.',
-            '<li>Abra o app <b>Atalhos</b> → aba <b>Automação</b> → <b>+</b> → <b>Transação</b>.</li>' +
-            '<li>Escolha os cartões, marque <b>Executar Imediatamente</b> → <b>Avançar</b> → <b>Nova Automação em Branco</b>.</li>' +
-            urlAt + '<br><code>token</code> = o token daqui · <code>valor</code> (tipo <b>Número</b>) = <b>Valor</b> · <code>estabelecimento</code> = <b>Comerciante</b> · ' +
-              '<code>cartao</code> = <b>Cartão</b> (os três últimos são variáveis: toque no campo e escolha em <i>Entrada do Atalho</i>).</li>') +
-          passoAt('💬 2. SMS do banco', 'Pega na hora compra, Pix e débito de qualquer banco que mande SMS. ' +
-              'Antes, ligue no app do banco os <b>alertas por SMS</b> (em alguns bancos é pago).',
-            '<li>Quando chegar um SMS do banco, toque no número dele → <b>Criar Novo Contato</b> e salve como <b>Banco · SMS</b> (ex.: <i>Itaú · SMS</i>).</li>' +
-            '<li>No <b>Atalhos</b> → <b>Automação</b> → <b>+</b> → <b>Mensagem</b>. Em <b>Remetente</b>, escolha o contato do banco ' +
-              '(pode marcar vários bancos). Marque <b>Executar Imediatamente</b> → <b>Avançar</b> → <b>Nova Automação em Branco</b>.</li>' +
-            urlAt + '<br><code>token</code> = o token daqui · <code>app</code> = <b>SMS</b> · ' +
-              '<code>title</code> = <b>Entrada do Atalho</b> → toque nela → <b>Remetente</b> · <code>text</code> = <b>Entrada do Atalho</b> → <b>Conteúdo</b>.</li>' +
-            '<li><b>Teste</b>: toque no <b>▶</b> da automação, ou espere o próximo SMS. O aviso aparece em <i>Últimos avisos recebidos</i>.</li>') +
-          '<div class="lbl" style="margin:10px 0 2px">Dados para copiar</div>' +
-          linha('URL', URLp) + linha('token', tk) +
-          '<div class="m" style="font-size:11.5px;margin-top:6px">Guarde o token só com você: quem tem ele consegue lançar no seu app. ' +
-          'O que os Atalhos não pegam (compra online no cartão sem SMS, por exemplo) chega pelo <b>Open Finance</b>.</div></div>';
+          'O atalho <b>EasyAPP</b> (no app Atalhos, que já vem no iPhone) lança na hora as compras com Apple Pay e os SMS do banco. ' +
+          'Pix e compras online chegam pelo <b>Open Finance</b>.</div>' +
+          (ATALHO_ICLOUD ? passoAt('1. Adicionar o atalho EasyAPP', 'Uma vez só. O seu código já vai copiado: quando o iPhone pedir, toque no campo e em <b>Colar</b>.',
+              '<li><button class="c-bt" id="cAtAdd" style="margin:4px 0">Adicionar o atalho EasyAPP</button></li>' +
+              '<li>Toque em <b>Configurar Atalho</b>, cole o código e toque em <b>Adicionar Atalho</b>.</li>')
+            : '<div class="c-passo" style="margin:4px 0 10px;padding:10px;border:1px solid var(--warn);border-radius:10px;font-size:12.5px">' +
+              '⏳ O atalho pronto chega nos próximos dias. Enquanto isso, as compras entram pelo <b>Open Finance</b> e pelo <b>E-mail do banco</b>.</div>') +
+          passoAt('💳 2. Compras com Apple Pay', 'Toda compra feita encostando o iPhone ou o relógio entra na hora.',
+            '<li>No app <b>Atalhos</b>: aba <b>Automação</b> → <b>+</b> → <b>Transação</b>.</li>' +
+            '<li>Marque os seus cartões, escolha <b>Executar Imediatamente</b> → <b>Seguinte</b> → <b>Nova Automação em Branco</b>.</li>' + execAt) +
+          passoAt('💬 3. SMS do banco (se o seu banco manda)', 'Pega compra, Pix e débito avisados por SMS.',
+            '<li>Salve o número do SMS do banco como contato (ex.: <i>Itaú · SMS</i>).</li>' +
+            '<li>No <b>Atalhos</b>: <b>Automação</b> → <b>+</b> → <b>Mensagem</b> → em <b>Remetente</b> escolha o contato do banco → ' +
+              '<b>Executar Imediatamente</b> → <b>Seguinte</b> → <b>Nova Automação em Branco</b>.</li>' + execAt) +
+          '<div class="m" style="font-size:12px;margin-top:4px"><b>Teste:</b> abra o atalho <b>EasyAPP</b> e toque no <b>▶</b>. ' +
+          'Em segundos aparece um aviso em <i>Últimos avisos recebidos</i> e o cartão fica <b>✅ funcionando</b>.</div></div>';
         // E-mail do banco: vale para iPhone e Android, sem instalar nada (o Worker em email/ manda para cá)
         // E-mail do banco: vale para iPhone e Android, sem instalar nada (o Worker em email/ manda para cá).
         // Gmail em 3 toques: abre a tela certa do Gmail, o código de confirmação aparece AQUI
@@ -8152,6 +8155,13 @@ window.pedirTexto = function (o, feito) {
       });
       b('cAtualizarApp', function (e) { e.preventDefault(); instalarAtualizacao(APK_BASE + 'EasyAPP-Financial.apk?v=' + versaoSite, aviso); });
       if ($('cCel')) avisosCel($('cCel'), re);
+      b('cAtAdd', function () {
+        // o código vai para a área de transferência: o iPhone pede ao adicionar o atalho
+        var ir = function () { abrirFora(ATALHO_ICLOUD); };
+        (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(tk) : Promise.reject())
+          .then(function () { aviso('Código copiado. Agora adicione o atalho'); setTimeout(ir, 700); },
+                function () { prompt('Copie o seu código e depois adicione o atalho:', tk); ir(); });
+      });
       Array.prototype.forEach.call(raiz.querySelectorAll('[data-copia]'), function (x) {
         x.onclick = function (e) {
           e.preventDefault();
