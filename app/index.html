@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.27.1 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.27.2 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -5924,6 +5924,7 @@ window.pedirTexto = function (o, feito) {
     '.ia-prev .ln.on .meses{display:grid}' +
     '.ia-prev .rec{color:#22c55e}.ia-prev .des{color:#e8edf7}' +
     '.ia-passos{font-size:12.5px;color:#8b99b5;line-height:1.6}.ia-passos .at{color:#e8edf7}' +
+    'body.em-modulo header .filtros{display:none!important}' +
     '#iaWidgets{padding-bottom:0}#iaWidgets.hide{display:none}.ia-wg{padding:10px 12px!important}' +
     '.ia-wg iframe{display:block;width:100%;height:60px;border:0;background:transparent}' +
     '#iaErroBar{position:fixed;left:10px;right:10px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:980;' +
@@ -6006,6 +6007,7 @@ window.pedirTexto = function (o, feito) {
       var orig = window.irParaTela;
       window.irParaTela = function () {
         $('iaTela').classList.add('hide');
+        document.body.classList.remove('em-modulo');
         Array.prototype.forEach.call(document.querySelectorAll('nav a.ia-navmod'), function (a) { a.classList.remove('on'); });
         var r = orig.apply(this, arguments);
         mostrarWidgets();
@@ -6150,6 +6152,8 @@ window.pedirTexto = function (o, feito) {
 
   function abrirNaTela(m, link) {
     (window.TELAS || []).forEach(function (x) { var e = $('tela-' + x); if (e) e.classList.add('hide'); });
+    // o módulo não usa ano, mês nem família do cabeçalho: as linhas de filtro saem enquanto ele está aberto
+    document.body.classList.add('em-modulo');
     mostrarWidgets();
     Array.prototype.forEach.call(document.querySelectorAll('nav a'), function (a) { a.classList.toggle('on', a === link); });
     $('iaTela').classList.remove('hide');
