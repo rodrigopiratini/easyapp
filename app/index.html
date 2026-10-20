@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.25.0 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.25.1 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -5839,7 +5839,9 @@ window.pedirTexto = function (o, feito) {
     '.ia-chave{flex:none;width:44px;height:26px;border-radius:13px;border:0;background:#2a3548;position:relative;cursor:pointer;padding:0}' +
     '.ia-chave i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#8b99b5;transition:.2s}' +
     '.ia-chave.on{background:#16a34a}.ia-chave.on i{left:21px;background:#fff}' +
-    '.ia-versoes{margin-top:10px;border-top:1px solid #2a3548;padding-top:4px}' +
+    '.ia-hist{display:block;width:100%;text-align:left;margin-top:8px;padding:6px 0 0;background:none;border:0;border-top:1px solid #2a3548;' +
+    ' color:#60a5fa;font-size:12.5px;font-weight:600;cursor:pointer}' +
+    '.ia-versoes{margin-top:4px}' +
     '.ia-ver2{padding:8px 0;border-bottom:1px dashed #2a3548;font-size:12.5px}.ia-ver2:last-child{border:0}' +
     '.ia-ver2 .tp{display:flex;gap:6px;align-items:baseline}.ia-ver2 .dt{margin-left:auto;color:#8b99b5;font-size:11.5px}' +
     '.ia-ver2 .em{color:#22c55e;font-size:11px}.ia-ver2 .pd{color:#c7cfdf;margin:3px 0 6px;line-height:1.4}' +
@@ -6097,6 +6099,12 @@ window.pedirTexto = function (o, feito) {
           nav.insertBefore(a, nav.querySelector('a[data-t=config]'));
         });
         if (window.ajustarNav) window.ajustarNav();
+        // o módulo aberto na tela troca para a versão que ficou em uso (ou sai, se foi desligado)
+        var aberto = quadros.filter(function (x) { return x.tipo === 'tela'; })[0];
+        if (aberto && !$('iaTela').classList.contains('hide')) {
+          var lk = nav.querySelector('a.ia-navmod[data-t="mod-' + aberto.modulo + '"]');
+          if (lk) lk.onclick({ preventDefault: function () {} }); else window.irParaTela('mes');
+        }
       }).catch(function () {});
   }
   /* Widgets: módulos com lugar 'mes' viram cartões no alto da tela Mês, cada
@@ -6889,7 +6897,8 @@ window.pedirTexto = function (o, feito) {
     if (!c.children.length) c.innerHTML = barrinhas();
     return Promise.all([
       rest('/rest/v1/modulos?select=id,nome,descricao,icone,versao_ativa,lugar&order=criado_em'),
-      rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado,pedido,criado_em&order=numero.desc'),
+      rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado,pedido,criado_em,icone,nome&order=numero.desc')
+        .catch(function () { return rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado,pedido,criado_em&order=numero.desc'); }),
       rest('/rest/v1/aparencia_versoes?select=id,numero,estado,descricao,css,menus,pedido,criado_em&order=numero.desc')
     ]).then(function (r) {
       c.innerHTML = '';
@@ -6903,11 +6912,16 @@ window.pedirTexto = function (o, feito) {
           ((o.abrir || o.pedir) ? '<div class="ia-bts" style="margin-top:8px">' +
             (o.abrir ? '<button class="ok" data-a="abrir">Abrir</button>' : '') +
             (o.pedir ? '<button data-a="pedir">✦ Pedir mudança</button>' : '') + '</div>' : '') +
+          (o.versoes.length ? '<button class="ia-hist">' + (abertos[o.chave] ? '▾' : '▸') + ' Histórico de versões (' + o.versoes.length + ')</button>' : '') +
           '<div class="ia-versoes"' + (abertos[o.chave] ? '' : ' hidden') + '></div>';
-        d.querySelector('.ia-modnm').onclick = function () {
+        var alterna = function () {
           abertos[o.chave] = !abertos[o.chave];
           d.querySelector('.ia-versoes').hidden = !abertos[o.chave];
+          var hb = d.querySelector('.ia-hist');
+          if (hb) hb.textContent = (abertos[o.chave] ? '▾' : '▸') + ' Histórico de versões (' + o.versoes.length + ')';
         };
+        d.querySelector('.ia-modnm').onclick = alterna;
+        if (d.querySelector('.ia-hist')) d.querySelector('.ia-hist').onclick = alterna;
         d.querySelector('.ia-chave').onclick = function () {
           this.disabled = true;
           (o.ativo ? o.desligar() : o.ligar()).then(listarModulos, falha);
@@ -6917,7 +6931,7 @@ window.pedirTexto = function (o, feito) {
         var lv = d.querySelector('.ia-versoes');
         o.versoes.forEach(function (v) {
           var x = document.createElement('div'); x.className = 'ia-ver2' + (v.atual ? ' atual' : '');
-          x.innerHTML = '<div class="tp"><b>versão ' + v.numero + '</b>' + (v.atual ? ' <span class="em">em uso</span>' : '') +
+          x.innerHTML = '<div class="tp"><b>' + (v.rotulo || '') + 'versão ' + v.numero + '</b>' + (v.atual ? ' <span class="em">em uso</span>' : '') +
             '<span class="dt">' + dataCurta(v.criado_em) + '</span></div>' +
             (v.pedido ? '<div class="pd">' + esc(String(v.pedido).replace(/^\[📎[^\]]*\]\s*/, '📎 ').slice(0, 220)) + '</div>' : '') +
             (v.atual ? '' : '<div class="ia-bts"><button data-a="ver">Ver</button><button class="ok" data-a="usar">Usar esta</button></div>');
@@ -6944,6 +6958,7 @@ window.pedirTexto = function (o, feito) {
           desligar: function () { return desativarModulo(m).then(menuDosModulos); },
           versoes: vs.map(function (v) {
             return { numero: v.numero, criado_em: v.criado_em, pedido: v.pedido, atual: ativa && v.id === ativa.id,
+                     rotulo: v.icone ? iconeTexto(v.icone) + ' ' : '',
                      ver: function () { abrirModulo(m.id, v.id, m.nome + ' · v' + v.numero); },
                      usar: function () { return aplicar(v.id, null); } };
           })
@@ -8886,7 +8901,10 @@ window.pedirTexto = function (o, feito) {
   .ajuda:hover{background:var(--acc);color:#fff}
   .kv{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:3px 0;font-size:13.5px}
   .kv .n{font-variant-numeric:tabular-nums;white-space:nowrap}
-  .kv.fim{margin-top:4px;align-items:baseline;font-weight:600}.kv.fim .big{font-size:20px}
+  .kv{min-height:26px}.kv>span:first-child{display:inline-flex;align-items:center}
+  .icx{display:inline-block;vertical-align:-2px;width:15px;height:15px;flex:none;margin-right:8px;color:var(--dim)}
+  .lbl .icx{width:13px;height:13px;margin-right:5px}
+  .kv.fim{margin-top:2px}.kv.fim .big{font-size:17px;letter-spacing:0}
   .card.cx{padding:11px 13px;margin-bottom:9px}.card.cx .bar{margin-top:6px}
   nav a:focus{outline:none}
   #dicaPop{position:fixed;z-index:30000;background:#1e293b;color:var(--txt);border-radius:12px;padding:10px 12px;
@@ -10269,6 +10287,20 @@ function confirmarTodos(){
 }
 
 /* ---------- 2. MÊS ---------- */
+/* Ícone de traço do Caixa: todas as linhas com o mesmo lugar de ícone, a
+   mesma fonte e o mesmo espaço (antes só entra/sai tinham seta). */
+var ICO_CX={
+  saldo:'<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M16 12.5h2M3 9.5h18"/>',
+  entra:'<path d="M7 17 17 7M9 7h8v8"/>', sai:'<path d="M7 7l10 10M17 9v8H9"/>',
+  inicio:'<path d="M4 12h12M12 8l4 4-4 4M20 5v14"/>',
+  fim:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>', lista:'<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>'
+};
+function icoCx(k, cor){
+  return '<svg class="icx" viewBox="0 0 24 24" fill="none" stroke="'+(cor||'currentColor')+'" stroke-width="1.9" '+
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+ICO_CX[k]+'</svg>';
+}
+function setaAbre(aberta){ return '<span class="seta'+(aberta?' aberta':'')+'" style="margin-left:4px">&#9656;</span>'; }
+
 /* O "i" de ajuda: o texto aparece ao passar o mouse (title) ou ao tocar (balão). */
 function dica(t){ var e=tx(t); return '<span class="ajuda" data-dica="'+e+'" title="'+e+'">i</span>'; }
 
@@ -10328,26 +10360,25 @@ function renderMes(){
     h+='<div class="card cx" style="border-left:3px solid '+
        (cx.saldoProjetado>=0?'var(--ok)':'var(--bad)')+'">'+
       '<div class="kv"'+(temContas?' style="cursor:pointer" onclick="ST.abreSaldos=!ST.abreSaldos;renderMes()"':'')+'>'+
-        '<span>'+(temContas?'<span class="seta'+(ST.abreSaldos?' aberta':'')+'">&#9656;</span> ':'')+'Saldo em conta hoje'+
+        '<span>'+icoCx('saldo')+'Saldo em conta hoje'+(temContas?setaAbre(ST.abreSaldos):'')+
         dica('O que está nas contas agora. Lançamento com data anterior à do saldo informado muda a abertura do mês, não o saldo de hoje.')+'</span>'+
         '<span class="n">'+moeda(cx.saldoHoje)+'</span></div>'+
       (temContas && ST.abreSaldos ? htmlSaldos(ST.saldos) : '')+
       /* Mês futuro não começa com o saldo de hoje: começa com o que sobrar
          depois dos meses que vêm antes dele. */
       (Math.abs((cx.saldoAntes||0)-cx.saldoHoje)>0.005
-        ? '<div class="kv"><span>Começa com'+dica('O que sobra dos meses até lá.')+'</span>'+
+        ? '<div class="kv"><span>'+icoCx('inicio')+'Começa com'+dica('O que sobra dos meses até lá.')+'</span>'+
           '<span class="n '+((cx.saldoAntes||0)>=0?'pos':'neg')+'">'+moeda(cx.saldoAntes)+'</span></div>'
         : '')+
-      '<div class="kv"><span>'+setaMov('in')+'Ainda entra</span><span class="n pos">'+moeda(cx.aReceber)+'</span></div>'+
-      '<div class="kv"><span>'+setaMov('out')+'Ainda sai'+(dicaFatura?dica(dicaFatura):'')+'</span>'+
+      '<div class="kv"><span>'+icoCx('entra','var(--ok)')+'Ainda entra</span><span class="n pos">'+moeda(cx.aReceber)+'</span></div>'+
+      '<div class="kv"><span>'+icoCx('sai','var(--bad)')+'Ainda sai'+(dicaFatura?dica(dicaFatura):'')+'</span>'+
         '<span class="n neg">'+moeda(cx.aPagar)+'</span></div>'+
-      '<div class="kv fim"><span>Fim do mês'+dica('Saldo projetado: o de hoje + o que ainda entra - o que ainda sai.')+'</span>'+
+      '<div class="kv fim"><span>'+icoCx('fim')+'Fim do mês'+dica('Saldo projetado: o de hoje + o que ainda entra - o que ainda sai.')+'</span>'+
         '<span class="big '+(cx.saldoProjetado>=0?'pos':'neg')+'">'+moeda(cx.saldoProjetado)+'</span></div>';
     if(cx.itens && cx.itens.length){
       h+='<div style="margin-top:2px">'+
          '<div class="kv" style="cursor:pointer;color:var(--dim)" onclick="ST.abreCaixa=!ST.abreCaixa;renderMes()">'+
-         '<span><span class="seta'+(ST.abreCaixa?' aberta':'')+'">&#9656;</span> '+
-         'De onde vêm ('+cx.itens.length+(cx.itens.length===1?' conta)':' contas)')+
+         '<span>'+icoCx('lista')+'De onde vêm ('+cx.itens.length+(cx.itens.length===1?' conta)':' contas)')+setaAbre(ST.abreCaixa)+
          (ST.abreCaixa?dica('Marque o que já resolveu ou não vai acontecer: o previsto fica no que já foi pago.'):'')+'</span></div>';
       if(ST.abreCaixa){
         cx.itens.forEach(function(x,n){
@@ -12392,7 +12423,8 @@ var ICONES_MINI={ 'inicial':['◷','#94a3b8'], 'início':['◷','#94a3b8'], 'ent
   'previsto':['◎','#94a3b8'], 'realizado':['↘','#ef4444'], 'saldo':['=','#3b82f6'],
   'hoje':['◷','#3b82f6'], 'ainda entra':['↗','#22c55e'], 'ainda sai':['↘','#ef4444'],
   'meta do mês':['🐷',''], 'falta':['🎯',''] };
-function setaMov(tipo){ return '<i class="mov '+tipo+'">'+(tipo==='in'?'↗':'↘')+'</i>'; }
+// a mesma seta de traço do Caixa, em todo lugar que mostra entrou/saiu
+function setaMov(tipo){ return icoCx(tipo==='in'?'entra':'sai', tipo==='in'?'var(--ok)':'var(--bad)'); }
 function miniCard(k,v,cls){
   var ic=ICONES_MINI[k];
   return '<div><div class="k">'+(ic?'<span class="ic"'+(ic[1]?' style="background:'+ic[1]+'26;color:'+ic[1]+'"':'')+
