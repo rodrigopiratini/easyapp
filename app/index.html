@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.24.1 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.24.2 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6069,7 +6069,7 @@ window.pedirTexto = function (o, feito) {
         mods.forEach(function (m) {
           var a = document.createElement('a');
           a.href = '#'; a.className = 'ia-navmod'; a.dataset.t = 'mod-' + m.id;
-          a.innerHTML = '<b>' + esc(m.icone || '◆') + '</b>' + esc(m.nome);
+          a.innerHTML = '<b>' + iconeMenu(m.icone) + '</b>' + esc(m.nome);
           a.onclick = function (e) { e.preventDefault(); abrirNaTela(m, a); };
           // antes do Config, que fica sempre na ponta
           nav.insertBefore(a, nav.querySelector('a[data-t=config]'));
@@ -6130,6 +6130,22 @@ window.pedirTexto = function (o, feito) {
     });
     window.scrollTo(0, 0);
   }
+
+  /* Ícone do módulo no menu: 'svg:traço|traço' vira o mesmo desenho de linha
+     dos outros itens (monocromático, cor do texto); emoji só quando o
+     cliente pediu cor. Os traços são conferidos de novo aqui: só caminho SVG. */
+  var TRACO = /^[MmLlHhVvCcSsQqTtAaZz0-9.,\s-]{1,300}$/;
+  function iconeMenu(ic) {
+    ic = String(ic || '');
+    if (ic.indexOf('svg:') === 0) {
+      var t = ic.slice(4).split('|').filter(function (d) { return TRACO.test(d); }).slice(0, 6);
+      if (t.length) return '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        t.map(function (d) { return '<path d="' + d + '"/>'; }).join('') + '</svg>';
+    }
+    return esc(ic || '◆');
+  }
+  function iconeTexto(ic) { return String(ic || '').indexOf('svg:') === 0 ? '🧩' : esc(ic || '🧩'); }
 
   function aba(qual) {
     $('iaAbaChat').classList.toggle('on', qual === 'chat');
@@ -6579,7 +6595,7 @@ window.pedirTexto = function (o, feito) {
     var noAr = m.versao_ativa === v.id;
     var d = document.createElement('div');
     d.className = 'ia-card';
-    d.innerHTML = '<div class="nm">' + esc(m.icone || '🧩') + ' ' + esc(m.nome) + '</div>' +
+    d.innerHTML = '<div class="nm">' + iconeTexto(m.icone) + ' ' + esc(m.nome) + '</div>' +
       '<div class="sub">versão ' + v.numero + ' · ' + (noAr ? 'Ativo' : v.estado === 'rascunho' ? 'Rascunho' : 'Desabilitado · salvo para reaplicar') + '</div>' +
       (noAr ? '<div class="ia-bts"><button data-a="abrir" class="ok">Abrir</button><button data-a="desf">Desfazer</button></div>' : '<div class="ia-bts"><button data-a="ver">Ver prévia</button><button data-a="ok" class="ok">Aplicar</button></div>');
     if (noAr) {
@@ -6592,7 +6608,7 @@ window.pedirTexto = function (o, feito) {
     }
     if (!noAr) {
       d.querySelector('[data-a=ver]').onclick = function () {
-        abrirModulo(m.id, v.id, (m.icone || '🧩') + ' ' + m.nome + ' · prévia v' + v.numero, d);
+        abrirModulo(m.id, v.id, iconeTexto(m.icone) + ' ' + m.nome + ' · prévia v' + v.numero, d);
       };
       d.querySelector('[data-a=ok]').onclick = function () {
         if (m.versao_ativa && !confirm('Aplicar a versão ' + v.numero + ' de ' + m.nome + '? A que está no ar vira versão antiga (dá para desfazer).')) return;
@@ -6606,12 +6622,12 @@ window.pedirTexto = function (o, feito) {
     if (r.tipo === 'aparencia') return cartaoAparencia(r);
     var d = document.createElement('div');
     d.className = 'ia-card';
-    d.innerHTML = '<div class="nm">' + esc(r.icone) + ' ' + esc(r.nome) + '</div>' +
+    d.innerHTML = '<div class="nm">' + iconeTexto(r.icone) + ' ' + esc(r.nome) + '</div>' +
       '<div class="sub">versão ' + r.numero + ' · rascunho</div>' +
       '<div class="ia-bts"><button data-a="ver">Ver prévia</button>' +
       '<button data-a="ok" class="ok">Aplicar</button><button data-a="no" class="no">Descartar</button></div>';
     d.querySelector('[data-a=ver]').onclick = function () {
-      abrirModulo(r.modulo_id, r.versao_id, r.icone + ' ' + r.nome + ' · prévia', d);
+      abrirModulo(r.modulo_id, r.versao_id, iconeTexto(r.icone) + ' ' + r.nome + ' · prévia', d);
     };
     d.querySelector('[data-a=ok]').onclick = function () { aplicar(r.versao_id, d); };
     d.querySelector('[data-a=no]').onclick = function () { descartar(r.versao_id, d); };
@@ -6778,7 +6794,7 @@ window.pedirTexto = function (o, feito) {
           if (p.lote && porLote[p.lote]) linhas = linhas.concat(descrever(porLote[p.lote], nomes));
           var v = p.versao_id && vers[p.versao_id], m = p.modulo_id && mods[p.modulo_id];
           if (v && v.estado !== 'descartada' && m) {
-            linhas.push('<div>🧩 módulo <b>' + esc(m.icone || '') + ' ' + esc(m.nome) + '</b> <small>versão ' + v.numero + ' · ' +
+            linhas.push('<div>🧩 módulo <b>' + iconeTexto(m.icone) + ' ' + esc(m.nome) + '</b> <small>versão ' + v.numero + ' · ' +
               (v.estado === 'ativa' ? 'no ar' : v.estado === 'rascunho' ? 'rascunho' : 'versão antiga') + '</small></div>');
           }
           var ap = p.aparencia_id && aps[p.aparencia_id];
@@ -8794,7 +8810,7 @@ window.pedirTexto = function (o, feito) {
   body.v2 .seg button{border-radius:9px!important;border:0!important}
   body.v2 nav{border-top:0;background:#0f1626ee;backdrop-filter:blur(10px)}
   body.v2 select,body.v2 input{border-color:transparent;background:#0f1626}
-  body.v2 .dica-oculta{display:none!important}
+  .dica-oculta{display:none!important}
   body.v2 .card [style*="border-top"],body.v2 .card [style*="border-bottom"]{border-top-color:transparent!important;border-bottom-color:transparent!important}
 </style>
 
@@ -9114,21 +9130,22 @@ var obsVisual=null, tVisual=null;
 function aplicarVisual(){
   var on=visualNovo();
   document.body.classList.toggle('v2', on);
-  if(on && !obsVisual && window.MutationObserver){
-    obsVisual=new MutationObserver(function(){ clearTimeout(tVisual); tVisual=setTimeout(dicasViramI,90); });
+  // as explicações viram "i" em qualquer visual (20/10: "muito texto nas telas")
+  if(!obsVisual && window.MutationObserver){
+    obsVisual=new MutationObserver(function(){ clearTimeout(tVisual); tVisual=setTimeout(dicasViramI,60); });
     document.querySelectorAll('.wrap').forEach(function(w){ obsVisual.observe(w,{childList:true,subtree:true}); });
   }
-  if(!on && obsVisual){ obsVisual.disconnect(); obsVisual=null; }
-  if(on) dicasViramI();
-  else document.querySelectorAll('.dica-oculta').forEach(function(e){ e.classList.remove('dica-oculta'); });
+  dicasViramI();
 }
 // texto corrido de ajuda (só texto, sem botão, campo ou link) -> "i" ao lado do título do cartão
+/* Fica à vista: status colorido (folga, estouro), texto curto, e a
+   descrição de cada item de uma lista (lançamento, conta, banco). */
 function dicasViramI(){
-  if(!document.body.classList.contains('v2')) return;
   document.querySelectorAll('.wrap .card .m:not([data-v2])').forEach(function(e){
     e.setAttribute('data-v2','1');
     var t=(e.textContent||'').replace(/\s+/g,' ').trim();
-    if(t.length<48 || e.querySelector('button,input,select,a,textarea,svg,img')) return;
+    if(t.length<24 || e.querySelector('button,input,select,a,textarea,svg,img,b.pos,b.neg,.pos,.neg')) return;
+    if(/color\s*:/.test(e.getAttribute('style')||'') || e.closest('.ln,.ex,.tr,.it,.li,.dia,.forn,.grade,label,.lc,[onclick]')) return;
     var card=e.closest('.card'), alvo=null;
     if(card){ var l=card.querySelectorAll('.lbl'); for(var i=0;i<l.length;i++){
       if(l[i].compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING){ alvo=l[i]; } } }
@@ -11571,8 +11588,10 @@ function blocoProximos(){
 }
 
 function kpi(k,v,n,cor){
-  return '<div class="kpi"><div class="k">'+k+'</div>'+
-         '<div class="v '+(cor||'')+'">'+v+'</div><div class="n">'+n+'</div></div>';
+  // a frase de baixo vira o "i" do título; só fica à vista quando é alerta (vermelho)
+  var t=String(n==null?'':n).replace(/<[^>]*>/g,'').trim();
+  return '<div class="kpi"><div class="k">'+k+(t&&cor!=='neg'?dica(t):'')+'</div>'+
+         '<div class="v '+(cor||'')+'">'+v+'</div>'+(t&&cor==='neg'?'<div class="n neg">'+n+'</div>':'')+'</div>';
 }
 
 function grafBarras(serie){
@@ -11704,18 +11723,15 @@ function renderCartao(){
   h+='<div class="card">'+
     '<div class="row"><div><div class="lbl">Onde estou</div>'+
       '<div class="big '+(acima>0?'neg':'pos')+'">'+moeda(k.total)+'</div></div>'+
-    '<div style="text-align:right"><div class="lbl">Onde deveria estar</div>'+
+    '<div style="text-align:right"><div class="lbl">Onde deveria estar'+
+      dica('Dia '+k.hoje+' de '+k.dias+' do ciclo · fatura de '+(k.ciclo||'')+'. O traço branco na barra é onde você deveria estar hoje. Meta do mês '+moeda(k.meta)+'.')+'</div>'+
       '<div class="num" style="font-size:22px;font-weight:700;color:var(--dim)">'+
       moeda(k.metaAteHoje)+'</div></div></div>'+
     '<div class="m" style="margin-top:4px;font-size:13px;color:'+(acima>0?'var(--bad)':'var(--ok)')+'">'+
       (acima>0 ? moeda(acima)+' acima do ritmo' : moeda(-acima)+' de folga')+
-      ' · dia '+k.hoje+' de '+k.dias+' do ciclo</div>'+
-    '<div class="m" style="font-size:11px">fatura de '+(k.ciclo||'')+
-      (k.fechada?' · já fechada':' · fecha em '+(k.dias-k.hoje)+' dias')+'</div>'+
-    barraComMarca(k.total, k.meta, k.metaAteHoje, k.fechada ? 0 : k.dias)+
-    '<div class="m" style="font-size:11.5px;margin-top:5px">o traço branco é onde você '+
-      'deveria estar hoje · meta do mês '+moeda(k.meta)+
-      (k.pendente>0?' · '+moeda(k.pendente)+' ainda não confirmado':'')+'</div></div>';
+      (k.fechada?' · fatura fechada':' · fecha em '+(k.dias-k.hoje)+' dias')+
+      (k.pendente>0?' · '+moeda(k.pendente)+' a confirmar':'')+'</div>'+
+    barraComMarca(k.total, k.meta, k.metaAteHoje, k.fechada ? 0 : k.dias)+'</div>';
 
   h+='<div class="kpis" style="margin-bottom:12px">'+
      kpi('Posso gastar por dia', moeda(k.porDiaDisponivel),
