@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.27.4 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.27.5 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -9409,8 +9409,9 @@ function aplicarVisual(){
 function dicasViramI(){
   // Config → Contas fica com o texto aberto (é onde a pessoa lê o que cada conta faz)
   var contas = ST.telaAtual==='config' && (ST.modoCfg||'CONTAS')==='CONTAS';
+  // Classificar também fica com tudo aberto: é ali que a pessoa lê de onde veio cada lançamento
   document.querySelectorAll('.wrap .card .m:not([data-v2])').forEach(function(e){
-    if(contas && e.closest('#tela-config')) return;
+    if((contas && e.closest('#tela-config')) || e.closest('#tela-pendentes')) return;
     e.setAttribute('data-v2','1');
     var t=(e.textContent||'').replace(/\s+/g,' ').trim();
     if(t.length<24 || e.querySelector('button,input,select,a,textarea,svg,img,b.pos,b.neg,.pos,.neg')) return;
