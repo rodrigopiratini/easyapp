@@ -158,6 +158,17 @@ nav .btn{padding:10px 18px;font-size:14px;border-radius:10px}
 .msg.ia .acts{display:flex;gap:5px;margin-top:7px}
 .msg.ia .acts span{font-size:9px;font-weight:700;padding:4px 8px;border-radius:7px;background:#253049}
 .msg.ia .acts span.ok{background:var(--verde);color:#062010}
+.vchat,.vmod{flex:1;display:flex;flex-direction:column;min-height:0;animation:surgeT .4s ease}.vchat[hidden],.vmod[hidden]{display:none}
+@keyframes surgeT{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.ahead .x{color:var(--tx2);font-size:15px;line-height:1}
+.iabas{display:flex;border-bottom:1px solid #1e2638;flex:none}.iabas span{flex:1;text-align:center;padding:7px 0;font-size:10px;font-weight:600;color:var(--tx2);border-bottom:2px solid transparent}.iabas span.on{color:#fff;border-bottom-color:var(--azul)}
+.msg.ia .card{margin-top:7px;background:#0f1522;border:1px solid var(--azul);border-radius:10px;padding:8px 9px}
+.msg.ia .card .nm{font-weight:700;font-size:11px}.msg.ia .card .sub{margin:2px 0 7px}
+.msg.ia .acts span{transition:all .25s}.msg.ia .acts span.toque{transform:scale(.9);filter:brightness(1.3)}
+.custo{align-self:flex-start;font-size:8.5px;color:var(--tx2);margin:-4px 0 0 4px;opacity:0;transition:opacity .4s}.custo.on{opacity:1}
+.vmod .tabbar span.novo{color:var(--azul)}.vmod .tabbar span.novo:before{background:var(--azul);box-shadow:0 0 10px var(--azul)}
+.vmod .tabbar span.novo{animation:pisca 1.2s ease 2}@keyframes pisca{50%{transform:translateY(-3px)}}
+.mini{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:6px}.mini div{background:#0c111c;border-radius:8px;padding:6px 4px;text-align:center}.mini b{display:block;font-family:Sora,Inter;font-size:13px}
 .typing{display:flex;gap:3px;padding:10px}.typing i{width:5px;height:5px;border-radius:50%;background:var(--tx2);animation:pul 1s infinite}.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
 @keyframes pul{0%,100%{opacity:.3}50%{opacity:1}}
 .inp{flex:none;margin:0 10px 8px;display:flex;gap:6px;align-items:center;background:#0d1320;border:1px solid #263049;border-radius:12px;padding:7px 8px 7px 11px;font-size:10px;color:var(--tx3)}
@@ -349,15 +360,19 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
     <div class="sec-h rv">
       <span class="eyebrow"><i style="background:var(--roxo);box-shadow:0 0 12px var(--roxo)"></i>O coração do EasyAPP</span>
       <h2>Você não se adapta ao app.<br><span class="grad">O app se adapta a você.</span></h2>
-      <p>Todo app de finanças te entrega as telas que <i>alguém</i> achou que você precisava. O EasyAPP começa enxuto e cresce do seu jeito: dentro dele mora um assistente de IA que <b>programa</b>. Você descreve, ele escreve o código, testa e entrega pronto — no menu ou como um cartão na tela inicial. Se der erro, ele mesmo corrige. Você vira o dono do seu próprio app, sem escrever uma linha de código.</p>
+      <p>Todo app de finanças te entrega as telas que <i>alguém</i> achou que você precisava. O EasyAPP começa enxuto e cresce do seu jeito: dentro dele mora um assistente de IA que <b>programa</b>. Você descreve, ele escreve o código, testa e entrega pronto — no menu ou como um cartão na tela inicial. Você vira o dono do seu próprio app, sem escrever uma linha de código.</p>
     </div>
 
     <div class="grid">
       <div class="rv" style="display:flex;justify-content:center">
         <div class="phone chat"><div class="screen"><div class="notch"></div><div class="sbar"></div>
-          <div class="ahead"><div class="t">✦ Assistente</div><span class="sub">R$ 0,60 este mês</span></div>
-          <div class="body" id="chat"></div>
-          <div class="inp">Peça qualquer mudança…<i>↑</i></div>
+          <div class="vchat" id="vchat">
+            <div class="ahead"><div class="t">Assistente</div><span class="x">×</span></div>
+            <div class="iabas"><span class="on">Chat</span><span>Histórico</span><span>Módulos</span></div>
+            <div class="body" id="chat"></div>
+            <div class="inp">Peça algo ou anexe 📎<i>↑</i></div>
+          </div>
+          <div class="vmod" id="vmod" hidden><div class="ahead"><div class="t" id="vmodT"></div><span class="x">✦</span></div><div class="body" id="vmodB"></div><div class="tabbar" id="vmodTab"></div></div>
         </div></div>
       </div>
 
@@ -391,7 +406,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
     <div class="sec-h rv">
       <span class="eyebrow"><i style="background:var(--amar);box-shadow:0 0 12px var(--amar)"></i>Além do dinheiro</span>
       <h2>Começa pelas suas contas.<br><span class="grad">Vai até onde a sua rotina pedir.</span></h2>
-      <p>O financeiro é a porta de entrada. Lá dentro, o mesmo assistente constrói o que a sua vida precisa — mesmo que não tenha nada a ver com dinheiro. Um técnico de vôlei pediu o scout do time para usar durante o jogo. Saiu pronto, no celular, ao lado do extrato.</p>
+      <p>O financeiro é a porta de entrada. Lá dentro, o mesmo assistente constrói o que a sua vida precisa — mesmo que não tenha nada a ver com dinheiro.</p>
     </div>
     <div class="pedidos alem">
       <div class="ped rv"><em class="b">🏐 Esporte</em><q>Faz o scout das minhas atletas a cada partida, fundamento por fundamento.</q><span>Toques grandes na quadra e o resumo do jogo no fim.</span></div>
@@ -772,40 +787,61 @@ document.querySelectorAll('.rv').forEach(function (el) { io.observe(el); });
   por(60);
 })();
 
-/* conversa com o assistente */
+/* conversa com o assistente: igual ao app (Chat, cartão do módulo, quanto
+   custou o pedido) e, no fim, a tela nova aberta pelo menu */
 (function () {
-  var chat = document.getElementById('chat'), rodando = false;
-  var roteiro = [
-    ['eu', 'Cria uma tela para eu acompanhar meus investimentos'],
-    ['ia', 'Pronto! Fiz a tela <b>Investimentos</b>, com o total aplicado e quanto rendeu no mês.' +
-      '<div class="mod"><div class="lbl">Investimentos</div><div style="font-family:Sora;font-weight:800;font-size:17px" class="g">R$ 85.420</div><div class="sub">+R$ 712 no mês · 0,84%</div></div>' +
-      '<div class="acts"><span class="ok">Aplicar</span><span>Ajustar</span><span>Descartar</span></div>'],
-    ['eu', 'Coloca no menu e deixa o app roxo'],
-    ['ia', 'Feito ✦ A tela já está no menu de baixo e o app ficou roxo. Se não gostar, é só tocar em <b>desfazer</b>.' +
-      '<div class="acts"><span>↺ Desfazer</span></div>']
+  var chat = document.getElementById('chat'), vchat = document.getElementById('vchat'), vmod = document.getElementById('vmod'), rodando = false, ex = 0;
+  var exemplos = [
+    { pedido: 'Cria um controle dos meus carros: abastecimento, revisão e IPVA',
+      resp: 'Pronto! Fiz o módulo <b>Carros</b>: abastecimentos com o consumo de cada um, a próxima revisão e o IPVA do ano.',
+      ic: '🚗', nome: 'Carros', custo: 'R$ 0,42', hora: '13:40', aba: 'Carros',
+      tela: '<div class="c"><div class="row" style="border:0;padding:0"><b>Civic 2019</b><span class="sub">ABC-1D23</span></div>' +
+        '<div class="mini"><div><b class="g">11,8</b><span class="sub">km/l no mês</span></div><div><b>R$ 612</b><span class="sub">combustível</span></div><div><b class="y">1.900</b><span class="sub">km p/ revisão</span></div></div></div>' +
+        '<div class="c"><div class="row" style="border:0;padding:0"><b>Strada 2022</b><span class="sub">EFG-4H56</span></div>' +
+        '<div class="mini"><div><b class="g">10,4</b><span class="sub">km/l no mês</span></div><div><b>R$ 845</b><span class="sub">combustível</span></div><div><b class="r">12/11</b><span class="sub">revisão</span></div></div></div>' +
+        '<div class="c"><div class="lbl">IPVA 2026</div><div class="row"><span>Civic · 3x</span><b>R$ 1.840</b></div><div class="row"><span>Strada · à vista</span><b class="g">pago</b></div></div>' +
+        '<div class="c"><div class="lbl">Último abastecimento</div><div class="row"><span>Posto Avenida · 42 L</span><b>R$ 247,80</b></div></div>' },
+    { pedido: 'Faz o scout das minhas atletas a cada partida, fundamento por fundamento',
+      resp: 'Pronto! Fiz o módulo <b>Scout</b>: você toca no fundamento durante o jogo e, no fim, sai o resumo de cada atleta.',
+      ic: '🏐', nome: 'Scout', custo: 'R$ 0,57', hora: '19:12', aba: 'Scout',
+      tela: '<div class="seg"><span class="on">Jogo de hoje</span><span>Temporada</span></div>' +
+        '<div class="c"><div class="lbl">Ana · ponteira</div><div class="mini"><div><b class="g">8</b><span class="sub">ataques</span></div><div><b>3</b><span class="sub">aces</span></div><div><b class="r">2</b><span class="sub">erros</span></div></div></div>' +
+        '<div class="c"><div class="lbl">Bia · líbero</div><div class="mini"><div><b class="g">86%</b><span class="sub">recepção</span></div><div><b>11</b><span class="sub">defesas</span></div><div><b class="r">1</b><span class="sub">erro</span></div></div></div>' +
+        '<div class="c"><div class="lbl">Carla · central</div><div class="mini"><div><b class="g">5</b><span class="sub">bloqueios</span></div><div><b>6</b><span class="sub">ataques</span></div><div><b class="r">3</b><span class="sub">erros</span></div></div></div>' +
+        '<div class="c"><div class="lbl">Resumo do time</div><div class="row"><span>Sets</span><b class="g">3 x 1</b></div><div class="row"><span>Ponto de saque</span><b>9</b></div></div>' }
   ];
   function add(q, html) {
-    var d = document.createElement('div'); d.className = 'msg ' + q; d.innerHTML = html; chat.appendChild(d);
+    var d = document.createElement('div'); d.className = q === 'custo' ? 'custo' : 'msg ' + q; d.innerHTML = html; chat.appendChild(d);
     requestAnimationFrame(function () { requestAnimationFrame(function () { d.classList.add('on'); }); });
     return d;
   }
   function roda() {
-    chat.innerHTML = ''; chat.closest('.screen').style.removeProperty('--azul');
-    var t = 400;
-    roteiro.forEach(function (m) {
-      if (m[0] === 'ia') {
-        var dig; setTimeout(function () { dig = add('ia', '<div class="typing"><i></i><i></i><i></i></div>'); }, t);
-        t += 1600;
-        setTimeout(function () { dig.remove(); add('ia', m[1]); }, t);
-        if (m[1].indexOf('roxo') > -1) setTimeout(function () { chat.closest('.screen').style.setProperty('--azul', '#a855f7'); }, t);
-        t += 2200;
-      } else { setTimeout(function () { add('eu', m[1]); }, t); t += 1200; }
-    });
-    setTimeout(roda, t + 4000);
+    var e = exemplos[ex++ % exemplos.length], t = 500, cartao;
+    vmod.hidden = true; vchat.hidden = false; chat.innerHTML = '';
+    setTimeout(function () { add('eu', e.pedido); }, t); t += 1300;
+    var dig; setTimeout(function () { dig = add('ia', '<div class="typing"><i></i><i></i><i></i></div>'); }, t); t += 1900;
+    setTimeout(function () {
+      dig.remove();
+      cartao = add('ia', e.resp + '<div class="card"><div class="nm">' + e.ic + ' ' + e.nome + '</div><div class="sub">versão 1 · rascunho</div>' +
+        '<div class="acts"><span>Ver prévia</span><span class="ok">Aplicar</span></div></div>');
+      add('custo', 'este pedido: ' + e.custo + ' · hoje às ' + e.hora);
+    }, t); t += 2600;
+    setTimeout(function () { var b = cartao.querySelector('.ok'); b.classList.add('toque'); setTimeout(function () { b.classList.remove('toque'); }, 250); }, t); t += 500;
+    setTimeout(function () {
+      cartao.querySelector('.sub').textContent = 'versão 1 · em uso';
+      cartao.querySelector('.acts').innerHTML = '<span class="ok">Abrir</span><span>Desfazer</span>';
+    }, t); t += 1600;
+    setTimeout(function () {
+      document.getElementById('vmodT').textContent = e.ic + ' ' + e.nome;
+      document.getElementById('vmodB').innerHTML = e.tela;
+      document.getElementById('vmodTab').innerHTML = '<span>Mês</span><span>Cartão</span><span>Extrato</span><span class="on novo">' + e.aba + '</span><span>Config</span>';
+      vchat.hidden = true; vmod.hidden = false;
+    }, t); t += 5200;
+    setTimeout(roda, t);
   }
   new IntersectionObserver(function (es) {
     if (es[0].isIntersecting && !rodando) { rodando = true; roda(); }
-  }, { threshold: .4 }).observe(chat);
+  }, { threshold: .4 }).observe(chat.closest('.phone'));
 })();
 
 /* galeria: reaproveita as telas acima + duas extras */
