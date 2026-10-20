@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.27.2 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.27.3 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6903,8 +6903,18 @@ window.pedirTexto = function (o, feito) {
       rest('/rest/v1/modulos?select=id,nome,descricao,icone,versao_ativa,lugar&order=criado_em'),
       rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado,pedido,criado_em,icone,nome&order=numero.desc')
         .catch(function () { return rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado,pedido,criado_em&order=numero.desc'); }),
-      rest('/rest/v1/aparencia_versoes?select=id,numero,estado,descricao,css,menus,pedido,criado_em&order=numero.desc')
+      rest('/rest/v1/aparencia_versoes?select=id,numero,estado,descricao,css,menus,pedido,criado_em&order=numero.desc'),
+      // quanto custou cada pedido (pela versão que ele gerou) e o total de cada módulo
+      rest('/rest/v1/pedidos_ia?select=modulo_id,versao_id,aparencia_id,valor_cobrado&or=(modulo_id.not.is.null,aparencia_id.not.is.null)&limit=5000')
+        .catch(function () { return []; })
     ]).then(function (r) {
+      var custoVer = {}, custoMod = {}, custoLay = 0;
+      (r[3] || []).forEach(function (p) {
+        var v = Number(p.valor_cobrado) || 0;
+        if (p.versao_id) custoVer[p.versao_id] = (custoVer[p.versao_id] || 0) + v;
+        if (p.aparencia_id) { custoVer[p.aparencia_id] = (custoVer[p.aparencia_id] || 0) + v; custoLay += v; }
+        if (p.modulo_id) custoMod[p.modulo_id] = (custoMod[p.modulo_id] || 0) + v;
+      });
       c.innerHTML = '';
       var falha = function (e) { toastIA('Não consegui: ' + e.message); listarModulos(); };
       // cartão genérico: cabeçalho (toca para abrir), chave liga/desliga, Abrir e a lista de versões
@@ -6936,8 +6946,9 @@ window.pedirTexto = function (o, feito) {
         o.versoes.forEach(function (v) {
           var x = document.createElement('div'); x.className = 'ia-ver2' + (v.atual ? ' atual' : '');
           x.innerHTML = '<div class="tp"><b>' + (v.rotulo || '') + 'versão ' + v.numero + '</b>' + (v.atual ? ' <span class="em">em uso</span>' : '') +
-            '<span class="dt">' + dataCurta(v.criado_em) + '</span></div>' +
-            (v.pedido ? '<div class="pd">' + esc(String(v.pedido).replace(/^\[📎[^\]]*\]\s*/, '📎 ').slice(0, 220)) + '</div>' : '') +
+            '<span class="dt">' + dataCurta(v.criado_em) + (v.custo !== undefined ? ' · <b>' + reais(v.custo) + '</b>' : '') + '</span></div>' +
+            (v.pedido ? '<div class="pd">' + esc(String(v.pedido).replace(/^\[📎[^\]]*\]\s*/, '📎 ')
+              .replace(/^No módulo "[^"]*" \(id [^)]*\):\s*/, '').slice(0, 220)) + '</div>' : '') +
             (v.atual ? '' : '<div class="ia-bts"><button data-a="ver">Ver</button><button class="ok" data-a="usar">Usar esta</button></div>');
           if (!v.atual) {
             x.querySelector('[data-a=ver]').onclick = v.ver;
@@ -6955,14 +6966,15 @@ window.pedirTexto = function (o, feito) {
           chave: m.id, ativo: !!ativa,
           titulo: iconeTexto(m.icone) + ' ' + esc(m.nome),
           sub: (ativa ? 'ativo · versão ' + ativa.numero : 'desativado') + ' · ' + (m.lugar === 'mes' ? 'cartão na tela Mês' : 'menu de baixo') +
-               ' · ' + vs.length + (vs.length === 1 ? ' versão' : ' versões'),
+               ' · ' + vs.length + (vs.length === 1 ? ' versão' : ' versões') +
+               (custoMod[m.id] ? ' · custou <b>' + reais(custoMod[m.id]) + '</b>' : ''),
           abrir: ativa ? function () { abrirModulo(m.id, ativa.id, m.nome); } : null,
           pedir: function () { aba('chat'); focar(m); $('iaTxt').focus(); },
           ligar: function () { return aplicar(vs[0].id, null); },          // a mais nova
           desligar: function () { return desativarModulo(m).then(menuDosModulos); },
           versoes: vs.map(function (v) {
             return { numero: v.numero, criado_em: v.criado_em, pedido: v.pedido, atual: ativa && v.id === ativa.id,
-                     rotulo: v.icone ? iconeTexto(v.icone) + ' ' : '',
+                     rotulo: v.icone ? iconeTexto(v.icone) + ' ' : '', custo: custoVer[v.id],
                      ver: function () { abrirModulo(m.id, v.id, m.nome + ' · v' + v.numero); },
                      usar: function () { return aplicar(v.id, null); } };
           })
@@ -6973,11 +6985,12 @@ window.pedirTexto = function (o, feito) {
         var at = lay.filter(function (v) { return v.estado === 'ativa'; })[0];
         cartao({
           chave: 'layout', ativo: !!at, titulo: '🎨 Layout',
-          sub: (at ? 'ativo · versão ' + at.numero + ' · ' + esc(at.descricao || '') : 'desativado · o app está no visual padrão'),
+          sub: (at ? 'ativo · versão ' + at.numero + ' · ' + esc(at.descricao || '') : 'desativado · o app está no visual padrão') +
+               (custoLay ? ' · custou <b>' + reais(custoLay) + '</b>' : ''),
           ligar: function () { return aplicarAparencia(lay[0].id, null); },
           desligar: function () { return rest('/rest/v1/rpc/aparencia_padrao', { metodo: 'POST', corpo: {} }).then(carregarTemaAtivo); },
           versoes: lay.map(function (v) {
-            return { numero: v.numero, criado_em: v.criado_em, pedido: v.descricao || v.pedido, atual: at && v.id === at.id,
+            return { numero: v.numero, criado_em: v.criado_em, pedido: v.descricao || v.pedido, atual: at && v.id === at.id, custo: custoVer[v.id],
                      ver: function () { previaAparencia({ versao_id: v.id, css: v.css, menus: v.menus }, null); },
                      usar: function () { return aplicarAparencia(v.id, null); } };
           })
