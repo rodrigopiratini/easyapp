@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.24.0 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.24.1 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6071,9 +6071,10 @@ window.pedirTexto = function (o, feito) {
           a.href = '#'; a.className = 'ia-navmod'; a.dataset.t = 'mod-' + m.id;
           a.innerHTML = '<b>' + esc(m.icone || '◆') + '</b>' + esc(m.nome);
           a.onclick = function (e) { e.preventDefault(); abrirNaTela(m, a); };
-          nav.appendChild(a);
+          // antes do Config, que fica sempre na ponta
+          nav.insertBefore(a, nav.querySelector('a[data-t=config]'));
         });
-        nav.classList.toggle('ia-muitos', Array.prototype.filter.call(nav.querySelectorAll('a'), function (x) { return x.style.display !== 'none'; }).length > 6);
+        if (window.ajustarNav) window.ajustarNav();
       }).catch(function () {});
   }
   /* Widgets: módulos com lugar 'mes' viram cartões no alto da tela Mês, cada
@@ -7809,7 +7810,9 @@ window.pedirTexto = function (o, feito) {
         cv.value = d ? (Number(d) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
       };
       b('cVoucherOk', function () {
-        var c = String(($('cVoucher') || {}).value || '').trim().toUpperCase();
+        // o painel grava sem acento e com hífen no lugar do espaço ("LIBERAÇÃO TESTE" = LIBERACAO-TESTE)
+        var c = String(($('cVoucher') || {}).value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+          .replace(/[^A-Z0-9-]+/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '');
         if (c.length < 4) { aviso('Digite o código'); return; }
         fn('conta', { acao: 'voucher', codigo: c }).then(function (r) {
           if (r.erro) { aviso(r.erro); return; }
@@ -8768,6 +8771,11 @@ window.pedirTexto = function (o, feito) {
          margin-left:6px;vertical-align:1px;background:#2a3548;color:var(--dim);font:italic 700 10px/1 Georgia,serif;
          text-transform:none;letter-spacing:0;cursor:help;flex:none}
   .ajuda:hover{background:var(--acc);color:#fff}
+  .kv{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:3px 0;font-size:13.5px}
+  .kv .n{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .kv.fim{margin-top:4px;align-items:baseline}.kv.fim .big{font-size:22px}
+  .card.cx{padding:11px 13px;margin-bottom:9px}.card.cx .bar{margin-top:6px}
+  nav a:focus{outline:none}
   #dicaPop{position:fixed;z-index:30000;background:#1e293b;color:var(--txt);border-radius:12px;padding:10px 12px;
            font-size:12.5px;line-height:1.45;box-shadow:0 10px 30px #000a}
 
@@ -9032,8 +9040,17 @@ function aplicarModelo(){
     if(RECURSOS_EXTRA[a.dataset.t]) a.style.display=recursoLiberado(a.dataset.t)?'':'none';
   });
   document.body.classList.toggle('essencial', modeloEssencial());
+  ajustarNav();
   if(ST.telaAtual && !recursoLiberado(ST.telaAtual)) irParaTela('mes');
 }
+/* Menu de baixo: até 6 itens à vista dividem a largura por igual; com mais,
+   ele rola de lado. Conta só os que aparecem (o essencial esconde dois). */
+function ajustarNav(){
+  var nav=document.querySelector('nav'); if(!nav) return;
+  var vis=Array.prototype.filter.call(nav.querySelectorAll('a'), function(x){ return x.style.display!=='none'; }).length;
+  nav.classList.toggle('ia-muitos', vis>6);
+}
+window.ajustarNav=ajustarNav;
 function carregarModelo(){
   if(!window.EASYAPP_PONTE) return;
   window.EASYAPP_PONTE.rest('/rest/v1/perfis?select=modelo,recursos').then(function(r){
@@ -10135,6 +10152,43 @@ function confirmarTodos(){
 }
 
 /* ---------- 2. MÊS ---------- */
+/* O "i" de ajuda: o texto aparece ao passar o mouse (title) ou ao tocar (balão). */
+function dica(t){ var e=tx(t); return '<span class="ajuda" data-dica="'+e+'" title="'+e+'">i</span>'; }
+
+/* As contas uma a uma (PJ e PF), aberta pelo "Saldo em conta hoje". */
+function htmlSaldos(s){
+  var h='<div style="margin:2px 0 6px">';
+  // conta de investimento nao entra aqui: ela aparece no Patrimonio, e o
+  // total desta lista e o que da para gastar
+  // dois blocos (PJ e PF), cada um em ordem de banco: as contas do mesmo
+  // banco ficam juntas
+  var banco=function(x){ return String(x.instituicao||x.conta||'').trim().split(/\s+/)[0].toUpperCase(); };
+  var blocos=[['PJ','Pessoa jurídica (PJ)',s.totalPJ],['PF','Pessoa física (PF)',s.totalPF]];
+  blocos.forEach(function(bl){
+   var doBloco=s.contas.filter(function(x){ return x.titular===bl[0]; })
+     .sort(function(a,b){ return banco(a).localeCompare(banco(b),'pt-BR') || String(a.conta).localeCompare(String(b.conta),'pt-BR'); });
+   if(!doBloco.length) return;
+   h+='<div class="sb-bloco"><div class="sb-tit"><span>'+bl[1]+'</span><b class="'+(bl[2]>=0?'pos':'neg')+'">'+moeda(bl[2])+'</b></div>';
+   doBloco.forEach(function(x){
+    // A data do saldo informado e o divisor de aguas: o que e anterior a
+    // ela ja esta dentro do numero que voce digitou, e por isso mexer num
+    // lancamento velho muda a ABERTURA do mes, nunca o saldo de hoje.
+    var dq = x.desdeMs ? new Date(x.desdeMs) : null;
+    var quando = dq ? ('0'+dq.getDate()).slice(-2)+'/'+('0'+(dq.getMonth()+1)).slice(-2) : '';
+    h+='<div class="ln" style="grid-template-columns:1fr auto">'+
+       '<div class="nm">'+ponto(x.titular==='PJ'?'IMPOSTOS':'CASA')+
+       '<span>'+tx(x.conta)+
+         '<br><span style="font-size:10.5px;color:var(--dim)">'+
+         moeda(x.inicial)+(quando?' em '+quando:'')+
+         ' · desde então '+moeda(x.movimento)+
+         (x.obs?' · '+tx(x.obs):'')+'</span></span></div>'+
+       '<span class="n '+(x.saldo>=0?'':'neg')+'">'+moeda(x.saldo)+'</span></div>';
+   });
+   h+='</div>';
+  });
+  return h+'</div>';
+}
+
 function renderMes(){
   var r=ST.resumo, c=el('tela-mes');
   if(!r){ c.innerHTML=''; return; }
@@ -10143,49 +10197,42 @@ function renderMes(){
 
   var cx=r.caixa;
   if(cx){
-    h+='<div class="card" style="border-left:3px solid '+
+    /* Compacto: uma linha por número, sem traço entre elas; o que era texto
+       explicativo virou o "i" (dica ao passar o mouse ou tocar). O saldo em
+       conta abre a lista das contas aqui mesmo (antes era outro cartão,
+       repetindo o mesmo número). */
+    var temContas=ST.saldos && ST.saldos.contas.length;
+    var dicaFatura = cx.fatura>0.005
+      ? 'Inclui a fatura de todos os cartões que vence neste mês: '+moeda(cx.fatura)+
+        (cx.faturaFechada?' (já fechada)':' (ainda aberta)')+
+        ((cx.faturaVerba||0)>0.005 ? '. '+moeda(cx.faturaLancada||0)+' já comprados nela + '+moeda(cx.faturaVerba)+
+          ' da verba das contas do cartão ainda não gasta.' : '.')
+      : '';
+    h+='<div class="card cx" style="border-left:3px solid '+
        (cx.saldoProjetado>=0?'var(--ok)':'var(--bad)')+'">'+
-      '<div class="lbl" style="margin-bottom:8px">Caixa — o que bate com o banco</div>'+
-      '<div class="ln" style="grid-template-columns:1fr auto;grid-template-areas:none">'+
-        '<span>Saldo em conta hoje</span><span class="n">'+moeda(cx.saldoHoje)+'</span></div>'+
+      '<div class="kv"'+(temContas?' style="cursor:pointer" onclick="ST.abreSaldos=!ST.abreSaldos;renderMes()"':'')+'>'+
+        '<span>'+(temContas?'<span class="seta'+(ST.abreSaldos?' aberta':'')+'">&#9656;</span> ':'')+'Saldo em conta hoje'+
+        dica('O que está nas contas agora. Lançamento com data anterior à do saldo informado muda a abertura do mês, não o saldo de hoje.')+'</span>'+
+        '<span class="n">'+moeda(cx.saldoHoje)+'</span></div>'+
+      (temContas && ST.abreSaldos ? htmlSaldos(ST.saldos) : '')+
       /* Mês futuro não começa com o saldo de hoje: começa com o que sobrar
          depois dos meses que vêm antes dele. */
       (Math.abs((cx.saldoAntes||0)-cx.saldoHoje)>0.005
-        ? '<div class="ln" style="grid-template-columns:1fr auto;grid-template-areas:none">'+
-          '<span>Este mês começa com<i class="sub">o que sobra dos meses até lá</i></span>'+
-          '<span class="n '+((cx.saldoAntes||0)>=0?'pos':'neg')+'">'+
-          moeda(cx.saldoAntes)+'</span></div>'
+        ? '<div class="kv"><span>Começa com'+dica('O que sobra dos meses até lá.')+'</span>'+
+          '<span class="n '+((cx.saldoAntes||0)>=0?'pos':'neg')+'">'+moeda(cx.saldoAntes)+'</span></div>'
         : '')+
-      '<div class="ln" style="grid-template-columns:1fr auto;grid-template-areas:none">'+
-        '<span>'+setaMov('in')+'Ainda entra até o fim do mês</span>'+
-        '<span class="n pos">'+moeda(cx.aReceber)+'</span></div>'+
-      '<div class="ln" style="grid-template-columns:1fr auto;grid-template-areas:none">'+
-        '<span>'+setaMov('out')+'Ainda sai até o fim do mês</span>'+
+      '<div class="kv"><span>'+setaMov('in')+'Ainda entra</span><span class="n pos">'+moeda(cx.aReceber)+'</span></div>'+
+      '<div class="kv"><span>'+setaMov('out')+'Ainda sai'+(dicaFatura?dica(dicaFatura):'')+'</span>'+
         '<span class="n neg">'+moeda(cx.aPagar)+'</span></div>'+
-      (cx.fatura>0.005
-        /* "Que cartao e esse?" - e a fatura de TODOS os cartoes que vence
-           neste mes. Num mes futuro ela e estimativa: o que ja foi comprado
-           nela mais a verba das contas do cartao ainda nao gasta. */
-        ? '<div class="m" style="font-size:11px;margin:-6px 0 6px 0;opacity:.8">'+
-          'inclui a fatura de todos os cartões que vence neste mês · '+moeda(cx.fatura)+
-          (cx.faturaFechada?' (já fechada)':' (ainda aberta)')+
-          ((cx.faturaVerba||0)>0.005
-            ? '<br>'+moeda(cx.faturaLancada||0)+' já comprados nela + '+moeda(cx.faturaVerba)+
-              ' da verba das contas do cartão que ainda não foi gasta'
-            : '')+'</div>'
-        : '')+
-      '<div style="border-top:1px solid var(--line);margin-top:8px;padding-top:9px">'+
-        '<div class="lbl">Saldo projetado no fim do mês</div>'+
-        '<div class="big '+(cx.saldoProjetado>=0?'pos':'neg')+'">'+
-          moeda(cx.saldoProjetado)+'</div></div>';
+      '<div class="kv fim"><span class="lbl">Fim do mês'+dica('Saldo projetado: o de hoje + o que ainda entra - o que ainda sai.')+'</span>'+
+        '<span class="big '+(cx.saldoProjetado>=0?'pos':'neg')+'">'+moeda(cx.saldoProjetado)+'</span></div>';
     if(cx.itens && cx.itens.length){
-      h+='<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">'+
-         '<div class="lbl" style="cursor:pointer" onclick="ST.abreCaixa=!ST.abreCaixa;renderMes()">'+
+      h+='<div style="margin-top:2px">'+
+         '<div class="m" style="cursor:pointer;font-size:11.5px" onclick="ST.abreCaixa=!ST.abreCaixa;renderMes()">'+
          '<span class="seta'+(ST.abreCaixa?' aberta':'')+'">&#9656;</span> '+
-         'de onde vêm estes valores ('+cx.itens.length+' contas)</div>';
+         'de onde vêm ('+cx.itens.length+' contas)'+
+         (ST.abreCaixa?dica('Marque o que já resolveu ou não vai acontecer: o previsto fica no que já foi pago.'):'')+'</div>';
       if(ST.abreCaixa){
-        h+='<div class="m" style="font-size:11px;margin:4px 0 6px">marque o que já '+
-           'resolveu ou não vai acontecer — o previsto fica no que já foi pago</div>';
         cx.itens.forEach(function(x,n){
           var podeReprog = !x.fatura && x.natureza!=='RECEITA';
           h+='<div style="display:flex;align-items:center;gap:6px"><label class="lc" style="flex:1;min-width:0">'+
@@ -10204,48 +10251,13 @@ function renderMes(){
     h+='</div>';
   }
 
-  if(ST.saldos && ST.saldos.contas.length){
+  if(!cx && ST.saldos && ST.saldos.contas.length){
     var s=ST.saldos;
     h+='<div class="card"><div class="row" style="cursor:pointer" onclick="ST.abreSaldos=!ST.abreSaldos;renderMes()">'+
        '<div class="lbl"><span class="seta'+(ST.abreSaldos?' aberta':'')+'">&#9656;</span> '+
        'Saldo em conta hoje</div>'+
        '<div class="num '+((s.totalPF+s.totalPJ)>=0?'pos':'neg')+'" style="font-weight:700">'+
-       moeda(s.totalPF+s.totalPJ)+'</div></div>';
-    if(ST.abreSaldos){
-      h+='<div style="margin-top:8px">';
-      // conta de investimento nao entra aqui: ela aparece no Patrimonio, e o
-      // total desta lista e o que da para gastar
-      // dois blocos (PJ e PF), cada um em ordem de banco: as contas do mesmo
-      // banco ficam juntas
-      var banco=function(x){ return String(x.instituicao||x.conta||'').trim().split(/\s+/)[0].toUpperCase(); };
-      var blocos=[['PJ','Pessoa jurídica (PJ)',s.totalPJ],['PF','Pessoa física (PF)',s.totalPF]];
-      blocos.forEach(function(bl){
-       var doBloco=s.contas.filter(function(x){ return x.titular===bl[0]; })
-         .sort(function(a,b){ return banco(a).localeCompare(banco(b),'pt-BR') || String(a.conta).localeCompare(String(b.conta),'pt-BR'); });
-       if(!doBloco.length) return;
-       h+='<div class="sb-bloco"><div class="sb-tit"><span>'+bl[1]+'</span><b class="'+(bl[2]>=0?'pos':'neg')+'">'+moeda(bl[2])+'</b></div>';
-       doBloco.forEach(function(x){
-        // A data do saldo informado e o divisor de aguas: o que e anterior a
-        // ela ja esta dentro do numero que voce digitou, e por isso mexer num
-        // lancamento velho muda a ABERTURA do mes, nunca o saldo de hoje.
-        var dq = x.desdeMs ? new Date(x.desdeMs) : null;
-        var quando = dq ? ('0'+dq.getDate()).slice(-2)+'/'+('0'+(dq.getMonth()+1)).slice(-2) : '';
-        h+='<div class="ln" style="grid-template-columns:1fr auto">'+
-           '<div class="nm">'+ponto(x.titular==='PJ'?'IMPOSTOS':'CASA')+
-           '<span>'+tx(x.conta)+
-             '<br><span style="font-size:10.5px;color:var(--dim)">'+
-             moeda(x.inicial)+(quando?' em '+quando:'')+
-             ' · desde então '+moeda(x.movimento)+
-             (x.obs?' · '+tx(x.obs):'')+'</span></span></div>'+
-           '<span class="n '+(x.saldo>=0?'':'neg')+'">'+moeda(x.saldo)+'</span></div>';
-       });
-       h+='</div>';
-      });
-      h+='<div class="m" style="font-size:11px;margin-top:8px">'+
-         'lançamento com data anterior à do saldo informado muda a abertura do '+
-         'mês, não o saldo de hoje — aquele saldo já contava com ele.</div></div>';
-    }
-    h+='</div>';
+       moeda(s.totalPF+s.totalPJ)+'</div></div>'+(ST.abreSaldos?htmlSaldos(s):'')+'</div>';
   }
 
   /* Entrou e saiu pelo DINHEIRO na conta: compra no cartão só sai quando a
@@ -10253,20 +10265,19 @@ function renderMes(){
      entrou - saiu não batia com o saldo. Com o "começou com", fecha. */
   var cxOk = cx && cx.jaEntrou!==undefined;
   var ent = cxOk ? cx.jaEntrou : r.totalRealizadoReceita, sai = cxOk ? cx.jaSaiu : r.totalRealizadoDespesa;
-  h+='<div class="card"><div class="row"><div><div class="lbl">'+setaMov('in')+'Entrou na conta</div>'+
-      '<div style="font-size:19px;font-weight:600" class="pos">'+moeda(ent)+'</div></div>'+
-      '<div style="text-align:right"><div class="lbl">'+setaMov('out')+'Saiu da conta</div>'+
-      '<div style="font-size:19px;font-weight:600" class="neg">'+moeda(sai)+'</div></div></div>'+
-      barra(sai, ent)+
-      '<div class="m" style="font-size:12px;margin-top:6px">'+
+  // o texto que ficava embaixo virou a dica do "i": a tela fica só com os números
+  var dicaMov =
       // centavos de rendimento não contam como "entrou": R$ 0,01 de entrada
       // contra R$ 12 mil de saída dava "gastou 123733700% do que entrou"
-      (ent>=Math.max(10, sai*0.01) ? 'saiu '+pct(sai,ent)+'% do que entrou' : 'ainda não entrou nada neste mês')+
-      ' · sobrou '+moeda(ent-sai)+'</div>'+
-      (cxOk && cx.comecou!==null
-        ? '<div class="m" style="font-size:11.5px;margin-top:4px">começou com '+moeda(cx.comecou)+
-          ' → hoje '+moeda(cx.saldoHoje)+' · cartão só conta quando a fatura é paga</div>' : '')+
-      '</div>';
+      (ent>=Math.max(10, sai*0.01) ? 'Saiu '+pct(sai,ent)+'% do que entrou' : 'Ainda não entrou nada neste mês')+
+      ' · sobrou '+moeda(ent-sai)+'.'+
+      (cxOk && cx.comecou!==null ? ' Começou com '+moeda(cx.comecou)+' → hoje '+moeda(cx.saldoHoje)+'.' : '')+
+      ' Compra no cartão só conta quando a fatura é paga.';
+  h+='<div class="card cx"><div class="row"><div><div class="lbl">'+setaMov('in')+'Entrou'+dica(dicaMov)+'</div>'+
+      '<div style="font-size:17px;font-weight:600" class="pos">'+moeda(ent)+'</div></div>'+
+      '<div style="text-align:right"><div class="lbl">'+setaMov('out')+'Saiu</div>'+
+      '<div style="font-size:17px;font-weight:600" class="neg">'+moeda(sai)+'</div></div></div>'+
+      barra(sai, ent)+'</div>';
 
   // despesas: tudo aberto, uma linha por conta, filtrado pela familia do cabecalho
   var lista=[];
@@ -10282,7 +10293,8 @@ function renderMes(){
 
   h+='<div class="card"><div class="row" style="margin-bottom:8px">'+
      '<div class="lbl">Despesas'+(ST.familia!=='TUDO'?' · '+ST.familia:'')+
-     ' <span style="opacity:.6">('+lista.length+')</span></div>'+
+     ' <span style="opacity:.6">('+lista.length+')</span>'+
+     dica('O previsto é editável direto na linha. Contas sem movimento no mês ficam ocultas.')+'</div>'+
      '</div>'+
      '<div class="cab-ln"><span>conta</span><span>previsto</span><span>realizado</span><span>diferença</span></div>'+
      '<div class="cab-mob"><span>previsto</span><span>realizado</span><span>saldo</span></div>';
@@ -10304,9 +10316,7 @@ function renderMes(){
        (ST.reprog===d.categoria && ST.reprogOnde==='linha' ? painelReprog({categoria:d.categoria, falta:d.saldo}) : '');
   });
   ST.linhasMes=lista;
-  h+=linhaMais('DESPESA')+
-     '<div class="m" style="font-size:11px;margin-top:8px">o previsto é editável direto na linha · '+
-     'contas sem movimento no mês ficam ocultas</div></div>';
+  h+=linhaMais('DESPESA')+'</div>';
 
   var rec=r.receitas.filter(function(d){return d.realizado>0||d.previsto>0;});
   if(rec.length && ST.familia==='TUDO'){
@@ -14280,9 +14290,10 @@ function cfgAjustes(){
           '<button class="bt-no" style="width:100%;margin-top:7px;padding:7px;font-size:12.5px" '+
             'onclick="cfgSalvarAjuste('+i+')">Salvar</button>'
         : '<div class="row" style="gap:6px">'+
-          '<input id="aj'+i+'" inputmode="decimal" style="margin:0;flex:1" value="'+mostrar+'">'+
-          '<span class="m" style="font-size:12px;white-space:nowrap">'+
-            (a.tipo==='percent'?'% ao ano':(a.tipo==='dinheiro'?'R$':''))+'</span>'+
+          (a.tipo==='dinheiro'?'<span class="m" style="font-size:13px">R$</span>':'')+
+          '<input id="aj'+i+'" inputmode="decimal" style="margin:0;flex:1" value="'+mostrar+'"'+
+            (a.tipo==='dinheiro'?' placeholder="0,00" oninput="mascaraMoeda(this)"':'')+'>'+
+          (a.tipo==='percent'?'<span class="m" style="font-size:12px;white-space:nowrap">% ao ano</span>':'')+
           '<button class="bt-no" style="padding:7px 12px;font-size:12.5px" '+
             'onclick="cfgSalvarAjuste('+i+')">Salvar</button></div>')+
       (a.ajuda?'<div class="m" style="font-size:11px;margin-top:5px">'+a.ajuda+'</div>':'')+
@@ -14453,7 +14464,7 @@ function cfgSalvarAjuste(i){
   var a=ST.config.ajustes[i], inp=el('aj'+i);
   var v=inp.value;
   if(a.tipo==='percent')  v=(parseFloat(String(v).replace(',','.'))||0)/100;
-  else if(a.tipo==='dinheiro') v=parseFloat(String(v).replace(/\./g,'').replace(',','.'))||0;
+  else if(a.tipo==='dinheiro') v=parseFloat(String(v).replace(/[^\d,-]/g,'').replace(',','.'))||0;
   else if(a.tipo==='inteiro')  v=parseInt(String(v).replace(/\D/g,''),10)||0;
   else if(a.tipo==='texto')    v=String(v||'').trim();
   google.script.run.withSuccessHandler(function(r){
