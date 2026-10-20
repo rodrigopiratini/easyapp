@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.26.1 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.26.2 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -7288,6 +7288,8 @@ window.pedirTexto = function (o, feito) {
     ['Will Bank', 'willbank.com.br'], ['Stone', 'stone.com.br'], ['Original', 'original.com.br'], ['Porto Bank', 'portoseguro.com.br']];
   var PALAVRAS_EMAIL = 'pix OR compra OR transferência OR transferencia OR débito OR debito OR pagamento OR fatura OR ' +
     'recebeu OR enviado OR enviou OR gastou OR aprovada OR transação OR transacao OR saque OR boleto';
+  function gmailAutorizado() { try { return localStorage.getItem('easyapp:gmail-ok') === '1'; } catch (e) { return false; } }
+  function marcarGmailAutorizado() { try { localStorage.setItem('easyapp:gmail-ok', '1'); } catch (e) {} }
   function gmailGuardado() { try { return localStorage.getItem('easyapp:gmail') || ''; } catch (e) { return ''; } }
   function codigoGmail(log) {
     var achou = '';
@@ -7677,7 +7679,9 @@ window.pedirTexto = function (o, feito) {
       lerConta().catch(function () { return null; }),
       fn('openfinance', { acao: 'status' }).catch(function () { return null; }),
       P.rest('/rest/v1/push_log?select=recebido,status,corpo&order=recebido.desc&limit=15').catch(function () { return []; }),
-      token().catch(function () { return null; })
+      token().catch(function () { return null; }),
+      // o Gmail já mandou o código alguma vez? = o encaminhamento já foi autorizado
+      P.rest('/rest/v1/push_log?select=recebido&corpo->>app=eq.Gmail&order=recebido.desc&limit=1').catch(function () { return []; })
     ]).then(function (R) {
       var c = R[0] || {}, of = R[1], tk = R[3];
       var a = c.assinatura, ia = c.ia || {};
@@ -7837,6 +7841,13 @@ window.pedirTexto = function (o, feito) {
         // e o filtro vem pronto num arquivo para importar (não precisa montar nada).
         if (EMAIL_DOMINIO) {
           var codGmail = codigoGmail(R[2]);
+          /* Etapas 1 e 2 já feitas (o código do Gmail chegou alguma vez, ou este
+             aparelho viu chegar): ficam recolhidas com um "✓", e a pessoa vai
+             direto ao filtro. "refazer" abre de novo (outra conta Google). */
+          var gmAut = (R[4] && R[4][0] && R[4][0].recebido) || '';
+          var jaAut = !!gmAut || gmailAutorizado();
+          if (gmAut) marcarGmailAutorizado();
+          var dAut = gmAut ? new Date(gmAut) : null;
           h += '<div class="c-guia" id="guia-em" hidden><div class="c-gt">✉️ E-mail do banco</div>' +
           '<div class="m" style="font-size:12px;margin-bottom:8px">Quase todo banco manda e-mail a cada Pix, compra e débito. ' +
           'O Gmail encaminha esses e-mails para o seu endereço de lançamentos e eles entram sozinhos no app. iPhone e Android, sem instalar nada.</div>' +
@@ -7844,6 +7855,11 @@ window.pedirTexto = function (o, feito) {
           (nativo ? '<div class="c-passo" style="margin:8px 0;padding:10px;border:1px solid var(--warn);border-radius:10px;font-size:12.5px">' +
             '💻 As configurações do Gmail só existem no <b>computador</b>. Abra <b>easyappfinancial.com.br/app</b> no navegador do computador, ' +
             'entre com a sua conta e faça os 3 passos por lá.</div>' : '') +
+          (jaAut ? '<div class="c-passo" style="margin:8px 0;padding:10px;border:1px solid var(--ok);border-radius:10px;font-size:12.5px">' +
+            '<b style="color:var(--ok)">✓ 1 e 2. Encaminhamento já autorizado</b>' +
+            (dAut ? ' <span class="m">(código do Gmail em ' + ('0' + dAut.getDate()).slice(-2) + '/' + ('0' + (dAut.getMonth() + 1)).slice(-2) + ')</span>' : '') +
+            ' · <a href="#" id="cGmRefazer">refazer</a></div>' : '') +
+          '<div id="cGmAut"' + (jaAut ? ' hidden' : '') + '>' +
           '<div class="c-passo" style="margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px">' +
             '<b>1. Autorizar o encaminhamento</b>' +
             '<div class="m" style="font-size:12px;margin:4px 0 6px">Qual Gmail recebe os avisos do banco? (tem mais de uma conta Google no navegador? é esta que abre)</div>' +
@@ -7854,7 +7870,7 @@ window.pedirTexto = function (o, feito) {
           '<div class="c-passo" style="margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px">' +
             '<b>2. Confirmar com o código</b><div class="m" style="font-size:12px;margin:4px 0 8px">O Gmail manda um código para o seu endereço e ele aparece aqui sozinho. ' +
             'Cole no Gmail e toque em <b>Verificar</b>. Deixe marcado <b>Desativar encaminhamento</b>: o filtro do passo 3 manda só os e-mails do banco.</div>' +
-            '<div id="cGmCod">' + (codGmail ? linha('Código', codGmail) : '<div class="m" style="font-size:12.5px">⏳ esperando o código do Gmail...</div>') + '</div></div>' +
+            '<div id="cGmCod">' + (codGmail ? linha('Código', codGmail) : '<div class="m" style="font-size:12.5px">⏳ esperando o código do Gmail...</div>') + '</div></div></div>' +
           '<div class="c-passo" style="margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px">' +
             '<b>3. Importar o filtro pronto</b><div class="m" style="font-size:12px;margin:4px 0 8px">Marque os seus bancos e baixe o arquivo. No Gmail: ' +
             '<b>Importar filtros</b> (no fim da página) → <b>Escolher arquivo</b> → o arquivo baixado → <b>Abrir arquivo</b> → marque ' +
@@ -8015,6 +8031,8 @@ window.pedirTexto = function (o, feito) {
       };
       b('cGmFwd', function () { abrirFora(urlGmail('fwdandpop')); esperarCodigoGmail(); });
       b('cGmFiltros', function () { abrirFora(urlGmail('filters')); });
+      var refazer = $('cGmRefazer');
+      if (refazer) refazer.onclick = function (e) { e.preventDefault(); var a = $('cGmAut'); if (a) a.hidden = !a.hidden; };
       Array.prototype.forEach.call(raiz.querySelectorAll('[data-gmb]'), function (c) {
         c.onclick = function () { c.classList.toggle('on'); };
       });
@@ -8041,6 +8059,7 @@ window.pedirTexto = function (o, feito) {
             var cod = codigoGmail(l);
             if (!cod || !$('cGmCod')) return;
             clearInterval(esperaCod); esperaCod = null;
+            marcarGmailAutorizado();
             $('cGmCod').innerHTML = '<div class="c-lin"><span>Código</span><span><b>' + esc(cod) + '</b> <a href="#" id="cGmCopia">copiar</a></span></div>';
             $('cGmCopia').onclick = function (e) {
               e.preventDefault();
