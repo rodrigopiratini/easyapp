@@ -9,17 +9,21 @@
 'use strict';
 var KEY='easyapp:gestao:testes-primeiro-acesso:v2', notas='', inicio=0, relogio=null, ultimo='', atual=null;
 try{notas=localStorage.getItem(KEY)||'';}catch(e){}
-function html(){return '<style>.labGrid{display:grid;grid-template-columns:minmax(0,430px) minmax(240px,1fr);gap:24px;align-items:start;margin-top:20px}.labPhone{width:100%;height:820px;border:1px solid #40516c;border-radius:22px;background:#0f1420}.labTools{padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--card)}.labTools button,.labTools a.bt{display:inline-block;min-height:44px;margin:8px 6px 0 0;background:#202d44;color:#eaf1fc;border:1px solid #40516c;border-radius:10px;padding:10px 13px;font:inherit;cursor:pointer;text-decoration:none}.labTools button:disabled{opacity:.5}#labNovo{background:#377bed;border-color:#377bed}.labTools textarea{width:100%;min-height:140px;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:9px;padding:11px;font:inherit;resize:vertical}.labTools ol{padding-left:18px;color:var(--tx2);font-size:13px;line-height:1.6}#labVazio[hidden],.labPhone[hidden]{display:none!important}#labVazio{display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;color:var(--tx2)}@media(max-width:780px){.labGrid{grid-template-columns:1fr}.labPhone{height:740px;max-width:430px;display:block;margin:auto}}</style>'+
+function html(){return '<style>.labGrid{display:grid;grid-template-columns:minmax(0,430px) minmax(240px,1fr);gap:24px;align-items:start;margin-top:20px}.labPhone{width:100%;height:820px;border:1px solid #40516c;border-radius:22px;background:#0f1420}.labTools{padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--card)}.labTools button,.labTools a.bt{display:inline-block;min-height:44px;margin:8px 6px 0 0;background:#202d44;color:#eaf1fc;border:1px solid #40516c;border-radius:10px;padding:10px 13px;font:inherit;cursor:pointer;text-decoration:none}.labTools button:disabled{opacity:.5}#labNovo{background:#377bed;border-color:#377bed}.labTools textarea{width:100%;min-height:140px;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:9px;padding:11px;font:inherit;resize:vertical}.labTools ol{padding-left:18px;color:var(--tx2);font-size:13px;line-height:1.6}#labVazio[hidden],.labPhone[hidden]{display:none!important}#labVazio{display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;color:var(--tx2)}@media(max-width:780px){.labGrid{grid-template-columns:1fr}.labPhone{height:740px;max-width:430px;display:block;margin:auto}}'+
+'#labFundo{position:fixed;inset:0;z-index:9997;background:#0f1420}#labFundo[hidden]{display:none}iframe.labPhone.cheio{position:fixed;left:0;top:env(safe-area-inset-top);width:100%;max-width:none;height:calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));margin:0;border:0;border-radius:0;z-index:9998}'+
+'#labSairCheia{position:fixed;left:10px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:9999;width:38px;height:38px;border-radius:50%;border:1px solid #40516c;background:rgba(15,20,32,.8);color:#eaf1fc;font-size:17px;opacity:.75;cursor:pointer}#labSairCheia[hidden]{display:none}</style>'+
 '<h2>Testar primeiro acesso</h2><p class="sub"><b>Cliente novo</b> cria uma conta de teste de verdade e abre o app com ela: você passa pelo roteiro como um cliente e, no fim, o app abre com o que montou. <b>Salvar este teste</b> guarda a conta com um nome, para voltar nela depois; as não salvas somem depois de 6 horas. Nenhuma entra nos números do painel.</p>'+
 '<div class="labGrid"><div><div id="labVazio" class="labPhone">Toque em <b>&nbsp;Cliente novo&nbsp;</b> para começar.</div><iframe id="labFrame" class="labPhone" title="App do cliente de teste" hidden></iframe></div>'+
 '<aside class="labTools"><h2 style="margin-top:0">Roteiro</h2><ol><li>Nome completo e planilha?</li><li>Bancos (PF/PJ, conta e cartão)</li><li>Saldos e cartões (quem paga cada fatura)</li><li>Famílias de contas</li><li>Contas</li><li>Valores, frequência e reajuste</li><li>Metas</li><li>Plano</li><li>Automação, ou ver o app</li></ol>'+
-'<button id="labNovo">Cliente novo</button><button id="labSalvar" disabled>💾 Salvar este teste</button><button id="labSim">Simulação rápida (não grava)</button><a class="bt" id="labCheia" href="#" target="_blank" rel="noopener">Abrir em tela cheia ↗</a>'+
+'<button id="labNovo">Cliente novo</button><button id="labSalvar" disabled>💾 Salvar este teste</button><button id="labSim">Simulação rápida (não grava)</button><button id="labCheia">📱 Tela cheia (como o app)</button><a class="bt" id="labAba" href="#" target="_blank" rel="noopener">Abrir em outra aba ↗</a>'+
+'<p class="sub" style="margin-top:8px;font-size:12.5px">Na tela cheia o app ocupa a tela toda; o botão ✕ no canto de baixo (ou o voltar do Android) sai dela. No iPhone, para sumir também a barra do Safari, abra o painel pelo ícone da Tela de Início (Compartilhar → Adicionar à Tela de Início).</p>'+
 '<p id="labStatus" class="sub" style="margin-top:12px"></p>'+
 '<h2 style="margin:18px 0 6px">Testes salvos</h2><div id="labLista" class="sub">carregando...</div>'+
-'<label for="labNotes" class="sub" style="display:block;margin:16px 0 6px">Anotações (ficam só neste navegador)</label><textarea id="labNotes" maxlength="3000" placeholder="O que ficou fácil ou confuso?"></textarea></aside></div>';}
+'<label for="labNotes" class="sub" style="display:block;margin:16px 0 6px">Anotações (ficam só neste navegador)</label><textarea id="labNotes" maxlength="3000" placeholder="O que ficou fácil ou confuso?"></textarea></aside></div>'+
+'<div id="labFundo" hidden></div><button id="labSairCheia" hidden aria-label="Sair da tela cheia">✕</button>';}
 function status(t){var el=document.getElementById('labStatus');if(el)el.textContent=t;}
 function tempo(){var el=document.getElementById('labStatus');if(!el||!inicio){clearInterval(relogio);relogio=null;return;}var n=Math.round((Date.now()-inicio)/1000);el.textContent=(ultimo?ultimo+' · ':'')+'tempo desta rodada: '+Math.floor(n/60)+'min '+String(n%60).padStart(2,'0')+'s';}
-function abrir(src){var f=document.getElementById('labFrame');if(!f)return;document.getElementById('labVazio').hidden=true;f.hidden=false;f.src=src;document.getElementById('labCheia').href=src;inicio=Date.now();if(!relogio)relogio=setInterval(tempo,1000);tempo();}
+function abrir(src){var f=document.getElementById('labFrame');if(!f)return;document.getElementById('labVazio').hidden=true;f.hidden=false;f.src=src;document.getElementById('labAba').href=src;inicio=Date.now();if(!relogio)relogio=setInterval(tempo,1000);tempo();}
 function chamar(corpo){return token().then(function(t){return fetch(URL_SB+'/functions/v1/gestao',{method:'POST',headers:{apikey:CHAVE,Authorization:'Bearer '+t,'Content-Type':'application/json'},body:JSON.stringify(corpo)});}).then(function(r){return r.json();}).then(function(d){if(d.mfa){telaMfa();throw new Error('confirme o código');}if(!d.ok)throw new Error(d.erro||'falhou');return d;});}
 function esc2(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function quando(iso){var d=new Date(iso);return isNaN(d)?'':('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
@@ -70,12 +74,36 @@ function novo(){
     ultimo='cliente de teste: '+d.email;usarSessao(d.sessao,'');listar();
   }).catch(function(e){b.disabled=false;status('falhou: '+((e&&e.message)||e));});
 }
-function pause(){var f=document.getElementById('labFrame');if(f)f.removeAttribute('src');if(relogio){clearInterval(relogio);relogio=null;}}
+// tela cheia: o mesmo iframe (sem recarregar) cobre a tela toda; no Android
+// também some a barra do navegador (Fullscreen API). Voltar sai dela.
+var cheia=false;
+function entrarCheia(){
+  var f=document.getElementById('labFrame');if(!f||f.hidden||!f.getAttribute('src')){status('comece um teste primeiro');return;}
+  if(cheia)return;cheia=true;f.classList.add('cheio');document.getElementById('labFundo').hidden=false;document.getElementById('labSairCheia').hidden=false;
+  document.documentElement.style.overflow='hidden';
+  try{history.pushState({labCheia:1},'');}catch(e){}
+  var d=document.documentElement,rf=d.requestFullscreen||d.webkitRequestFullscreen;
+  if(rf){try{var p=rf.call(d);if(p&&p.catch)p.catch(function(){});}catch(e){}}
+  try{f.focus();}catch(e){}
+}
+function sairCheia(deVoltar){
+  if(!cheia)return;cheia=false;
+  var f=document.getElementById('labFrame');if(f)f.classList.remove('cheio');
+  var a=document.getElementById('labFundo');if(a)a.hidden=true;var b=document.getElementById('labSairCheia');if(b)b.hidden=true;
+  document.documentElement.style.overflow='';
+  if(document.fullscreenElement||document.webkitFullscreenElement){try{(document.exitFullscreen||document.webkitExitFullscreen).call(document);}catch(e){}}
+  if(!deVoltar&&history.state&&history.state.labCheia){try{history.back();}catch(e){}}
+}
+window.addEventListener('popstate',function(){sairCheia(true);});
+['fullscreenchange','webkitfullscreenchange'].forEach(function(ev){document.addEventListener(ev,function(){if(cheia&&!(document.fullscreenElement||document.webkitFullscreenElement))sairCheia();});});
+function pause(){sairCheia();var f=document.getElementById('labFrame');if(f)f.removeAttribute('src');if(relogio){clearInterval(relogio);relogio=null;}}
 function mount(){var t=document.getElementById('labNotes');t.value=notas;t.oninput=function(){notas=this.value;try{localStorage.setItem(KEY,notas);}catch(e){}};
   document.getElementById('labNovo').onclick=novo;
   document.getElementById('labSalvar').onclick=function(){if(atual)salvar(atual.id,atual.rotulo);};
   listar();
   document.getElementById('labSim').onclick=function(){ultimo='simulação (não grava)';abrir('app/?lab='+Date.now()+'#teste-primeiro-acesso');};
-  document.getElementById('labCheia').onclick=function(e){if(this.getAttribute('href')==='#'){e.preventDefault();status('comece um teste primeiro');}};}
+  document.getElementById('labCheia').onclick=entrarCheia;
+  document.getElementById('labSairCheia').onclick=function(){sairCheia();};
+  document.getElementById('labAba').onclick=function(e){if(this.getAttribute('href')==='#'){e.preventDefault();status('comece um teste primeiro');}};}
 window.TestePrimeiroAcesso={html:html,mount:mount,pause:pause};
 })();
