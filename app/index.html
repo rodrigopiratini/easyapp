@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.24.3 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.24.4 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -5815,7 +5815,7 @@ window.pedirTexto = function (o, feito) {
     var trava = IA.plano === 'teste';
     // título MODO e um "i" em cada opção no lugar da frase embaixo
     var i = function (t) { return typeof window.dica === 'function' ? window.dica(t) : ''; };
-    e.innerHTML = '<div class="ia-mtt">Modo</div><div class="ia-mt">' + MOTORES.map(function (x) {
+    e.innerHTML = '<div class="ia-mt">' + MOTORES.map(function (x) {
       var off = trava && x[0] === 'profundo';
       var txt = x[2].charAt(0).toUpperCase() + x[2].slice(1) + (off ? '. Libera no plano mensal ou anual.' : '.');
       return '<button data-motor="' + x[0] + '" class="' + (x[0] === m ? 'on' : '') + '"' + (off ? ' aria-disabled="true" style="opacity:.45"' : '') + '>' +
@@ -5827,10 +5827,14 @@ window.pedirTexto = function (o, feito) {
   }
 
   var CSS =
-    '.ia-motor{padding:0 14px 8px}.ia-mt{display:flex;gap:6px}' +
-    '.ia-mt button{flex:1;padding:7px 4px;border-radius:10px;border:1px solid #2a3548;background:#161d2c;color:#8b99b5;font-size:13px;font-weight:600}' +
-    '.ia-mt button.on{border-color:#3b82f6;color:#fff;background:#1e3a8a}' +
-    '.ia-mtt{font-size:10.5px;color:#8b99b5;text-transform:uppercase;letter-spacing:.4px;margin:0 0 5px 2px}' +
+    // o motor é um seletor à parte (painelzinho), para não parecer mais uma aba
+    '.ia-motor{padding:6px 12px 4px}.ia-mt{display:flex;gap:3px;background:#0b101b;border:1px solid #2a3548;border-radius:12px;padding:3px}' +
+    '.ia-mt button{flex:1;padding:6px 4px;border-radius:9px;border:0;background:transparent;color:#8b99b5;font-size:12.5px;font-weight:600}' +
+    '.ia-mt button.on{color:#fff;background:#1e3a8a}' +
+    '.ia-vers{margin-top:8px;font-size:12.5px}.ia-vers summary{cursor:pointer;color:#8b99b5;padding:4px 0}' +
+    '.ia-ver{display:flex;align-items:center;gap:6px;padding:4px 0}.ia-ver span{flex:1;color:#c7cfdf}' +
+    '.ia-ver button{padding:5px 10px;border-radius:8px;border:1px solid #2a3548;background:#0f1420;color:#e8edf7;font-size:12px}' +
+    '.ia-ver button.ok{background:#16a34a;border-color:#16a34a;color:#fff}' +
     '#iaBt{position:fixed;right:14px;bottom:calc(82px + env(safe-area-inset-bottom));z-index:900;' +
     ' width:52px;height:52px;border-radius:26px;border:0;background:#3b82f6;color:#fff;font-size:22px;' +
     ' box-shadow:0 6px 18px #0008;cursor:pointer}' +
@@ -5842,9 +5846,10 @@ window.pedirTexto = function (o, feito) {
     '.ia-top b{font-size:16px}.ia-top .sp{flex:1}' +
     '.ia-chip{font-size:11.5px;color:#8b99b5;border:1px solid #2a3548;border-radius:12px;padding:3px 9px;white-space:nowrap}' +
     '.ia-x{background:none;border:0;color:#8b99b5;font-size:24px;line-height:1;padding:0 4px;cursor:pointer}' +
-    '.ia-abas{display:flex;gap:6px;padding:8px 12px}' +
-    '.ia-abas button{flex:1;padding:8px;border-radius:10px;border:1px solid #2a3548;background:#161d2c;color:#8b99b5;font-size:13px}' +
-    '.ia-abas button.on{background:#1e293b;color:#e8edf7;border-color:#3b82f6}' +
+    // Chat / Histórico / Módulos: abas com sublinhado (outro tipo de botão que o motor)
+    '.ia-abas{display:flex;gap:0;padding:4px 12px 0;border-bottom:1px solid #2a3548}' +
+    '.ia-abas button{flex:1;padding:9px 8px;border:0;border-bottom:2px solid transparent;background:none;color:#8b99b5;font-size:13.5px;font-weight:600}' +
+    '.ia-abas button.on{color:#e8edf7;border-bottom-color:#3b82f6}' +
     '#iaMsgs,#iaMods{flex:1;overflow-y:auto;padding:8px 12px 16px;-webkit-overflow-scrolling:touch}' +
     '.ia-m{max-width:88%;margin:6px 0;padding:9px 11px;border-radius:14px;line-height:1.45;font-size:14px}' +
     '.ia-m.eu{margin-left:auto;background:#1d4ed8;color:#fff;border-bottom-right-radius:4px}' +
@@ -6600,7 +6605,7 @@ window.pedirTexto = function (o, feito) {
     var d = document.createElement('div');
     d.className = 'ia-card';
     d.innerHTML = '<div class="nm">' + iconeTexto(m.icone) + ' ' + esc(m.nome) + '</div>' +
-      '<div class="sub">versão ' + v.numero + ' · ' + (noAr ? 'Ativo' : v.estado === 'rascunho' ? 'Rascunho' : 'Desabilitado · salvo para reaplicar') + '</div>' +
+      '<div class="sub">versão ' + v.numero + ' · ' + (noAr ? 'em uso' : v.estado === 'rascunho' ? 'rascunho' : 'guardada (fora do menu)') + '</div>' +
       (noAr ? '<div class="ia-bts"><button data-a="abrir" class="ok">Abrir</button><button data-a="desf">Desfazer</button></div>' : '<div class="ia-bts"><button data-a="ver">Ver prévia</button><button data-a="ok" class="ok">Aplicar</button></div>');
     if (noAr) {
       d.querySelector('[data-a=abrir]').onclick = function () { abrirModulo(m.id, v.id, m.nome); };
@@ -6620,6 +6625,7 @@ window.pedirTexto = function (o, feito) {
       };
     }
     (onde || $('iaMsgs')).appendChild(d);
+    return d;
   }
 
   function cartaoRascunho(r) {
@@ -6833,6 +6839,9 @@ window.pedirTexto = function (o, feito) {
   }
 
   // ------------------------------------------------------- meus módulos
+  /* Um cartão por módulo (e um só para o layout): a versão em uso em
+     destaque e as outras guardadas dentro, em "Versões anteriores", para
+     reaplicar se precisar. */
   function listarModulos() {
     var c = $('iaMods');
     c.innerHTML = barrinhas();
@@ -6841,18 +6850,43 @@ window.pedirTexto = function (o, feito) {
       rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado&order=numero.desc'),
       rest('/rest/v1/aparencia_versoes?select=id,numero,estado,descricao,css,menus&order=numero.desc')
     ]).then(function (r) {
-      c.innerHTML = '<div class="ia-vazio">Módulos e layouts ficam salvos aqui. Desfazer mantém a versão desabilitada para aplicar novamente, sem outro pedido ao assistente.</div>';
+      c.innerHTML = '';
+      var estadoTxt = function (e) { return e === 'ativa' ? 'em uso' : e === 'rascunho' ? 'rascunho' : 'guardada'; };
+      var anteriores = function (card, lista, linha) {
+        if (!lista.length) return;
+        var det = document.createElement('details'); det.className = 'ia-vers';
+        det.innerHTML = '<summary>Outras versões (' + lista.length + ')</summary>';
+        lista.forEach(function (v) { det.appendChild(linha(v)); });
+        card.appendChild(det);
+      };
+      var linhaVer = function (rot, ver, ok) {
+        var d = document.createElement('div'); d.className = 'ia-ver';
+        d.innerHTML = '<span>' + rot + '</span><button data-a="ver">Ver</button><button data-a="ok" class="ok">Aplicar</button>';
+        d.querySelector('[data-a=ver]').onclick = ver; d.querySelector('[data-a=ok]').onclick = ok;
+        return d;
+      };
       r[0].forEach(function (m) {
-        r[1].filter(function (v) { return v.modulo_id === m.id; }).forEach(function (v) {
-          cartaoVersao(m, v, c);
+        var vs = r[1].filter(function (v) { return v.modulo_id === m.id && v.estado !== 'descartada'; });
+        if (!vs.length) return;
+        var princ = vs.filter(function (v) { return v.id === m.versao_ativa; })[0] || vs[0];
+        var card = cartaoVersao(m, princ, c);
+        anteriores(card, vs.filter(function (v) { return v !== princ; }), function (v) {
+          return linhaVer('versão ' + v.numero + ' · ' + estadoTxt(v.estado),
+            function () { abrirModulo(m.id, v.id, iconeTexto(m.icone) + ' ' + m.nome + ' · v' + v.numero, card); },
+            function () {
+              if (!confirm('Voltar ' + m.nome + ' para a versão ' + v.numero + '? A atual fica guardada aqui.')) return;
+              aplicar(v.id, null).then(listarModulos);
+            });
         });
       });
-      r[2].forEach(function (v) {
-        var ativa = v.estado === 'ativa';
+      var lay = r[2].filter(function (v) { return v.estado !== 'descartada'; });
+      if (lay.length) {
+        var v0 = lay.filter(function (v) { return v.estado === 'ativa'; })[0] || lay[0];
+        var ativa = v0.estado === 'ativa';
         var d = document.createElement('div'); d.className = 'ia-card';
-        d.innerHTML = '<div class="nm">🎨 Layout · versão ' + v.numero + '</div>' +
-          '<div class="sub">' + esc(v.descricao || 'Aparência do app') + '<br>' +
-          (ativa ? 'Ativo' : v.estado === 'rascunho' ? 'Rascunho' : 'Desabilitado · salvo para reaplicar') +
+        d.innerHTML = '<div class="nm">🎨 Layout</div>' +
+          '<div class="sub">' + esc(v0.descricao || 'Aparência do app') + '<br>versão ' + v0.numero + ' · ' +
+          (ativa ? 'em uso' : v0.estado === 'rascunho' ? 'rascunho' : 'guardada (o app está no padrão)') +
           '</div><div class="ia-bts">' + (ativa
             ? '<button data-a="desf">Desfazer</button><button data-a="pad">Voltar ao padrão</button>'
             : '<button data-a="ver">Ver prévia</button><button data-a="ok" class="ok">Aplicar</button>') + '</div>';
@@ -6864,14 +6898,17 @@ window.pedirTexto = function (o, feito) {
           d.querySelector('[data-a=desf]').onclick = function () { desfazer('desfazer_aparencia'); };
           d.querySelector('[data-a=pad]').onclick = function () { desfazer('aparencia_padrao'); };
         } else {
-          d.querySelector('[data-a=ver]').onclick = function () {
-            previaAparencia({ versao_id: v.id, css: v.css, menus: v.menus }, d);
-          };
-          d.querySelector('[data-a=ok]').onclick = function () { aplicarAparencia(v.id, d).then(listarModulos); };
+          d.querySelector('[data-a=ver]').onclick = function () { previaAparencia({ versao_id: v0.id, css: v0.css, menus: v0.menus }, d); };
+          d.querySelector('[data-a=ok]').onclick = function () { aplicarAparencia(v0.id, d).then(listarModulos); };
         }
         c.appendChild(d);
-      });
-      if (!r[0].length && !r[2].length) c.innerHTML = '<div class="ia-vazio">Nenhum módulo ou layout ainda.<br>Peça um no Chat.</div>';
+        anteriores(d, lay.filter(function (v) { return v !== v0; }), function (v) {
+          return linhaVer('versão ' + v.numero + ' · ' + esc(v.descricao || '').slice(0, 40),
+            function () { previaAparencia({ versao_id: v.id, css: v.css, menus: v.menus }, d); },
+            function () { aplicarAparencia(v.id, null).then(listarModulos); });
+        });
+      }
+      if (!c.children.length) c.innerHTML = '<div class="ia-vazio">Nenhum módulo ou layout ainda.<br>Peça um no Chat.</div>';
     }).catch(function (e) { c.innerHTML = '<div class="ia-vazio">' + esc(e.message) + '</div>'; });
   }
 
@@ -8793,7 +8830,7 @@ window.pedirTexto = function (o, feito) {
   .ajuda:hover{background:var(--acc);color:#fff}
   .kv{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:3px 0;font-size:13.5px}
   .kv .n{font-variant-numeric:tabular-nums;white-space:nowrap}
-  .kv.fim{margin-top:4px;align-items:baseline}.kv.fim .big{font-size:22px}
+  .kv.fim{margin-top:4px;align-items:baseline;font-weight:600}.kv.fim .big{font-size:20px}
   .card.cx{padding:11px 13px;margin-bottom:9px}.card.cx .bar{margin-top:6px}
   nav a:focus{outline:none}
   #dicaPop{position:fixed;z-index:30000;background:#1e293b;color:var(--txt);border-radius:12px;padding:10px 12px;
@@ -10248,14 +10285,14 @@ function renderMes(){
       '<div class="kv"><span>'+setaMov('in')+'Ainda entra</span><span class="n pos">'+moeda(cx.aReceber)+'</span></div>'+
       '<div class="kv"><span>'+setaMov('out')+'Ainda sai'+(dicaFatura?dica(dicaFatura):'')+'</span>'+
         '<span class="n neg">'+moeda(cx.aPagar)+'</span></div>'+
-      '<div class="kv fim"><span class="lbl">Fim do mês'+dica('Saldo projetado: o de hoje + o que ainda entra - o que ainda sai.')+'</span>'+
+      '<div class="kv fim"><span>Fim do mês'+dica('Saldo projetado: o de hoje + o que ainda entra - o que ainda sai.')+'</span>'+
         '<span class="big '+(cx.saldoProjetado>=0?'pos':'neg')+'">'+moeda(cx.saldoProjetado)+'</span></div>';
     if(cx.itens && cx.itens.length){
       h+='<div style="margin-top:2px">'+
-         '<div class="m" style="cursor:pointer;font-size:11.5px" onclick="ST.abreCaixa=!ST.abreCaixa;renderMes()">'+
-         '<span class="seta'+(ST.abreCaixa?' aberta':'')+'">&#9656;</span> '+
-         'de onde vêm ('+cx.itens.length+' contas)'+
-         (ST.abreCaixa?dica('Marque o que já resolveu ou não vai acontecer: o previsto fica no que já foi pago.'):'')+'</div>';
+         '<div class="kv" style="cursor:pointer;color:var(--dim)" onclick="ST.abreCaixa=!ST.abreCaixa;renderMes()">'+
+         '<span><span class="seta'+(ST.abreCaixa?' aberta':'')+'">&#9656;</span> '+
+         'De onde vêm ('+cx.itens.length+(cx.itens.length===1?' conta)':' contas)')+
+         (ST.abreCaixa?dica('Marque o que já resolveu ou não vai acontecer: o previsto fica no que já foi pago.'):'')+'</span></div>';
       if(ST.abreCaixa){
         cx.itens.forEach(function(x,n){
           var podeReprog = !x.fatura && x.natureza!=='RECEITA';
