@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.26.0 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.26.1 \u00b7 20/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -7288,6 +7288,7 @@ window.pedirTexto = function (o, feito) {
     ['Will Bank', 'willbank.com.br'], ['Stone', 'stone.com.br'], ['Original', 'original.com.br'], ['Porto Bank', 'portoseguro.com.br']];
   var PALAVRAS_EMAIL = 'pix OR compra OR transferência OR transferencia OR débito OR debito OR pagamento OR fatura OR ' +
     'recebeu OR enviado OR enviou OR gastou OR aprovada OR transação OR transacao OR saque OR boleto';
+  function gmailGuardado() { try { return localStorage.getItem('easyapp:gmail') || ''; } catch (e) { return ''; } }
   function codigoGmail(log) {
     var achou = '';
     (log || []).some(function (x) {
@@ -7844,7 +7845,10 @@ window.pedirTexto = function (o, feito) {
             '💻 As configurações do Gmail só existem no <b>computador</b>. Abra <b>easyappfinancial.com.br/app</b> no navegador do computador, ' +
             'entre com a sua conta e faça os 3 passos por lá.</div>' : '') +
           '<div class="c-passo" style="margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px">' +
-            '<b>1. Autorizar o encaminhamento</b><div class="m" style="font-size:12px;margin:4px 0 8px">Abre o Gmail na tela certa: toque em ' +
+            '<b>1. Autorizar o encaminhamento</b>' +
+            '<div class="m" style="font-size:12px;margin:4px 0 6px">Qual Gmail recebe os avisos do banco? (tem mais de uma conta Google no navegador? é esta que abre)</div>' +
+            '<input id="cGmConta" type="email" autocomplete="email" placeholder="seu.email@gmail.com" value="' + esc(gmailGuardado()) + '" style="margin:0 0 6px">' +
+            '<div class="m" style="font-size:12px;margin:0 0 8px">Abre o Gmail na tela certa: toque em ' +
             '<b>Adicionar um endereço de encaminhamento</b>, cole o seu endereço (botão copiar acima) → <b>Próximo</b> → <b>Continuar</b>.</div>' +
             '<button class="c-bt" id="cGmFwd" style="width:100%">Abrir o encaminhamento do Gmail</button></div>' +
           '<div class="c-passo" style="margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px">' +
@@ -7997,9 +8001,20 @@ window.pedirTexto = function (o, feito) {
         };
       });
       // E-mail do banco: Gmail na tela certa, código que chega sozinho e o filtro pronto
-      var GMAIL = 'https://mail.google.com/mail/u/0/#settings/';
-      b('cGmFwd', function () { abrirFora(GMAIL + 'fwdandpop'); esperarCodigoGmail(); });
-      b('cGmFiltros', function () { abrirFora(GMAIL + 'filters'); });
+      /* Abre o Gmail da conta certa: com o endereço informado, authuser=
+         escolhe aquela conta entre as logadas no navegador; sem ele, a tela
+         do Google pede para escolher a conta. */
+      var urlGmail = function (tela) {
+        var e = String(($('cGmConta') || {}).value || '').trim().toLowerCase();
+        if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) {
+          try { localStorage.setItem('easyapp:gmail', e); } catch (x) {}
+          return 'https://mail.google.com/mail/?authuser=' + encodeURIComponent(e) + '#settings/' + tela;
+        }
+        return 'https://accounts.google.com/AccountChooser?service=mail&continue=' +
+          encodeURIComponent('https://mail.google.com/mail/#settings/' + tela);
+      };
+      b('cGmFwd', function () { abrirFora(urlGmail('fwdandpop')); esperarCodigoGmail(); });
+      b('cGmFiltros', function () { abrirFora(urlGmail('filters')); });
       Array.prototype.forEach.call(raiz.querySelectorAll('[data-gmb]'), function (c) {
         c.onclick = function () { c.classList.toggle('on'); };
       });
