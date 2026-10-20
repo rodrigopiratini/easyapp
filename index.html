@@ -791,24 +791,69 @@ document.querySelectorAll('.rv').forEach(function (el) { io.observe(el); });
    custou o pedido) e, no fim, a tela nova aberta pelo menu */
 (function () {
   var chat = document.getElementById('chat'), vchat = document.getElementById('vchat'), vmod = document.getElementById('vmod'), rodando = false, ex = 0;
+  // as telas dos módulos: cada uma com um jeito diferente (linhas, rosca, quadra, barras, etapas)
+  function linha(vals, cor, x0, w, y0, h, mn, mx) {
+    return vals.map(function (v, i) { return (x0 + i * w / (vals.length - 1)).toFixed(1) + ',' + (y0 + h - (v - mn) / (mx - mn) * h).toFixed(1); }).join(' ');
+  }
+  function rosca(fat) {
+    var r = 26, C = 2 * Math.PI * r, ac = 0;
+    return '<svg viewBox="0 0 70 70" style="width:74px;flex:none">' + fat.map(function (f) {
+      var s = '<circle cx="35" cy="35" r="' + r + '" fill="none" stroke="' + f[2] + '" stroke-width="11" stroke-dasharray="' + (f[1] / 100 * C).toFixed(1) + ' ' + C.toFixed(1) +
+        '" stroke-dashoffset="' + (-ac / 100 * C).toFixed(1) + '" transform="rotate(-90 35 35)"/>'; ac += f[1]; return s;
+    }).join('') + '<text x="35" y="33" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="800">R$ 1.457</text><text x="35" y="43" text-anchor="middle" fill="#8b99b5" font-size="6">no mês</text></svg>';
+  }
+  var meses = ['mai', 'jun', 'jul', 'ago', 'set', 'out'];
+  var telaCarros =
+    '<div class="c"><div class="lbl">Consumo · km/l</div><svg viewBox="0 0 240 92" style="width:100%;margin-top:6px">' +
+      [0, 1, 2].map(function (i) { return '<line x1="8" x2="232" y1="' + (12 + i * 30) + '" y2="' + (12 + i * 30) + '" stroke="#222b3e"/>'; }).join('') +
+      '<polyline fill="none" stroke="#3b82f6" stroke-width="2.4" stroke-linejoin="round" points="' + linha([10.9, 11.3, 11.1, 11.6, 11.4, 11.8], 0, 12, 216, 10, 60, 9.5, 12) + '"/>' +
+      '<polyline fill="none" stroke="#f59e0b" stroke-width="2.4" stroke-linejoin="round" points="' + linha([10.1, 9.8, 10.4, 10.0, 9.6, 10.4], 0, 12, 216, 10, 60, 9.5, 12) + '"/>' +
+      '<circle cx="228" cy="' + (70 - (11.8 - 9.5) / 2.5 * 60) + '" r="3.5" fill="#3b82f6"/>' +
+      meses.map(function (m, i) { return '<text x="' + (12 + i * 43.2) + '" y="88" text-anchor="middle" fill="#64748b" font-size="7">' + m + '</text>'; }).join('') +
+    '</svg><div class="sub"><b class="b">●</b> Civic 11,8 &nbsp; <b class="y">●</b> Strada 10,4</div></div>' +
+    '<div class="c" style="display:flex;gap:12px;align-items:center">' + rosca([['Combustível', 58, '#22c55e'], ['Manutenção', 22, '#3b82f6'], ['IPVA', 14, '#f59e0b'], ['Seguro', 6, '#a855f7']]) +
+      '<div style="flex:1">' + [['Combustível', '58%', 'var(--verde)'], ['Manutenção', '22%', 'var(--azul)'], ['IPVA', '14%', 'var(--amar)'], ['Seguro', '6%', 'var(--roxo)']].map(function (r) {
+        return '<div class="row" style="padding:3px 0"><span><i class="dot" style="background:' + r[2] + '"></i>' + r[0] + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</div></div>' +
+    '<div class="c br"><div class="row" style="border:0;padding:0"><span>🔧 Revisão da Strada</span><b class="r">em 23 dias</b></div><div class="bar"><i style="width:78%;background:var(--verm)"></i></div><div class="sub" style="margin-top:4px">8.100 de 10.000 km</div></div>';
+  var ataques = [[40, 30, 1], [62, 22, 1], [80, 40, 1], [52, 48, 0], [30, 52, 1], [90, 26, 1], [70, 58, 0], [44, 18, 1], [100, 50, 1], [24, 36, 0]];
+  var telaScout =
+    '<div class="c"><div class="row" style="border:0;padding:0"><div class="lbl">Placar · vitória</div><div class="big g" style="margin:0;font-size:20px">3 × 1</div></div>' +
+      '<div style="display:flex;gap:4px;margin-top:4px">' + ['25-21', '22-25', '25-18', '25-20'].map(function (p, i) { return '<span style="font-size:8.5px;font-weight:700;padding:4px 6px;border-radius:6px;background:' + (i === 1 ? '#3a1d24;color:#fca5a5' : '#12301f;color:#86efac') + '">' + p + '</span>'; }).join('') + '</div></div>' +
+    '<div class="c"><div class="lbl">Mapa de ataques · Ana</div><svg viewBox="0 0 240 80" style="width:100%;margin-top:6px">' +
+      '<rect x="4" y="4" width="232" height="72" rx="4" fill="#c2773a" opacity=".22" stroke="#e5e7eb" stroke-opacity=".5"/><line x1="4" x2="236" y1="4" y2="4" stroke="#fff" stroke-width="3"/>' +
+      '<line x1="4" x2="236" y1="28" y2="28" stroke="#e5e7eb" stroke-opacity=".4" stroke-dasharray="3 3"/>' +
+      ataques.map(function (a) { return '<circle cx="' + (a[0] * 2.2 + 8) + '" cy="' + (a[1] + 10) + '" r="5" fill="' + (a[2] ? '#22c55e' : '#ef4444') + '" opacity=".9"/>'; }).join('') +
+    '</svg><div class="sub"><b class="g">●</b> ponto 7 &nbsp; <b class="r">●</b> erro 3</div></div>' +
+    '<div class="c"><div class="lbl">Eficiência do time</div>' + [['Saque', 72, 'var(--azul)'], ['Recepção', 86, 'var(--verde)'], ['Ataque', 61, 'var(--amar)'], ['Bloqueio', 44, 'var(--rosa)']].map(function (r) {
+      return '<div class="row" style="border:0;padding:5px 0 0"><span>' + r[0] + '</span><b>' + r[1] + '%</b></div><div class="bar" style="margin-top:3px"><i style="width:' + r[1] + '%;background:' + r[2] + '"></i></div>'; }).join('') + '</div>';
+  var etapas = [['Demolição', 'ok'], ['Elétrica', 'ok'], ['Hidráulica', 'agora'], ['Piso', ''], ['Pintura', '']];
+  var telaObra =
+    '<div class="c" style="display:flex;gap:12px;align-items:center"><svg viewBox="0 0 70 70" style="width:70px;flex:none"><circle cx="35" cy="35" r="28" fill="none" stroke="#0c111c" stroke-width="8"/>' +
+      '<circle cx="35" cy="35" r="28" fill="none" stroke="#06b6d4" stroke-width="8" stroke-linecap="round" stroke-dasharray="' + (0.68 * 175.9).toFixed(1) + ' 175.9" transform="rotate(-90 35 35)"/>' +
+      '<text x="35" y="39" text-anchor="middle" fill="#fff" font-size="13" font-weight="800">68%</text></svg>' +
+      '<div><div class="lbl">Já foi</div><div style="font-family:Sora;font-weight:800;font-size:16px">R$ 41.300</div><div class="sub">de R$ 60.000 previstos · faltam 6 semanas</div></div></div>' +
+    '<div class="c"><div class="lbl">Etapas</div><div style="margin-top:6px">' + etapas.map(function (e, i) {
+      var cor = e[1] === 'ok' ? 'var(--verde)' : e[1] === 'agora' ? 'var(--amar)' : '#3b465e';
+      return '<div style="display:flex;gap:8px;align-items:center;position:relative;padding:3px 0">' +
+        '<span style="width:14px;height:14px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:8px;color:#062010;background:' + cor + (e[1] === 'agora' ? ';box-shadow:0 0 8px var(--amar)' : '') + '">' + (e[1] === 'ok' ? '✓' : '') + '</span>' +
+        '<span style="flex:1' + (e[1] ? '' : ';color:var(--tx3)') + '">' + e[0] + '</span><span class="sub">' + (e[1] === 'ok' ? 'feito' : e[1] === 'agora' ? 'em andamento' : ['', '', '', 'nov', 'dez'][i]) + '</span></div>';
+    }).join('') + '</div></div>' +
+    '<div class="c"><div class="lbl">Gasto por fornecedor</div><svg viewBox="0 0 240 70" style="width:100%;margin-top:6px">' +
+      [['Mão de obra', 16.2, '#06b6d4'], ['Elétrica', 9.8, '#3b82f6'], ['Hidráulica', 7.1, '#a855f7'], ['Material', 5.4, '#f59e0b'], ['Caçamba', 2.8, '#ec4899']].map(function (f, i) {
+        var h = f[1] / 16.2 * 40, x = 8 + i * 47;
+        return '<rect x="' + x + '" y="' + (52 - h) + '" width="34" height="' + h.toFixed(1) + '" rx="4" fill="' + f[2] + '"/><text x="' + (x + 17) + '" y="' + (48 - h) + '" text-anchor="middle" fill="#cbd5e1" font-size="7">' + String(f[1]).replace('.', ',') + 'k</text>' +
+          '<text x="' + (x + 17) + '" y="64" text-anchor="middle" fill="#64748b" font-size="6.5">' + f[0] + '</text>';
+      }).join('') + '</svg></div>';
   var exemplos = [
     { pedido: 'Cria um controle dos meus carros: abastecimento, revisão e IPVA',
-      resp: 'Pronto! Fiz o módulo <b>Carros</b>: abastecimentos com o consumo de cada um, a próxima revisão e o IPVA do ano.',
-      ic: '🚗', nome: 'Carros', custo: 'R$ 0,42', hora: '13:40', aba: 'Carros',
-      tela: '<div class="c"><div class="row" style="border:0;padding:0"><b>Civic 2019</b><span class="sub">ABC-1D23</span></div>' +
-        '<div class="mini"><div><b class="g">11,8</b><span class="sub">km/l no mês</span></div><div><b>R$ 612</b><span class="sub">combustível</span></div><div><b class="y">1.900</b><span class="sub">km p/ revisão</span></div></div></div>' +
-        '<div class="c"><div class="row" style="border:0;padding:0"><b>Strada 2022</b><span class="sub">EFG-4H56</span></div>' +
-        '<div class="mini"><div><b class="g">10,4</b><span class="sub">km/l no mês</span></div><div><b>R$ 845</b><span class="sub">combustível</span></div><div><b class="r">12/11</b><span class="sub">revisão</span></div></div></div>' +
-        '<div class="c"><div class="lbl">IPVA 2026</div><div class="row"><span>Civic · 3x</span><b>R$ 1.840</b></div><div class="row"><span>Strada · à vista</span><b class="g">pago</b></div></div>' +
-        '<div class="c"><div class="lbl">Último abastecimento</div><div class="row"><span>Posto Avenida · 42 L</span><b>R$ 247,80</b></div></div>' },
+      resp: 'Pronto! Fiz o módulo <b>Carros</b>: o consumo de cada um mês a mês, para onde vai o dinheiro e o aviso da próxima revisão.',
+      ic: '🚗', nome: 'Carros', custo: 'R$ 0,42', hora: '13:40', aba: 'Carros', tela: telaCarros },
     { pedido: 'Faz o scout das minhas atletas a cada partida, fundamento por fundamento',
-      resp: 'Pronto! Fiz o módulo <b>Scout</b>: você toca no fundamento durante o jogo e, no fim, sai o resumo de cada atleta.',
-      ic: '🏐', nome: 'Scout', custo: 'R$ 0,57', hora: '19:12', aba: 'Scout',
-      tela: '<div class="seg"><span class="on">Jogo de hoje</span><span>Temporada</span></div>' +
-        '<div class="c"><div class="lbl">Ana · ponteira</div><div class="mini"><div><b class="g">8</b><span class="sub">ataques</span></div><div><b>3</b><span class="sub">aces</span></div><div><b class="r">2</b><span class="sub">erros</span></div></div></div>' +
-        '<div class="c"><div class="lbl">Bia · líbero</div><div class="mini"><div><b class="g">86%</b><span class="sub">recepção</span></div><div><b>11</b><span class="sub">defesas</span></div><div><b class="r">1</b><span class="sub">erro</span></div></div></div>' +
-        '<div class="c"><div class="lbl">Carla · central</div><div class="mini"><div><b class="g">5</b><span class="sub">bloqueios</span></div><div><b>6</b><span class="sub">ataques</span></div><div><b class="r">3</b><span class="sub">erros</span></div></div></div>' +
-        '<div class="c"><div class="lbl">Resumo do time</div><div class="row"><span>Sets</span><b class="g">3 x 1</b></div><div class="row"><span>Ponto de saque</span><b>9</b></div></div>' }
+      resp: 'Pronto! Fiz o módulo <b>Scout</b>: você toca na quadra durante o jogo e sai o mapa de ataques e a eficiência de cada fundamento.',
+      ic: '🏐', nome: 'Scout', custo: 'R$ 0,57', hora: '19:12', aba: 'Scout', tela: telaScout },
+    { pedido: 'Acompanha a reforma: etapas, fornecedores e quanto já foi',
+      resp: 'Pronto! Fiz o módulo <b>Reforma</b>: quanto já foi do previsto, a etapa em que a obra está e o gasto por fornecedor.',
+      ic: '🏗️', nome: 'Reforma', custo: 'R$ 0,49', hora: '09:05', aba: 'Reforma', tela: telaObra }
   ];
   function add(q, html) {
     var d = document.createElement('div'); d.className = q === 'custo' ? 'custo' : 'msg ' + q; d.innerHTML = html; chat.appendChild(d);
