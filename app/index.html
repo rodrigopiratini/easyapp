@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.29.3 \u00b7 21/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.30.0 \u00b7 21/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -5900,6 +5900,7 @@ window.pedirTexto = function (o, feito) {
     '.ia-m.eu{margin-left:auto;background:#1d4ed8;color:#fff;border-bottom-right-radius:4px}' +
     '.ia-m.ele{background:#161d2c;border:1px solid #2a3548;border-bottom-left-radius:4px}' +
     '.ia-custo{font-size:11px;color:#8b99b5;margin:-2px 0 8px 4px}' +
+    '.ia-flag{display:block;margin:6px 0 -2px auto;background:none;border:0;color:#8b99b5;font-size:11px;cursor:pointer;padding:2px 0}' +
     '.ia-card{background:#161d2c;border:1px solid #3b82f6;border-radius:12px;padding:10px 12px;margin:6px 0 10px}' +
     '.ia-card .nm{font-weight:600;font-size:14px}.ia-card .sub{font-size:11.5px;color:#8b99b5;margin:2px 0 8px}' +
     '.ia-bts{display:flex;gap:6px}.ia-bts button{flex:1;padding:8px 6px;border-radius:9px;border:1px solid #2a3548;' +
@@ -6418,7 +6419,8 @@ window.pedirTexto = function (o, feito) {
       $('iaMsgs').innerHTML = '';
       if (!msgs.length) boasVindas();
       msgs.forEach(function (m) {
-        bolha(m.papel, m.texto);
+        var bm = bolha(m.papel, m.texto);
+        if (m.papel === 'assistant') sinalizavel(bm, m.texto);
         if (m.papel === 'assistant' && m.pedidos_ia) custo(Number(m.pedidos_ia.valor_cobrado), m.pedidos_ia.criado_em || m.criado_em);
         // o módulo que esta resposta montou continua a um toque: ver e aplicar
         // (antes, ao reabrir o chat, sobrava só o texto e não havia como aplicar)
@@ -6455,6 +6457,25 @@ window.pedirTexto = function (o, feito) {
     d.innerHTML = papel === 'user' ? esc(t).replace(/\n/g, '<br>') : texto(t);
     $('iaMsgs').appendChild(d);
     return d;
+  }
+  /* Sinalizar resposta (a Google Play exige, em app com IA generativa, um
+     jeito de denunciar dentro do app o que a IA respondeu). A denúncia vai
+     para ia_denuncias (052) e aparece no painel de gestão, aba IA e créditos. */
+  function sinalizavel(b, t) {
+    if (!b || !t) return;
+    var a = document.createElement('button');
+    a.className = 'ia-flag'; a.textContent = '⚑ Sinalizar';
+    a.onclick = function () {
+      window.pedirTexto({ titulo: 'Sinalizar esta resposta',
+        dica: 'A resposta foi ofensiva, perigosa ou errada? Conte o que houve (opcional). A equipe do EasyAPP vai analisar.',
+        placeholder: 'o que houve', ok: 'Enviar' }, function (motivo) {
+        motivo = String(motivo || '').trim().slice(0, 1000);
+        rest('/rest/v1/ia_denuncias', { metodo: 'POST', corpo: { resposta: String(t).slice(0, 8000), motivo: motivo || null } })
+          .then(function () { a.textContent = '⚑ Sinalizada'; a.disabled = true; toastIA('Obrigado! A resposta foi enviada para a equipe analisar.'); })
+          .catch(function () { toastIA('Não consegui enviar agora: tente de novo.'); });
+      });
+    };
+    b.appendChild(a);
   }
   function custo(v, quando) {
     var d = document.createElement('div');
@@ -6555,7 +6576,7 @@ window.pedirTexto = function (o, feito) {
       if (fim.t === 'erro') { bolha('assistant', fim.msg); return; }
       IA.hist.push({ papel: 'user', texto: (nomesAnx ? '📎 ' + nomesAnx + '\n' : '') + t },
                    { papel: 'assistant', texto: fim.resposta });
-      bolha('assistant', fim.resposta);
+      sinalizavel(bolha('assistant', fim.resposta), fim.resposta);
       custo(fim.custo.cobrado);
       if (fim.rascunho) cartaoRascunho(fim.rascunho);
       if (fim.proposta) cartaoProposta(fim.proposta);
@@ -6605,7 +6626,7 @@ window.pedirTexto = function (o, feito) {
           return;
         }
         IA.aguardando = null; a.b.remove();
-        bolha('assistant', m.texto);
+        sinalizavel(bolha('assistant', m.texto), m.texto);
         IA.hist.push({ papel: 'assistant', texto: m.texto });
         var pd = m.pedidos_ia || {};
         if (pd.valor_cobrado !== undefined && pd.valor_cobrado !== null) custo(Number(pd.valor_cobrado), pd.criado_em || m.criado_em);
