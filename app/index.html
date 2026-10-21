@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.28.1 \u00b7 20/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.29.0 \u00b7 21/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -5890,7 +5890,20 @@ window.pedirTexto = function (o, feito) {
     '#iaTela{padding:0}#iaTela iframe{display:block;width:100%;border:0;background:#0f1420;' +
     ' height:calc(100vh - 150px - env(safe-area-inset-bottom))}' +
     'nav.ia-muitos{overflow-x:auto;justify-content:flex-start;scrollbar-width:none}' +
-    'nav.ia-muitos::-webkit-scrollbar{display:none}nav.ia-muitos a{flex:0 0 66px}' +
+    'nav.ia-muitos::-webkit-scrollbar{display:none}nav.ia-muitos a{flex:0 0 46px}' +
+    '#iaGrupo{position:fixed;inset:0;z-index:9500;font:14px -apple-system,system-ui,sans-serif;color:#e8edf7}' +
+    '#iaGrupo .ia-gfundo{position:absolute;inset:0;background:#000a}' +
+    '#iaGrupo .ia-gfolha{position:absolute;left:0;right:0;bottom:0;max-height:75vh;overflow-y:auto;background:#121a29;border-top:1px solid #2a3548;' +
+    ' border-radius:18px 18px 0 0;padding:14px 14px calc(16px + env(safe-area-inset-bottom))}' +
+    '#iaGrupo .ia-gtopo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}#iaGrupo .ia-gtopo b{font-size:16px}' +
+    '#iaGrupo .ia-glista button{display:flex;align-items:center;gap:12px;width:100%;padding:12px 6px;border:0;border-bottom:1px solid #2a3548;' +
+    ' background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}' +
+    '#iaGrupo .ia-glista .ic{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:10px;background:#1b2538;font-size:18px}' +
+    '#iaGrupo .ia-glista .ic .ico{width:20px;height:20px}#iaGrupo .ia-glista .nm{flex:1;font-weight:600}#iaGrupo .ia-glista .sx{color:#8b99b5;font-size:20px}' +
+    '#iaGrupo .ia-gop button{display:block;width:100%;text-align:left;margin:0 0 8px;padding:12px 14px;border-radius:12px;border:1px solid #2a3548;' +
+    ' background:#161d2c;color:inherit;font:inherit;cursor:pointer}#iaGrupo .ia-gop button.rec{border-color:#3b82f6;box-shadow:0 0 0 1px #3b82f6}' +
+    '#iaGrupo .ia-gop b{display:block;font-size:15px}#iaGrupo .ia-gop span{display:block;color:#8b99b5;font-size:12.5px;margin-top:2px}' +
+    '#iaGrupo .ia-gdica{color:#8b99b5;font-size:12px;margin-top:10px}' +
     '#iaPrevBar{position:fixed;left:10px;right:76px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:940;' +
     ' background:#1e293b;border:1px solid #3b82f6;border-radius:12px;padding:8px 10px;display:flex;' +
     ' align-items:center;gap:8px;box-shadow:0 6px 18px #0009;font:13px -apple-system,system-ui,sans-serif;color:#e8edf7}' +
@@ -6086,33 +6099,118 @@ window.pedirTexto = function (o, feito) {
   }
 
   // ------------------------------------------- módulos no menu de baixo
-  // Todo módulo aplicado vira um item do menu, ao lado de Mês, Cartão...
+  // Módulo aplicado (lugar 'menu') ganha um item no menu, ao lado de Mês,
+  // Cartão... ou, se a pessoa escolheu (grupo = true, 051), entra no item
+  // "Módulos", que abre a lista de todos os que ela guardou ali.
+  var ICONE_GRUPO = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" ' +
+    'stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/>' +
+    '<rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg>';
+  var temGrupo = true;     // o banco já tem a coluna grupo (051)?
+  function lerModulosAtivos() {
+    return rest('/rest/v1/modulos?select=id,nome,icone,versao_ativa,lugar,grupo&versao_ativa=not.is.null&order=criado_em')
+      .then(function (r) { temGrupo = true; return r; })
+      .catch(function () {   // banco sem a 051 (sem grupo): todos no menu
+        temGrupo = false;
+        return rest('/rest/v1/modulos?select=id,nome,icone,versao_ativa,lugar&versao_ativa=not.is.null&order=criado_em')
+          .catch(function () {   // sem a 048 (sem lugar)
+            return rest('/rest/v1/modulos?select=id,nome,icone,versao_ativa&versao_ativa=not.is.null&order=criado_em');
+          });
+      });
+  }
   function menuDosModulos() {
-    return rest('/rest/v1/modulos?select=id,nome,icone,versao_ativa,lugar&versao_ativa=not.is.null&order=criado_em')
-      .catch(function () {   // banco sem a 048 (sem lugar): todos no menu
-        return rest('/rest/v1/modulos?select=id,nome,icone,versao_ativa&versao_ativa=not.is.null&order=criado_em');
-      })
-      .then(function (todos) {
+    return lerModulosAtivos().then(function (todos) {
         var nav = document.querySelector('nav'); if (!nav) return;
         Array.prototype.forEach.call(nav.querySelectorAll('a.ia-navmod'), function (a) { a.remove(); });
         widgets(todos.filter(function (m) { return m.lugar === 'mes'; }));
-        var mods = todos.filter(function (m) { return m.lugar !== 'mes'; });
-        mods.forEach(function (m) {
+        var tela = todos.filter(function (m) { return m.lugar !== 'mes'; });
+        var noGrupo = tela.filter(function (m) { return m.grupo; });
+        var proprios = tela.filter(function (m) { return !m.grupo; });
+        /* O menu nunca rola: cabem uns 42px por item. Os do menu que passarem
+           disso entram no item Módulos (só na tela; a escolha fica gravada). */
+        var fixos = itensNoMenu();
+        var cabe = Math.max(fixos + 1, Math.floor((nav.clientWidth || window.innerWidth || 360) / 42));
+        if (fixos + proprios.length + (noGrupo.length ? 1 : 0) > cabe) {
+          var livres = Math.max(0, cabe - fixos - 1);
+          noGrupo = proprios.slice(livres).concat(noGrupo);
+          proprios = proprios.slice(0, livres);
+        }
+        var config = nav.querySelector('a[data-t=config]');
+        proprios.forEach(function (m) {
           var a = document.createElement('a');
           a.href = '#'; a.className = 'ia-navmod'; a.dataset.t = 'mod-' + m.id;
           a.innerHTML = '<b>' + iconeMenu(m.icone) + '</b>' + esc(m.nome);
           a.onclick = function (e) { e.preventDefault(); abrirNaTela(m, a); };
           // antes do Config, que fica sempre na ponta
-          nav.insertBefore(a, nav.querySelector('a[data-t=config]'));
+          nav.insertBefore(a, config);
         });
+        var grp = null;
+        if (noGrupo.length) {
+          grp = document.createElement('a');
+          grp.href = '#'; grp.className = 'ia-navmod ia-navgrupo'; grp.dataset.t = 'mod-grupo';
+          grp.innerHTML = '<b>' + ICONE_GRUPO + '</b>Módulos';
+          grp.onclick = function (e) { e.preventDefault(); abrirGrupo(noGrupo, grp); };
+          nav.insertBefore(grp, config);
+        }
         if (window.ajustarNav) window.ajustarNav();
         // o módulo aberto na tela troca para a versão que ficou em uso (ou sai, se foi desligado)
         var aberto = quadros.filter(function (x) { return x.tipo === 'tela'; })[0];
         if (aberto && !$('iaTela').classList.contains('hide')) {
-          var lk = nav.querySelector('a.ia-navmod[data-t="mod-' + aberto.modulo + '"]');
-          if (lk) lk.onclick({ preventDefault: function () {} }); else window.irParaTela('mes');
+          var m2 = tela.filter(function (m) { return m.id === aberto.modulo; })[0];
+          var lk = m2 && (nav.querySelector('a.ia-navmod[data-t="mod-' + m2.id + '"]') || grp);
+          if (m2 && lk) abrirNaTela(m2, lk); else window.irParaTela('mes');
         }
       }).catch(function () {});
+  }
+  // a lista do item "Módulos": toca e abre na tela, como os do menu
+  function abrirGrupo(lista, link) {
+    fecharGrupo();
+    var f = document.createElement('div'); f.id = 'iaGrupo';
+    f.innerHTML = '<div class="ia-gfundo"></div><div class="ia-gfolha"><div class="ia-gtopo"><b>Módulos</b>' +
+      '<button class="ia-x" aria-label="fechar">×</button></div><div class="ia-glista">' +
+      lista.map(function (m, i) {
+        return '<button data-i="' + i + '"><span class="ic">' + iconeMenu(m.icone) + '</span><span class="nm">' + esc(m.nome) + '</span><span class="sx">›</span></button>';
+      }).join('') + '</div><div class="ia-gdica">Para pôr um no menu de baixo: Assistente → Módulos → <b>Pôr no menu</b>.</div></div>';
+    document.body.appendChild(f);
+    f.querySelector('.ia-gfundo').onclick = fecharGrupo;
+    f.querySelector('.ia-x').onclick = fecharGrupo;
+    Array.prototype.forEach.call(f.querySelectorAll('[data-i]'), function (b) {
+      b.onclick = function () { fecharGrupo(); abrirNaTela(lista[+b.dataset.i], link); };
+    });
+  }
+  function fecharGrupo() { var g = $('iaGrupo'); if (g) g.remove(); }
+  // muda o módulo de lugar: menu de baixo <-> item Módulos
+  function moverModulo(id, grupo) {
+    return rest('/rest/v1/modulos?id=eq.' + id, { metodo: 'PATCH', corpo: { grupo: !!grupo }, prefer: 'return=minimal' })
+      .then(menuDosModulos);
+  }
+  // quantos itens o menu de baixo mostra agora (o que a pessoa vê)
+  function itensNoMenu() {
+    var nav = document.querySelector('nav'); if (!nav) return 0;
+    return Array.prototype.filter.call(nav.querySelectorAll('a'), function (x) { return x.style.display !== 'none'; }).length;
+  }
+  /* Módulo novo: onde ele fica? No menu de baixo (um botão só dele) ou no
+     item Módulos, junto com os outros. Com o menu cheio, o grupo vem marcado
+     como o recomendado. */
+  function perguntarLugar(m) {
+    var nav = document.querySelector('nav');
+    var temItemGrupo = !!(nav && nav.querySelector('a.ia-navgrupo'));
+    var cheio = itensNoMenu() >= 6;
+    var f = document.createElement('div'); f.id = 'iaGrupo';
+    f.innerHTML = '<div class="ia-gfundo"></div><div class="ia-gfolha"><div class="ia-gtopo"><b>Onde fica ' + iconeTexto(m.icone) + ' ' + esc(m.nome) + '?</b></div>' +
+      '<div class="ia-gop">' +
+      '<button data-g="0"' + (cheio ? '' : ' class="rec"') + '><b>No menu de baixo</b><span>Um botão só dele, ao lado de Mês e Cartão.' +
+        (cheio ? ' O menu já está cheio: os nomes ficam menores.' : '') + '</span></button>' +
+      '<button data-g="1"' + (cheio ? ' class="rec"' : '') + '><b>Em Módulos</b><span>Junto com os outros que você criou, num item só' +
+        (temItemGrupo ? '' : ' (ele aparece no menu)') + '. Deixa o menu limpo.</span></button></div>' +
+      '<div class="ia-gdica">Dá para mudar depois: Assistente → Módulos.</div></div>';
+    document.body.appendChild(f);
+    var escolher = function (g) {
+      fecharGrupo();
+      moverModulo(m.id, g).then(function () { toastIA(g ? 'Está em Módulos, no menu de baixo' : 'Está no menu de baixo'); })
+        .catch(function (e) { toastIA('Não consegui: ' + e.message); });
+    };
+    f.querySelector('.ia-gfundo').onclick = function () { escolher(cheio); };
+    Array.prototype.forEach.call(f.querySelectorAll('[data-g]'), function (b) { b.onclick = function () { escolher(b.dataset.g === '1'); }; });
   }
   /* Widgets: módulos com lugar 'mes' viram cartões no alto da tela Mês, cada
      um no seu quadro isolado (a mesma ponte EASY), com a altura do conteúdo. */
@@ -6738,12 +6836,21 @@ window.pedirTexto = function (o, feito) {
   }
 
   function aplicar(versao, cartao) {
-    return rest('/rest/v1/rpc/ativar_versao', { metodo: 'POST', corpo: { p_versao: versao } })
-      .then(function () {
+    // antes: o módulo já estava no app? (só o que entra pela primeira vez pergunta onde fica)
+    var antes = rest('/rest/v1/modulo_versoes?select=modulo_id&id=eq.' + versao).then(function (v) {
+      return v && v[0] ? rest('/rest/v1/modulos?select=id,versao_ativa&id=eq.' + v[0].modulo_id).then(function (m) { return m && m[0]; }) : null;
+    }).catch(function () { return null; });
+    return antes.then(function (m0) {
+      return rest('/rest/v1/rpc/ativar_versao', { metodo: 'POST', corpo: { p_versao: versao } }).then(function () { return m0; });
+    }).then(function (m0) {
         if (cartao) cartao.querySelector('.sub').textContent = 'aplicado · está em Meus módulos';
         if (cartao) cartao.querySelector('.ia-bts').remove();
-        toastIA('Módulo aplicado: já está no app');
-        menuDosModulos();
+        return menuDosModulos().then(function () {
+          if (!m0 || m0.versao_ativa || !temGrupo) { toastIA('Módulo aplicado: já está no app'); return; }
+          return rest('/rest/v1/modulos?select=id,nome,icone,lugar&id=eq.' + m0.id).then(function (m) {
+            if (m && m[0] && m[0].lugar !== 'mes') perguntarLugar(m[0]); else toastIA('Módulo aplicado: já está no app');
+          });
+        });
       }).catch(function (e) { toastIA('Não consegui aplicar: ' + e.message); });
   }
   function descartar(versao, cartao) {
@@ -6906,7 +7013,8 @@ window.pedirTexto = function (o, feito) {
     var c = $('iaMods');
     if (!c.children.length) c.innerHTML = barrinhas();
     return Promise.all([
-      rest('/rest/v1/modulos?select=id,nome,descricao,icone,versao_ativa,lugar&order=criado_em'),
+      rest('/rest/v1/modulos?select=id,nome,descricao,icone,versao_ativa,lugar,grupo&order=criado_em')
+        .catch(function () { return rest('/rest/v1/modulos?select=id,nome,descricao,icone,versao_ativa,lugar&order=criado_em'); }),
       rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado,pedido,criado_em,icone,nome&order=numero.desc')
         .catch(function () { return rest('/rest/v1/modulo_versoes?select=id,modulo_id,numero,estado,pedido,criado_em&order=numero.desc'); }),
       rest('/rest/v1/aparencia_versoes?select=id,numero,estado,descricao,css,menus,pedido,criado_em&order=numero.desc'),
@@ -6932,6 +7040,7 @@ window.pedirTexto = function (o, feito) {
           ((o.abrir || o.pedir) ? '<div class="ia-bts" style="margin-top:8px">' +
             (o.abrir ? '<button class="ok" data-a="abrir">Abrir</button>' : '') +
             (o.pedir ? '<button data-a="pedir">✦ Pedir mudança</button>' : '') + '</div>' : '') +
+          (o.mover ? '<div class="ia-bts" style="margin-top:6px"><button data-a="mover">' + o.mover.rot + '</button></div>' : '') +
           (o.versoes.length ? '<button class="ia-hist">' + (abertos[o.chave] ? '▾' : '▸') + ' Histórico de versões (' + o.versoes.length + ')</button>' : '') +
           '<div class="ia-versoes"' + (abertos[o.chave] ? '' : ' hidden') + '></div>';
         var alterna = function () {
@@ -6948,6 +7057,7 @@ window.pedirTexto = function (o, feito) {
         };
         if (o.abrir) d.querySelector('[data-a=abrir]').onclick = o.abrir;
         if (o.pedir) d.querySelector('[data-a=pedir]').onclick = o.pedir;
+        if (o.mover) d.querySelector('[data-a=mover]').onclick = function () { this.disabled = true; o.mover.fn().then(listarModulos, falha); };
         var lv = d.querySelector('.ia-versoes');
         o.versoes.forEach(function (v) {
           var x = document.createElement('div'); x.className = 'ia-ver2' + (v.atual ? ' atual' : '');
@@ -6971,11 +7081,14 @@ window.pedirTexto = function (o, feito) {
         cartao({
           chave: m.id, ativo: !!ativa,
           titulo: iconeTexto(m.icone) + ' ' + esc(m.nome),
-          sub: (ativa ? 'ativo · versão ' + ativa.numero : 'desativado') + ' · ' + (m.lugar === 'mes' ? 'cartão na tela Mês' : 'menu de baixo') +
+          sub: (ativa ? 'ativo · versão ' + ativa.numero : 'desativado') + ' · ' + (m.lugar === 'mes' ? 'cartão na tela Mês' : m.grupo ? 'em Módulos' : 'menu de baixo') +
                ' · ' + vs.length + (vs.length === 1 ? ' versão' : ' versões') +
                (custoMod[m.id] ? ' · custou <b>' + reais(custoMod[m.id]) + '</b>' : ''),
           abrir: ativa ? function () { abrirModulo(m.id, ativa.id, m.nome); } : null,
           pedir: function () { aba('chat'); focar(m); $('iaTxt').focus(); },
+          mover: (ativa && m.lugar !== 'mes' && m.grupo !== undefined) ? (m.grupo
+            ? { rot: '⬇ Pôr no menu de baixo', fn: function () { return moverModulo(m.id, false); } }
+            : { rot: '▦ Guardar em Módulos', fn: function () { return moverModulo(m.id, true); } }) : null,
           ligar: function () { return aplicar(vs[0].id, null); },          // a mais nova
           desligar: function () { return desativarModulo(m).then(menuDosModulos); },
           versoes: vs.map(function (v) {
@@ -8715,7 +8828,10 @@ window.pedirTexto = function (o, feito) {
                border-radius:9px;padding:8px 9px;font:inherit;font-size:13.5px;margin-top:5px}
   nav{position:fixed;bottom:0;left:0;right:0;z-index:60;display:flex;background:#121a29;
       border-top:1px solid var(--line);padding:6px 0 max(6px,env(safe-area-inset-bottom))}
-  nav a{flex:1;text-align:center;color:var(--dim);text-decoration:none;font-size:11px;padding:6px 0}
+  nav a{flex:1 1 0;min-width:0;text-align:center;color:var(--dim);text-decoration:none;font-size:11px;padding:6px 2px;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  nav.nav-6 a{font-size:10px} nav.nav-6 a b .ico{width:20px;height:20px}
+  nav.nav-7 a{font-size:9px;padding:6px 1px;letter-spacing:-.1px} nav.nav-7 a b{font-size:16px} nav.nav-7 a b .ico{width:19px;height:19px}
   nav a.on{color:var(--acc)}
   nav a b{display:block;font-size:19px;line-height:1.1;font-weight:400}
   /* ícones de traço: cinza como o texto, azul na aba aberta (currentColor) */
@@ -9362,13 +9478,20 @@ function aplicarModelo(){
   ajustarNav();
   if(ST.telaAtual && !recursoLiberado(ST.telaAtual)) irParaTela('mes');
 }
-/* Menu de baixo: até 6 itens à vista dividem a largura por igual; com mais,
-   ele rola de lado. Conta só os que aparecem (o essencial esconde dois). */
+/* Menu de baixo: os itens à vista dividem a largura por igual. Cada um
+   precisa de uns 42px: a letra e o ícone diminuem conforme entram itens, o
+   nome longo termina em "...", e só quando nem assim cabe (tela estreita com
+   muitos módulos no menu) ele rola de lado. Conta só os que aparecem (o
+   essencial esconde dois). */
 function ajustarNav(){
   var nav=document.querySelector('nav'); if(!nav) return;
   var vis=Array.prototype.filter.call(nav.querySelectorAll('a'), function(x){ return x.style.display!=='none'; }).length;
-  nav.classList.toggle('ia-muitos', vis>6);
+  var larg=(nav.clientWidth||window.innerWidth||360)/Math.max(vis,1);
+  nav.classList.toggle('nav-6', larg<66 && larg>=56);
+  nav.classList.toggle('nav-7', larg<56);
+  nav.classList.toggle('ia-muitos', larg<42);
 }
+window.addEventListener('resize', function(){ ajustarNav(); });
 window.ajustarNav=ajustarNav;
 function carregarModelo(){
   if(!window.EASYAPP_PONTE) return;
