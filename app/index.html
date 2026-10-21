@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.29.1 \u00b7 21/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.29.2 \u00b7 21/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -5865,7 +5865,7 @@ window.pedirTexto = function (o, feito) {
     '.ia-top b{font-size:16px}.ia-top .sp{flex:1}' +
     '.ia-chip{font-size:11.5px;color:#8b99b5;border:1px solid #2a3548;border-radius:12px;padding:3px 9px;white-space:nowrap}' +
     '.ia-x{background:none;border:0;color:#8b99b5;font-size:24px;line-height:1;padding:0 4px;cursor:pointer}' +
-    // Chat / Histórico / Módulos: abas com sublinhado (outro tipo de botão que o motor)
+    // Chat / Alterações / Módulos: abas com sublinhado (outro tipo de botão que o motor)
     '.ia-abas{display:flex;gap:0;padding:4px 12px 0;border-bottom:1px solid #2a3548}' +
     '.ia-abas button{flex:1;padding:9px 8px;border:0;border-bottom:2px solid transparent;background:none;color:#8b99b5;font-size:13.5px;font-weight:600}' +
     '.ia-abas button.on{color:#e8edf7;border-bottom-color:#3b82f6}' +
@@ -5968,7 +5968,7 @@ window.pedirTexto = function (o, feito) {
       '<div class="ia-saldo" id="iaMes"></div>' +
       '<div class="ia-motor" id="iaMotor"></div>' +
       '<div class="ia-abas"><button id="iaAbaChat" class="on">Chat</button>' +
-      '<button id="iaAbaHist">Histórico</button>' +
+      '<button id="iaAbaHist">Alterações</button>' +
       '<button id="iaAbaMods">Módulos</button></div>' +
       '<div id="iaMsgs"></div><div id="iaHist" hidden></div><div id="iaMods" hidden></div>' +
       '<div class="ia-anx" id="iaAnx" hidden></div>' +
@@ -6572,7 +6572,7 @@ window.pedirTexto = function (o, feito) {
         if (!m) {
           if (Date.now() > a.fim) {
             IA.aguardando = null;
-            a.b.innerHTML = 'A resposta não chegou. Se o pedido mudou algo, aparece no Histórico; se não, mande de novo.';
+            a.b.innerHTML = 'A resposta não chegou. Se o pedido mudou algo, aparece em Alterações (dados) ou em Módulos; se não, mande de novo.';
             return;
           }
           a.timer = setTimeout(checarAguardando, document.hidden ? 15000 : 5000);
@@ -6942,57 +6942,41 @@ window.pedirTexto = function (o, feito) {
       .catch(function () { return []; });
   }
 
-  /* Histórico: toda alteração que o assistente fez, com data, custo e o que
-     mudou. Desfeita, ela sai da lista. */
+  /* Alterações: o que o assistente mudou nos DADOS (contas, lançamentos,
+     previstos...), pedido por pedido, com o Desfazer do pedido inteiro.
+     Versões de módulo e de layout ficam só na aba Módulos. */
   function listarHistorico() {
     var c = $('iaHist');
     c.innerHTML = barrinhas();
     Promise.all([
-      rest('/rest/v1/pedidos_ia?select=id,criado_em,pedido,valor_cobrado,lote,alteracoes,modulo_id,versao_id,aparencia_id' +
-           '&or=(alteracoes.gt.0,versao_id.not.is.null,aparencia_id.not.is.null)&order=criado_em.desc&limit=60'),
-      nomesCategorias(),
-      rest('/rest/v1/modulos?select=id,nome,icone'),
-      rest('/rest/v1/modulo_versoes?select=id,numero,estado'),
-      rest('/rest/v1/aparencia_versoes?select=id,numero,estado,descricao')
+      rest('/rest/v1/pedidos_ia?select=id,criado_em,pedido,valor_cobrado,lote,alteracoes' +
+           '&alteracoes=gt.0&lote=not.is.null&order=criado_em.desc&limit=60'),
+      nomesCategorias()
     ]).then(function (R) {
       var peds = R[0], nomes = R[1];
-      var mods = {}, vers = {}, aps = {};
-      R[2].forEach(function (m) { mods[m.id] = m; });
-      R[3].forEach(function (v) { vers[v.id] = v; });
-      R[4].forEach(function (v) { aps[v.id] = v; });
-      var lotes = peds.filter(function (p) { return p.lote && p.alteracoes > 0; }).map(function (p) { return p.lote; });
+      var lotes = peds.map(function (p) { return p.lote; });
       return (lotes.length
         ? rest('/rest/v1/ia_alteracoes?select=lote,tabela,operacao,chave,antes,depois&desfeita=is.false&order=id&lote=in.(' + lotes.join(',') + ')')
         : Promise.resolve([])).then(function (alts) {
         var porLote = {};
         alts.forEach(function (a) { (porLote[a.lote] = porLote[a.lote] || []).push(a); });
-        var h = '', total = 0;
+        var h = '';
         peds.forEach(function (p) {
-          var linhas = [];
-          if (p.lote && porLote[p.lote]) linhas = linhas.concat(descrever(porLote[p.lote], nomes));
-          var v = p.versao_id && vers[p.versao_id], m = p.modulo_id && mods[p.modulo_id];
-          if (v && v.estado !== 'descartada' && m) {
-            linhas.push('<div>🧩 módulo <b>' + iconeTexto(m.icone) + ' ' + esc(m.nome) + '</b> <small>versão ' + v.numero + ' · ' +
-              (v.estado === 'ativa' ? 'no ar' : v.estado === 'rascunho' ? 'rascunho' : 'versão antiga') + '</small></div>');
-          }
-          var ap = p.aparencia_id && aps[p.aparencia_id];
-          if (ap && ap.estado !== 'descartada') {
-            linhas.push('<div>🎨 aparência: <b>' + esc(ap.descricao || 'mudança visual') + '</b> <small>' +
-              (ap.estado === 'ativa' ? 'em uso' : ap.estado === 'rascunho' ? 'rascunho' : 'versão antiga') + '</small></div>');
-          }
-          if (!linhas.length) return;                     // tudo desfeito: sai da lista
-          total += Number(p.valor_cobrado || 0);
+          if (!porLote[p.lote]) return;                    // desfeito: sai da lista
+          var linhas = descrever(porLote[p.lote], nomes);
+          if (!linhas.length) return;
           var d = new Date(p.criado_em);
           h += '<div class="ia-h"><div class="q">' + esc(String(p.pedido || '').replace(/^\[📎[^\]]*\]\s*/, '📎 ').slice(0, 140)) + '</div>' +
             '<div class="w">' + ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + ' ' +
             ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ' · custou <b>' + reais(p.valor_cobrado) + '</b></div>' +
             '<div class="ia-mud">' + linhas.join('') + '</div>' +
-            (p.lote && porLote[p.lote] ? '<div class="ia-bts"><button class="no" data-lote="' + p.lote + '">Desfazer</button></div>' : '') +
-            '</div>';
+            '<div class="ia-bts"><button class="no" data-lote="' + p.lote + '">Desfazer</button></div></div>';
         });
         c.innerHTML = h ? '<div class="m" style="font-size:12px;color:#8b99b5;margin:0 2px 8px">' +
-            'Tudo o que o assistente mudou no seu app. Desfeito, sai da lista.</div>' + h
-          : '<div class="ia-vazio">Nenhuma alteração ainda.<br>O que o assistente mudar aparece aqui.</div>';
+            'O que o assistente mudou nos seus dados (contas, lançamentos, previstos). Desfeito, sai da lista. ' +
+            'As versões dos módulos e do layout estão na aba Módulos.</div>' + h
+          : '<div class="ia-vazio">Nenhuma alteração nos seus dados ainda.<br>Quando o assistente mudar contas, lançamentos ou previstos, aparece aqui com o Desfazer.' +
+            '<br><br>As versões dos módulos e do layout estão na aba Módulos.</div>';
         Array.prototype.forEach.call(c.querySelectorAll('[data-lote]'), function (b) {
           b.onclick = function () {
             if (!confirm('Desfazer tudo o que este pedido mudou?')) return;
