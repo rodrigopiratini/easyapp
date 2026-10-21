@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.29.0 \u00b7 21/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.29.1 \u00b7 21/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6183,6 +6183,21 @@ window.pedirTexto = function (o, feito) {
     return rest('/rest/v1/modulos?id=eq.' + id, { metodo: 'PATCH', corpo: { grupo: !!grupo }, prefer: 'return=minimal' })
       .then(menuDosModulos);
   }
+  /* Excluir um módulo: sai do app com todas as versões e os dados que ele
+     guardou (registros, on delete cascade). Não tem volta: o aviso diz
+     quantos dados vão junto. */
+  function confirmarExclusao(m) {
+    return rest('/rest/v1/registros?select=id&modulo_id=eq.' + m.id + '&limit=10000').catch(function () { return []; })
+      .then(function (r) {
+        var n = (r || []).length;
+        return confirm('Excluir o módulo ' + m.nome + '?\n\nSaem o botão, todas as versões' +
+          (n ? ' e os ' + n + (n === 1 ? ' registro' : ' registros') + ' que ele guardou' : '') +
+          '. Não dá para desfazer.\n\nSe quiser só tirar da tela, use a chave para desligar.');
+      });
+  }
+  function excluirModulo(m) {
+    return rest('/rest/v1/modulos?id=eq.' + m.id, { metodo: 'DELETE', prefer: 'return=minimal' }).then(menuDosModulos);
+  }
   // quantos itens o menu de baixo mostra agora (o que a pessoa vê)
   function itensNoMenu() {
     var nav = document.querySelector('nav'); if (!nav) return 0;
@@ -7040,7 +7055,9 @@ window.pedirTexto = function (o, feito) {
           ((o.abrir || o.pedir) ? '<div class="ia-bts" style="margin-top:8px">' +
             (o.abrir ? '<button class="ok" data-a="abrir">Abrir</button>' : '') +
             (o.pedir ? '<button data-a="pedir">✦ Pedir mudança</button>' : '') + '</div>' : '') +
-          (o.mover ? '<div class="ia-bts" style="margin-top:6px"><button data-a="mover">' + o.mover.rot + '</button></div>' : '') +
+          ((o.mover || o.excluir) ? '<div class="ia-bts" style="margin-top:6px">' +
+            (o.mover ? '<button data-a="mover">' + o.mover.rot + '</button>' : '') +
+            (o.excluir ? '<button class="no" data-a="excluir">🗑 Excluir</button>' : '') + '</div>' : '') +
           (o.versoes.length ? '<button class="ia-hist">' + (abertos[o.chave] ? '▾' : '▸') + ' Histórico de versões (' + o.versoes.length + ')</button>' : '') +
           '<div class="ia-versoes"' + (abertos[o.chave] ? '' : ' hidden') + '></div>';
         var alterna = function () {
@@ -7058,6 +7075,14 @@ window.pedirTexto = function (o, feito) {
         if (o.abrir) d.querySelector('[data-a=abrir]').onclick = o.abrir;
         if (o.pedir) d.querySelector('[data-a=pedir]').onclick = o.pedir;
         if (o.mover) d.querySelector('[data-a=mover]').onclick = function () { this.disabled = true; o.mover.fn().then(listarModulos, falha); };
+        if (o.excluir) d.querySelector('[data-a=excluir]').onclick = function () {
+          var b = this;
+          o.excluir.confirmar().then(function (ok) {
+            if (!ok) return;
+            b.disabled = true;
+            o.excluir.fn().then(function () { toastIA('Módulo excluído'); listarModulos(); }, falha);
+          });
+        };
         var lv = d.querySelector('.ia-versoes');
         o.versoes.forEach(function (v) {
           var x = document.createElement('div'); x.className = 'ia-ver2' + (v.atual ? ' atual' : '');
@@ -7086,6 +7111,7 @@ window.pedirTexto = function (o, feito) {
                (custoMod[m.id] ? ' · custou <b>' + reais(custoMod[m.id]) + '</b>' : ''),
           abrir: ativa ? function () { abrirModulo(m.id, ativa.id, m.nome); } : null,
           pedir: function () { aba('chat'); focar(m); $('iaTxt').focus(); },
+          excluir: { confirmar: function () { return confirmarExclusao(m); }, fn: function () { return excluirModulo(m); } },
           mover: (ativa && m.lugar !== 'mes' && m.grupo !== undefined) ? (m.grupo
             ? { rot: '⬇ Pôr no menu de baixo', fn: function () { return moverModulo(m.id, false); } }
             : { rot: '▦ Guardar em Módulos', fn: function () { return moverModulo(m.id, true); } }) : null,
