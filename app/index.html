@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.29.2 \u00b7 21/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.29.3 \u00b7 21/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -465,21 +465,44 @@ window.pedirTexto = function (o, feito) {
               + '&meio=in.(CARTAO_CREDITO,PAGAMENTO_FATURA)&status=neq.IGNORADO'
               + '&mes_ref=gte.' + de + '&mes_ref=lte.' + ate),
       // o que de fato passou pela conta: tudo que não é compra no cartão
-      lerTudo('/rest/v1/lancamentos?select=mes_ref,valor,meio,natureza,categorias(natureza)'
+      lerTudo('/rest/v1/lancamentos?select=mes_ref,data,valor,meio,natureza,categorias(natureza)'
               + '&meio=neq.CARTAO_CREDITO&status=neq.IGNORADO'
               + '&mes_ref=gte.' + de + '&mes_ref=lte.' + ate)
     ]).then(function (R) {
-      var c = R[0], porMes = {}, fat = {}, naConta = {};
+      var c = R[0], porMes = {}, fat = {}, naConta = {}, transf = {};
+      var soma = function (l) {
+        var x = naConta[l.mes_ref] = naConta[l.mes_ref] || { entrou: 0, saiu: 0 };
+        var v = Number(l.valor) || 0;
+        if (l.meio === 'PAGAMENTO_FATURA' || l.natureza === 'DESPESA') x.saiu += v;
+        else if (l.natureza === 'RECEITA') x.entrou += v;
+      };
       R[3].forEach(function (l) {
         /* Transferência entre contas suas sai de uma e entra na outra: no
            mês ela não é entrada nem saída. Contada, o Plano mostrava os
            a transferência da PJ para a PF dos dois lados (entrada e saída infladas).
            O pagamento da fatura fica: ele é dinheiro saindo de verdade. */
-        if (((l.categorias || {}).natureza) === 'TRANSFERENCIA' && l.meio !== 'PAGAMENTO_FATURA') return;
-        var x = naConta[l.mes_ref] = naConta[l.mes_ref] || { entrou: 0, saiu: 0 };
-        var v = Number(l.valor) || 0;
-        if (l.meio === 'PAGAMENTO_FATURA' || l.natureza === 'DESPESA') x.saiu += v;
-        else if (l.natureza === 'RECEITA') x.entrou += v;
+        if (((l.categorias || {}).natureza) === 'TRANSFERENCIA' && l.meio !== 'PAGAMENTO_FATURA') {
+          (transf[l.mes_ref] = transf[l.mes_ref] || []).push(l); return;
+        }
+        soma(l);
+      });
+      /* Só sai da conta a transferência com os DOIS lados aqui (o mesmo valor
+         saindo e entrando em até 4 dias) - a mesma regra do Extrato. A que
+         tem um lado só (o pagamento de fatura lançado como transferência, o
+         Pix para uma conta que não está no app) é dinheiro que entrou ou saiu
+         de fato; antes ela sumia daqui e o Mês e o Extrato não batiam. */
+      Object.keys(transf).forEach(function (m) {
+        var l = transf[m], par = {};
+        l.forEach(function (a, i) {
+          if (par[i] || a.natureza !== 'RECEITA') return;
+          for (var j = 0; j < l.length; j++) {
+            var b = l[j];
+            if (j === i || par[j] || b.natureza !== 'DESPESA') continue;
+            if (Math.abs(Math.abs(+b.valor) - Math.abs(+a.valor)) < 0.005 &&
+                Math.abs(new Date(b.data).getTime() - new Date(a.data).getTime()) <= 4 * 864e5) { par[i] = par[j] = true; break; }
+          }
+        });
+        l.forEach(function (x, i) { if (!par[i]) soma(x); });
       });
       R[1].forEach(function (l) { (porMes[l.mes_ref] = porMes[l.mes_ref] || []).push(l); });
       var cartaoPorConta = {};   // compra no cartão por conta, por mês
@@ -885,7 +908,7 @@ window.pedirTexto = function (o, feito) {
          Os dois ficam na lista - são movimentos de cada conta -, mas não somam
          no Entrou/Saiu. Com só um lado à vista (filtro PF, e o outro lado no
          PJ), o dinheiro de fato entrou ou saiu daquele conjunto e soma. */
-      var transf = itens.filter(function (x) { return x.categoria === CAT_TRANSF; });
+      var transf = itens.filter(function (x) { return x.categoria === CAT_TRANSF && x.status !== 'IGNORADO'; });
       var anula = {};
       transf.forEach(function (a) {
         if (anula[a.id] || !a.credito) return;
@@ -897,6 +920,9 @@ window.pedirTexto = function (o, feito) {
       });
       var saldo = inicial;
       ordem.forEach(function (x) {
+        // ignorado fica na lista, mas não é dinheiro: não soma nem mexe no
+        // saldo (contava, e o Entrou/Saiu e o Final não batiam com a tela Mês)
+        if (x.status === 'IGNORADO') { x.saldo = n(saldo); x.foraDoSaldo = true; return; }
         saldo += (x.credito || 0) - (x.debito || 0);
         x.saldo = n(saldo);
         if (anula[x.id]) { x.entreContas = true; return; }
@@ -907,7 +933,7 @@ window.pedirTexto = function (o, feito) {
       if (busca) {
         itens = itens.filter(function (x) { return bateBusca(x, busca); });
         cred = 0; deb = 0;
-        itens.forEach(function (x) { if (!x.entreContas) { cred += x.credito || 0; deb += x.debito || 0; } });
+        itens.forEach(function (x) { if (!x.entreContas && !x.foraDoSaldo) { cred += x.credito || 0; deb += x.debito || 0; } });
       }
       return { mes: mes, itens: itens, total: itens.length,
                creditos: n(cred), debitos: n(deb),
