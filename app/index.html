@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.32.2 \u00b7 22/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.32.3 \u00b7 22/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -848,13 +848,15 @@ window.pedirTexto = function (o, feito) {
     var g = _aberturaCache[chave];
     if (g && Date.now() - g.t < 120000) return Promise.resolve(g.v);   // 2 min, como a projeção
     return Promise.all([
-      rest('/rest/v1/saldos_contas?select=nome,titular,saldo_inicial,saldo_desde'),
+      rest('/rest/v1/saldos_contas?select=nome,tipo,titular,saldo_inicial,saldo_desde'),
       lerTudo('/rest/v1/lancamentos?select=data,valor,natureza,meio,contas(nome)'
               + '&meio=neq.CARTAO_CREDITO&status=neq.IGNORADO&origem=neq.HISTORICO')
     ]).then(function (r) {
       var vale = {}, desde = {}, inicial = 0;
       r[0].forEach(function (c) {
-        if (c.titular === 'INV') return;           // investimento nao e caixa do mes
+        // só conta corrente, a MESMA regra do "Saldo em conta hoje" do Mês
+        // (cartão e conta de investimento ficavam aqui e o Final não batia)
+        if (c.titular === 'INV' || (c.tipo && c.tipo !== 'CORRENTE')) return;
         if (filtro && filtro !== 'TUDO' && c.titular !== filtro) return;
         vale[c.nome] = true;
         desde[c.nome] = c.saldo_desde ? new Date(c.saldo_desde + 'T12:00:00').getTime() : 0;
@@ -872,7 +874,7 @@ window.pedirTexto = function (o, feito) {
         if (t >= ancora && t < corte) mov += sinal;
         else if (t >= corte && t < ancora) mov -= sinal;
       });
-      _aberturaCache[chave] = { v: n(inicial + mov), t: Date.now() };
+      _aberturaCache[chave] = { v: { inicial: n(inicial + mov), vale: vale }, t: Date.now() };
       return _aberturaCache[chave].v;
     });
   }
@@ -904,7 +906,7 @@ window.pedirTexto = function (o, feito) {
     return Promise.all([lerTudo(q), saldoAberturaDoMes(mes, filtro)]).then(function (r) {
       // o mais recente em cima; no mesmo dia, o que entrou por último
       var itens = r[0].map(function (l) { return paraItem(l); }).sort(maisNovoPrimeiro);
-      var inicial = r[1];
+      var inicial = r[1].inicial, vale = r[1].vale;
       var cred = 0, deb = 0;
       // do mais antigo para o mais novo, para o saldo correr na ordem certa
       var ordem = itens.slice().reverse();
@@ -928,6 +930,13 @@ window.pedirTexto = function (o, feito) {
         // ignorado fica na lista, mas não é dinheiro: não soma nem mexe no
         // saldo (contava, e o Entrou/Saiu e o Final não batiam com a tela Mês)
         if (x.status === 'IGNORADO') { x.saldo = n(saldo); x.foraDoSaldo = true; return; }
+        /* Lançamento sem conta, de conta que não é corrente (investimento,
+           cartão) ou do histórico: fica na lista mas não mexe no saldo - o
+           "Saldo em conta hoje" do Mês também não conta. Antes contava, e o
+           Final do Extrato não batia com ele. */
+        if (!vale[x.conta] || x.origem === 'HISTORICO') {
+          x.saldo = n(saldo); x.foraDoSaldo = true; x.semConta = !x.conta; return;
+        }
         saldo += (x.credito || 0) - (x.debito || 0);
         x.saldo = n(saldo);
         if (anula[x.id]) { x.entreContas = true; return; }
@@ -13065,7 +13074,7 @@ function extratoConta(e){
          seloManual(x)+
          '<i>'+origemIc(x)+tx(x.categoria||'sem categoria')+' · '+tx(x.conta)+'</i></span>'+
        '<span class="d3 '+(x.credito?'pos':'neg')+'">'+(x.credito?'+':'-')+moeda(v)+
-         '<i>'+(x.semConta?'sem conta':moeda(x.saldo))+'</i></span>'+
+         '<i>'+(x.semConta?'sem conta':x.foraDoSaldo&&x.status!=='IGNORADO'?'fora do saldo':moeda(x.saldo))+'</i></span>'+
        botaoTrocarConta(x, x.credito?'RECEITA':'DESPESA')+
        '<button class="bt-x" title="excluir" onclick="excluirLanc('+x.linha+',this,\''+(x.id||'')+'\')">&times;</button>'+
        '</div>';
