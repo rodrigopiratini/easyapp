@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.31.1 \u00b7 22/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.32.0 \u00b7 22/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -312,6 +312,11 @@ window.pedirTexto = function (o, feito) {
   function mesSeguinte(ref) {
     var a = Number(String(ref).slice(0, 4)), m = Number(String(ref).slice(5, 7)) + 1;
     if (m > 12) { m = 1; a++; }
+    return a + '-' + ('0' + m).slice(-2);
+  }
+  function mesAnterior(ref) {
+    var a = Number(String(ref).slice(0, 4)), m = Number(String(ref).slice(5, 7)) - 1;
+    if (m < 1) { m = 12; a--; }
     return a + '-' + ('0' + m).slice(-2);
   }
 
@@ -1104,6 +1109,61 @@ window.pedirTexto = function (o, feito) {
         if (!fora.length) return { ok: false, erro: 'nenhuma conta reconhecida' };
         return gravar('previstos', fora, 'user_id,categoria_id,mes_ref')
           .then(function () { return { ok: true, quantos: fora.length }; });
+      });
+  }
+
+  /* Previsto sugerido: quem começou pelo caminho rápido não digitou o valor
+     das contas. O que foi gasto nos 3 meses anteriores numa conta que NUNCA
+     teve previsto (nem neles, nem neste mês) vira sugestão: a média por mês
+     com movimento (Farmácia em 1 de 3 meses dá um terço). Conta que já teve
+     previsto e hoje não tem (parcela que acabou, "já resolvi") fica de fora.
+     Só sugere; grava quando a pessoa toca em Usar. */
+  var FORA_DA_SUGESTAO = /^(CARTAO - A CLASSIFICAR|PAGAMENTO DA FATURA DO CARTAO|TRANSFERENCIA ENTRE CONTAS|OUTROS REEMBOLSOS)$/;
+  function sugestoesPrevisto(mes) {
+    mes = mes || hojeRef();
+    var ants = [mesAnterior(mes)];
+    ants.push(mesAnterior(ants[0])); ants.push(mesAnterior(ants[1]));
+    return lerTudo('/rest/v1/resumo_mes?select=mes_ref,categoria,natureza,previsto,realizado&mes_ref=in.('
+                   + ants.concat([mes]).join(',') + ')').then(function (linhas) {
+      var planejada = {}, por = {}, comDado = {};
+      linhas.forEach(function (l) {
+        if ((l.natureza !== 'DESPESA' && l.natureza !== 'RECEITA') || FORA_DA_SUGESTAO.test(l.categoria)) return;
+        if (Math.abs(Number(l.previsto) || 0) > 0.005) planejada[l.categoria] = true;
+        var v = Math.abs(Number(l.realizado) || 0);
+        if (l.mes_ref === mes || v < 1) return;
+        comDado[l.mes_ref] = true;
+        var x = por[l.categoria] || (por[l.categoria] = { categoria: l.categoria, natureza: l.natureza, soma: 0 });
+        x.soma += v;
+      });
+      var meses = Math.max(1, Object.keys(comDado).length);
+      var lista = Object.keys(por).filter(function (c) { return !planejada[c]; }).map(function (c) {
+        var x = por[c], v = x.soma / meses;
+        return { categoria: c, natureza: x.natureza, valor: v >= 100 ? Math.round(v / 10) * 10 : Math.round(v), meses: meses };
+      }).filter(function (x) { return x.valor >= 5; });
+      lista.sort(function (a, b) { return b.valor - a.valor; });
+      return { ok: true, mes: mes, meses: meses, itens: lista.slice(0, 10) };
+    });
+  }
+  // Usar: o valor vira o previsto deste mês e dos 11 seguintes, e o padrão da conta
+  function usarSugestoes(mes, itens) {
+    itens = (itens || []).filter(function (x) { return x && x.categoria && n(x.valor) > 0; });
+    if (!itens.length) return Promise.resolve({ ok: false, erro: 'nada para usar' });
+    return rest('/rest/v1/categorias?select=id,nome&nome=in.('
+                + itens.map(function (x) { return '"' + String(x.categoria).replace(/"/g, '') + '"'; }).join(',') + ')')
+      .then(function (cs) {
+        var id = {}, linhas = [];
+        cs.forEach(function (c) { id[c.nome] = c.id; });
+        itens = itens.filter(function (x) { return id[x.categoria]; });
+        itens.forEach(function (x) {
+          for (var k = 0, ref = mes; k < 12; k++, ref = mesSeguinte(ref))
+            linhas.push({ categoria_id: id[x.categoria], mes_ref: ref, valor: n(x.valor) });
+        });
+        if (!linhas.length) return { ok: false, erro: 'não achei as contas' };
+        return gravar('previstos', linhas, 'user_id,categoria_id,mes_ref').then(function () {
+          return Promise.all(itens.map(function (x) {
+            return mudar('categorias', 'id=eq.' + id[x.categoria], { previsto_padrao: n(x.valor) });
+          }));
+        }).then(function () { return { ok: true, quantos: itens.length }; });
       });
   }
 
@@ -4471,6 +4531,8 @@ window.pedirTexto = function (o, feito) {
 
     apiSalvarPrevisto: salvarPrevisto,
     apiSalvarPrevistoEmVarios: salvarPrevistoEmVarios,
+    apiSugestoesPrevisto: sugestoesPrevisto,
+    apiUsarSugestoes: usarSugestoes,
     apiRemoverDoMes: removerDoMes,
     apiMesesComPrevisto: mesesComPrevisto,
     apiNovaCategoria: novaCategoria,
@@ -4538,7 +4600,7 @@ window.pedirTexto = function (o, feito) {
     apiRecalcularMetas: metas
   };
 
-  var LEITURAS = /^api(Estado|Resumo|Saldos|Cartao|Extrato|Categorias|Ano|Metas|Projecao|Plano|Patrimonio|Configuracoes|AnosDaFC|CalcularAlvo|Extras|Auditoria|GerarConsolidado|RecalcularMetas)/;
+  var LEITURAS = /^api(Estado|Resumo|SugestoesPrevisto|Saldos|Cartao|Extrato|Categorias|Ano|Metas|Projecao|Plano|Patrimonio|Configuracoes|AnosDaFC|CalcularAlvo|Extras|Auditoria|GerarConsolidado|RecalcularMetas)/;
 
   var TEMPOS = [];
   function marcarTempo(nome, ms, falhou) {
@@ -5053,7 +5115,7 @@ window.pedirTexto = function (o, feito) {
     { nome: 'PAGAMENTO DA FATURA DO CARTAO', grupo: 'TRANSFER', natureza: 'TRANSFERENCIA', sai_por: 'CAIXA' },
     { nome: 'TRANSFERENCIA ENTRE CONTAS', grupo: 'TRANSFER', natureza: 'TRANSFERENCIA', sai_por: 'CAIXA' },
     { nome: 'OUTROS REEMBOLSOS', grupo: 'RECEITA', natureza: 'RECEITA', sai_por: 'CAIXA' }];
-  var ETAPAS = ['Bancos', 'Saldos', 'Famílias', 'Contas', 'Valores', 'Metas', 'Plano', 'Automação'];
+  var ETAPAS = ['Bancos', 'Seu dinheiro', 'Saldos', 'Famílias', 'Contas', 'Valores', 'Metas', 'Plano', 'Automação'];
   var MESES_C = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   var B, TESTE = false;
   function semAcento(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
@@ -5061,7 +5123,7 @@ window.pedirTexto = function (o, feito) {
   function nomeCompleto(n) { return String(n || '').split(/\s+/).filter(function (w) { return w.length > 1; }).length >= 2; }
 
   function novoB(nome) {
-    return { passo: 0, nome: nome || '', bancos: {}, outros: [], fams: { RECEITA: 1, CASA: 1, PESSOAL: 1, SAUDE: 1 },
+    return { v: 2, passo: 0, rapido: false, renda: '', nome: nome || '', bancos: {}, outros: [], fams: { RECEITA: 1, CASA: 1, PESSOAL: 1, SAUDE: 1 },
              contas: {}, extras: {}, ind: { meta: '', pagaFatura: '', inflacao: '4,5', reajSal: '5', mesReajSal: '' },
              plano: null, nasc: '', idade: '60', rent: '4' };
   }
@@ -5088,6 +5150,8 @@ window.pedirTexto = function (o, feito) {
         ('0' + (d.getMonth() + 1)).slice(-2) + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) +
         '). Continuar de onde parou?')) {
       B = r.B; if (nome && !B.nome) B.nome = nome;
+      // rascunho de antes do caminho rápido: a etapa "Seu dinheiro" entrou na 2ª posição
+      if (!B.v) { B.v = 2; if (B.passo >= 2) B.passo++; }
       return B.passo || 0;
     }
     if (r) apagarRascunho();
@@ -5178,14 +5242,23 @@ window.pedirTexto = function (o, feito) {
     $('bVai').onclick = function () { ler(); var e = conferir(); if (e) { $('bErro').textContent = e; return; } passo(vizinho(B.passo, 1)); };
   }
 
-  var TELAS_BOAS = [corpoInicio, corpoBancos, corpoSaldos, corpoFamilias, corpoContas, corpoValores, corpoIndicadores, corpoPlano, corpoAutomacao];
-  var CHAVES = ['inicio', 'bancos', 'saldos', 'familias', 'contas', 'valores', 'indicadores', 'plano', 'automacao'];
+  var TELAS_BOAS = [corpoInicio, corpoBancos, corpoRenda, corpoSaldos, corpoFamilias, corpoContas, corpoValores, corpoIndicadores, corpoPlano, corpoAutomacao];
+  var CHAVES = ['inicio', 'bancos', 'renda', 'saldos', 'familias', 'contas', 'valores', 'indicadores', 'plano', 'automacao'];
   function etapa() { return CHAVES[B.passo]; }
   /* Conta no modelo Essencial (048): sem Metas (indicadores) e sem Plano de
      aposentadoria - são da Análise, que nasce guardada. A meta do cartão vira
      a soma do que a pessoa marcou "no cartão" (dá para mudar em Ajustes). */
   var PULA_ESSENCIAL = ['indicadores', 'plano'];
-  function pula(i) { return !!(B && B.essencial && PULA_ESSENCIAL.indexOf(CHAVES[i]) >= 0); }
+  /* Caminho rápido (22/10/2026): só bancos, renda e saldo, e a automação. As
+     contas e os valores o app tira dos gastos que entram (Previsto sugerido,
+     na tela Mês); o caminho completo pula a etapa "Seu dinheiro". */
+  var PULA_RAPIDO = ['saldos', 'familias', 'contas', 'valores', 'indicadores', 'plano'];
+  function pula(i) {
+    if (!B) return false;
+    var k = CHAVES[i];
+    if (B.rapido ? PULA_RAPIDO.indexOf(k) >= 0 : k === 'renda') return true;
+    return !!(B.essencial && PULA_ESSENCIAL.indexOf(k) >= 0);
+  }
   function vizinho(i, d) { i += d; while (i > 0 && i < CHAVES.length - 1 && pula(i)) i += d; return i; }
   function passo(i) {
     if (i < 0 || i >= TELAS_BOAS.length) return;
@@ -5214,9 +5287,10 @@ window.pedirTexto = function (o, feito) {
       '<p class="sub">Vamos deixar o app com a sua cara. Tudo dá para mudar depois.</p>' +
       '<label>Seu nome completo (como está no banco)</label><input id="bNome" autocomplete="name" value="' + esc(B.nome) + '">' +
       '<p class="sub" style="margin:-4px 0 12px;font-size:12px">É por ele que o app separa, nos avisos do banco, o que é seu do que é de outra pessoa.</p>' +
-      '<h3 style="margin-top:22px">Você já controla suas contas numa planilha?</h3>' +
-      '<button class="escolha" id="bTemPlan"><b>📎 Sim, tenho uma planilha</b><span>O assistente lê do jeito que ela estiver, mostra a prévia e só grava quando você aprovar.</span></button>' +
-      '<button class="escolha rec" id="bSemPlan"><b>✨ Não, vamos montar juntos</b><span>Uns poucos toques: bancos, famílias de contas, valores do mês. Uns 5 minutos.</span></button>';
+      '<h3 style="margin-top:22px">Como quer começar?</h3>' +
+      '<button class="escolha rec" id="bRapido"><b>⚡ Rápido, em 1 minuto</b><span>Só os seus bancos. Os gastos entram sozinhos e o app monta o previsto a partir deles.</span></button>' +
+      '<button class="escolha" id="bTemPlan"><b>📎 Tenho uma planilha</b><span>O assistente lê do jeito que ela estiver, mostra a prévia e só grava quando você aprovar.</span></button>' +
+      '<button class="escolha" id="bSemPlan"><b>🧩 Montar tudo agora</b><span>Bancos, cartões, contas do mês com o previsto, metas e plano. Uns 5 minutos.</span></button>';
   }
 
   function logo(b) {
@@ -5228,24 +5302,27 @@ window.pedirTexto = function (o, feito) {
     return BANCOS_TRAD.concat(BANCOS_DIG).filter(function (b) { return b[0] === nome; })[0] || [nome, nome.slice(0, 2).toUpperCase(), '#475569'];
   }
   var TIPOS = [['cPF', 'Conta PF'], ['cPJ', 'Conta PJ'], ['kPF', 'Cartão PF'], ['kPJ', 'Cartão PJ']];
+  var TIPOS_RAPIDO = [['cPF', 'Conta'], ['kPF', 'Cartão']];
   function corpoBancos() {
+    var tipos = B.rapido ? TIPOS_RAPIDO : TIPOS;
     function grade(lista) {
       return '<div class="chips">' + lista.map(function (b) {
         return '<button class="chip' + (B.bancos[b[0]] ? ' on' : '') + '" data-banco="' + esc(b[0]) + '">' + logo(b) + esc(b[0]) + '</button>';
       }).join('') + '</div>';
     }
     var sel = Object.keys(B.bancos);
-    return '<h2>Agora vamos cadastrar suas contas</h2><p class="sub">Toque nos bancos que você usa e marque o que tem em cada um. Saldos e cartões vêm na próxima etapa.</p>' +
+    return (B.rapido ? '<h2>Quais bancos você usa?</h2><p class="sub">Toque nos seus bancos e marque se tem cartão em cada um.</p>'
+      : '<h2>Agora vamos cadastrar suas contas</h2><p class="sub">Toque nos bancos que você usa e marque o que tem em cada um. Saldos e cartões vêm na próxima etapa.</p>') +
       '<h3>Tradicionais</h3>' + grade(BANCOS_TRAD) + '<h3>Digitais</h3>' + grade(BANCOS_DIG) +
       '<div class="mini" style="margin-bottom:10px"><input id="bOutro" placeholder="Outro banco"><button class="chip" id="bAddOutro" style="flex:none">+ adicionar</button></div>' +
       (sel.length ? '<h3>O que você tem em cada um</h3>' + sel.map(function (n) {
         var x = B.bancos[n];
-        return '<div class="bl"><span class="nm">' + logo(infoBanco(n)) + esc(n) + '</span><span class="esc">' + TIPOS.map(function (k) {
+        return '<div class="bl"><span class="nm">' + logo(infoBanco(n)) + esc(n) + '</span><span class="esc">' + tipos.map(function (k) {
           var q = qtd(x, k[0]);
           return '<button data-tb="' + esc(n) + '" data-t="' + k[0] + '" class="' + (q ? 'on' : '') + '">' + k[1] + (q > 1 ? ' ×' + q : '') + '</button>' +
-            (q ? '<button data-tbmais="' + esc(n) + '" data-t="' + k[0] + '" title="mais uma no mesmo banco" style="padding:6px 8px">+</button>' : '');
+            (q && !B.rapido ? '<button data-tbmais="' + esc(n) + '" data-t="' + k[0] + '" title="mais uma no mesmo banco" style="padding:6px 8px">+</button>' : '');
         }).join('') + '</span><button class="x" data-tirabanco="' + esc(n) + '" title="tirar">×</button></div>';
-      }).join('') + '<p class="sub" style="font-size:12px;margin-top:6px">Tem duas contas no mesmo banco (duas PJ no C6, por exemplo)? Toque no <b>+</b> ao lado.</p>' : '');
+      }).join('') + (B.rapido ? '' : '<p class="sub" style="font-size:12px;margin-top:6px">Tem duas contas no mesmo banco (duas PJ no C6, por exemplo)? Toque no <b>+</b> ao lado.</p>') : '');
   }
 
   // quantas de cada tipo (antes era só marcado ou não: true vale 1)
@@ -5295,6 +5372,22 @@ window.pedirTexto = function (o, feito) {
     var cs = correntes(), mesma = nomeConta(n, tit, false);
     return (cs.filter(function (c) { return c.nome === mesma; })[0] || cs[0] || {}).nome || '';
   }
+  /* Caminho rápido: quanto entra por mês e quanto tem hoje em cada conta,
+     tudo opcional. Os campos de saldo são os mesmos da etapa Saldos. */
+  function corpoRenda() {
+    var cs = todosSlots().filter(function (s) { return !s.cartao; });
+    return '<h2>Seu dinheiro</h2><p class="sub">Dois números para o app já mostrar o seu mês. Não sabe agora? Pode pular.</p>' +
+      '<div class="cartao"><div class="lnv"><span class="tt" style="font-weight:600;font-size:14px">💰 Quanto entra por mês</span>' +
+      '<input id="bRenda" inputmode="numeric" placeholder="R$ 0,00" value="' + esc(B.renda || '') + '"></div>' +
+      '<p class="sub" style="font-size:12px;margin:6px 0 0">Salário, pró-labore, o que costuma cair. Vira a entrada prevista do mês.</p></div>' +
+      (cs.length ? '<h3>Quanto tem hoje em cada conta</h3>' + cs.map(function (s) {
+        var x = B.bancos[s.banco];
+        return '<div class="cartao"><div class="lnv"><span class="tt" style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px">' +
+          logo(infoBanco(s.banco)) + esc(s.banco) + '</span>' +
+          '<input data-bd="' + esc(s.banco) + '" data-f="saldo' + s.k + '" inputmode="numeric" placeholder="saldo hoje" value="' + esc(x['saldo' + s.k] || '') + '"></div></div>';
+      }).join('') + '<p class="sub" style="font-size:12px">É a partir dele que o app calcula o saldo com cada gasto que entra.</p>' : '');
+  }
+
   function corpoSaldos() {
     var cs = correntes(), h = '';
     Object.keys(B.bancos).forEach(function (n) {
@@ -5467,7 +5560,7 @@ window.pedirTexto = function (o, feito) {
         '<b>📲 Avisos do banco neste celular</b><p class="sub" style="font-size:12.5px;margin:4px 0 2px">Libere uma vez e cada compra e Pix entra na hora.</p>' +
         '<div id="aCel"></div></div>' : '') +
       '<button class="escolha rec" id="aAgora"><b>⚡ Configurar a automação agora</b><span>Leva uns minutos. É o essencial para o app ficar fácil.</span></button>' +
-      '<button class="escolha" id="aDepois"><b>👀 Antes, quero ver o app com as projeções</b><span>O app abre com o que você montou. A automação fica em Config → Minha conta.</span></button>';
+      '<button class="escolha" id="aDepois"><b>👀 ' + (B.rapido ? 'Antes, quero ver o app' : 'Antes, quero ver o app com as projeções') + '</b><span>O app abre com o que você montou. A automação fica em Config → Minha conta.</span></button>';
   }
 
   // ---------------------------------------------------------------- toques
@@ -5484,7 +5577,8 @@ window.pedirTexto = function (o, feito) {
   function ligar(k) {
     if (k === 'inicio') {
       $('bTemPlan').onclick = function () { ler(); if (!nomeCompleto(B.nome)) return erro('diga o seu nome completo, como está no banco'); terminar('planilha'); };
-      $('bSemPlan').onclick = function () { ler(); if (!nomeCompleto(B.nome)) return erro('diga o seu nome completo, como está no banco'); passo(1); };
+      $('bSemPlan').onclick = function () { ler(); if (!nomeCompleto(B.nome)) return erro('diga o seu nome completo, como está no banco'); B.rapido = false; passo(1); };
+      $('bRapido').onclick = function () { ler(); if (!nomeCompleto(B.nome)) return erro('diga o seu nome completo, como está no banco'); B.rapido = true; passo(1); };
     }
     if (k === 'bancos') {
       todos('[data-banco]', function (b) { b.onclick = function () {
@@ -5507,6 +5601,10 @@ window.pedirTexto = function (o, feito) {
         if (q >= 5) return erro('até 5 do mesmo tipo em um banco');
         x[b.dataset.t] = q + 1; passo(B.passo);
       }; });
+    }
+    if (k === 'renda') {
+      mascaraReais($('bRenda'));
+      todos('input[data-f^=saldo]', function (e) { mascaraReais(e); });
     }
     if (k === 'saldos') {
       todos('input[data-f^=saldo]', function (e) { mascaraReais(e); });
@@ -5607,6 +5705,7 @@ window.pedirTexto = function (o, feito) {
     todos('[data-cv]', function (e) { var x = B.contas[e.dataset.cv]; if (x) x[e.dataset.f] = e.value.trim(); });
     // escolher um cartão em "Paga com" é o mesmo que "no cartão"
     for (var cn in B.contas) { var cx = B.contas[cn]; if (cx && cx.onde) cx.sai = cx.onde.charAt(0) === 'C' ? 'CARTAO' : 'CAIXA'; }
+    if ($('bRenda')) B.renda = $('bRenda').value.trim();
     if ($('iMeta')) B.ind.meta = $('iMeta').value.trim();
     if ($('iReajSal')) B.ind.reajSal = $('iReajSal').value.trim();
     if ($('iMesReajSal')) B.ind.mesReajSal = $('iMesReajSal').value;
@@ -5743,8 +5842,27 @@ window.pedirTexto = function (o, feito) {
     return G;
   }
 
+  /* Caminho rápido: as contas mais comuns já nascem (sem valor), para os
+     gastos que entrarem terem onde cair; a renda vira o salário previsto. */
+  var CONTAS_RAPIDO = ['SALARIO MENSAL', 'CASA - ALUGUEL', 'CASA - ENERGIA', 'CASA - AGUA', 'CASA - INTERNET', 'CASA - CELULAR',
+    'PESSOAL - MERCADO', 'PESSOAL - RESTAURANTES E DELIVERY', 'PESSOAL - PADARIA E LANCHES', 'PESSOAL - ROUPAS E CALCADOS',
+    'PESSOAL - BELEZA E CUIDADOS', 'PESSOAL - PIX E DIA A DIA', 'VEICULO - COMBUSTIVEL', 'VEICULO - APP DE TRANSPORTE',
+    'SAUDE - FARMACIA', 'SAUDE - CONSULTAS E EXAMES', 'SAUDE - ACADEMIA', 'LAZER - PASSEIOS', 'LAZER - STREAMING E ASSINATURAS',
+    'IMPOSTOS - TARIFAS BANCARIAS'];
+  function prepararRapido() {
+    B.fams = {}; B.contas = {};
+    FAMILIAS.forEach(function (f) {
+      f[3].forEach(function (c) {
+        if (CONTAS_RAPIDO.indexOf(c[0]) < 0) return;
+        B.fams[f[0]] = 1;
+        B.contas[c[0]] = { valor: c[0] === 'SALARIO MENSAL' ? (B.renda || '') : '', freq: 'mes', sai: c[3], reaj: '', mesReaj: '', mes: '', ate: '' };
+      });
+    });
+  }
+
   function terminar(destino) {
     ler();
+    if (B.rapido && destino !== 'planilha') prepararRapido();
     if (B.essencial && !B.ind.meta && somaCartao()) B.ind.meta = reaisTexto(somaCartao());
     var s = P.sessao(), uid = s ? s.user_id : 'teste';
     var G = destino === 'planilha' ? { contas: [], cats: [], prev: [], cfg: [] } : montarGravacao(uid);
@@ -7432,7 +7550,9 @@ window.pedirTexto = function (o, feito) {
       setTimeout(function () { $('iaMsgs').appendChild(d); rolar(); }, 900);
     }, 1200);
   }
-  window.EASYAPP_IA = { abrir: abrir, anexar: function () { abrir(); $('iaArq').click(); } };
+  // abre o chat com o pedido já escrito (a pessoa confere e toca em enviar)
+  function perguntar(t) { abrir(); setTimeout(function () { $('iaTxt').value = t; $('iaTxt').focus(); }, 300); }
+  window.EASYAPP_IA = { abrir: abrir, perguntar: perguntar, anexar: function () { abrir(); $('iaArq').click(); } };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { montar(); convitePlanilha(); });
   else { montar(); convitePlanilha(); }
@@ -9338,6 +9458,40 @@ window.pedirTexto = function (o, feito) {
   body.v2 select,body.v2 input{border-color:transparent;background:#0f1626}
   .dica-oculta{display:none!important}
   body.v2 .card [style*="border-top"],body.v2 .card [style*="border-bottom"]{border-top-color:transparent!important;border-bottom-color:transparent!important}
+
+  /* ---------- VISUAL ARREDONDADO (POC, body.v3, sempre junto do v2) ---------- */
+  body.v3{--acc:#5b8cff;--ok:#34d399;--bad:#fb7185;--warn:#fbbf24;--card2:rgba(255,255,255,.055);--line:rgba(255,255,255,.07);
+     background:radial-gradient(900px 520px at -10% -8%,rgba(59,130,246,.30),transparent 62%),
+                radial-gradient(760px 480px at 115% 6%,rgba(168,85,247,.24),transparent 60%),
+                radial-gradient(800px 600px at 50% 115%,rgba(16,185,129,.14),transparent 60%),#0a0f1c;
+     background-attachment:fixed;padding-bottom:96px;
+     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,Roboto,sans-serif}
+  body.v3 header{background:rgba(10,15,28,.55);-webkit-backdrop-filter:saturate(160%) blur(18px);backdrop-filter:saturate(160%) blur(18px)}
+  body.v3 h1{font-size:17px;font-weight:700;letter-spacing:-.2px}
+  body.v3 .card,body.v3 .kpi,body.v3 .mini>div,body.v3 .sb-bloco{border-radius:24px;background:var(--card2);
+     -webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);box-shadow:0 0 0 1px rgba(255,255,255,.06) inset,0 12px 32px rgba(0,0,0,.28)}
+  body.v3 .card{padding:18px}
+  body.v3 .big{font-size:30px;font-weight:800;letter-spacing:-1px}
+  body.v3 .lbl{font-size:13px;color:#9aa8c4}
+  body.v3 .ln,body.v3 .ex,body.v3 .tr,body.v3 .li,body.v3 .dia{border-radius:14px}
+  body.v3 button{border-radius:999px}
+  body.v3 .bt-ok{background:var(--ok);color:#052e1f}
+  body.v3 .bt-no{background:rgba(255,255,255,.09);color:#dbe4f5}
+  body.v3 .bt-ac{background:linear-gradient(135deg,#5b8cff,#8b5cf6);color:#fff;box-shadow:0 8px 20px rgba(91,140,255,.35)}
+  body.v3 .bt-x{border-radius:10px}
+  body.v3 select,body.v3 input{border-radius:12px;background:rgba(255,255,255,.06)}
+  body.v3 input[type=checkbox]{accent-color:var(--acc)}
+  body.v3 .seg{border-radius:999px;background:rgba(255,255,255,.06)}
+  body.v3 .seg button{border-radius:999px!important}
+  body.v3 .pill,body.v3 .flt{background:rgba(255,255,255,.08)}
+  body.v3 .bar,body.v3 .tgbar{background:rgba(255,255,255,.07)}
+  body.v3 nav{left:12px;right:12px;bottom:calc(8px + env(safe-area-inset-bottom,0px));padding:6px 4px;border-radius:26px;
+     background:rgba(18,24,42,.72);-webkit-backdrop-filter:saturate(170%) blur(20px);backdrop-filter:saturate(170%) blur(20px);
+     box-shadow:0 0 0 1px rgba(255,255,255,.08) inset,0 14px 34px rgba(0,0,0,.45)}
+  body.v3 nav a{border-radius:18px}
+  body.v3 nav a.on{color:#fff;background:rgba(91,140,255,.18)}
+  body.v3 #toast{border-radius:999px}
+  body.v3 .card.sug{background:linear-gradient(135deg,rgba(91,140,255,.16),rgba(139,92,246,.12))}
 </style>
 
 <div id="abertura">
@@ -9623,7 +9777,7 @@ function liberarRecurso(t, sim){
 }
 function pocAlternar(k){
   gravarLocal(k, lerLocal(k)==='1'?null:'1');
-  if(k==='easyapp:poc-visual') aplicarVisual();
+  if(k==='easyapp:poc-visual' || k==='easyapp:poc-visual3') aplicarVisual();
   aplicarModelo(); renderConfig();
 }
 /* Recursos do app (essencial) e os testes de POC (completo) - topo de Ajustes */
@@ -9641,10 +9795,12 @@ function cfgRecursos(){
       '<div class="m" style="font-size:11.5px;margin-top:6px">Quer outra coisa? Peça ao assistente ✦: ele cria para você.</div></div>';
   }
   if(ST.modelo.modelo!=='essencial'){
-    var vis=lerLocal('easyapp:poc-visual')==='1', ess=pocEssencial();
+    var vis=lerLocal('easyapp:poc-visual')==='1', vis3=lerLocal('easyapp:poc-visual3')==='1', ess=pocEssencial();
     h+='<div class="card"><div class="lbl" style="margin-bottom:8px">🧪 Testes (só neste aparelho)</div>'+
       '<div class="row" style="padding:6px 0"><span>Visual novo (POC)</span>'+
         '<button class="'+(vis?'bt-ok':'bt-no')+'" style="padding:6px 12px;font-size:12.5px" onclick="pocAlternar(\'easyapp:poc-visual\')">'+(vis?'Ligado':'Desligado')+'</button></div>'+
+      '<div class="row" style="padding:6px 0"><span>Visual arredondado (estilo iPhone)</span>'+
+        '<button class="'+(vis3?'bt-ok':'bt-no')+'" style="padding:6px 12px;font-size:12.5px" onclick="pocAlternar(\'easyapp:poc-visual3\')">'+(vis3?'Ligado':'Desligado')+'</button></div>'+
       '<div class="row" style="padding:6px 0"><span>Ver como conta nova (Essencial)</span>'+
         '<button class="'+(ess?'bt-ok':'bt-no')+'" style="padding:6px 12px;font-size:12.5px" onclick="pocAlternar(\'easyapp:poc-essencial\')">'+(ess?'Ligado':'Desligado')+'</button></div>'+
       '<div class="m" style="font-size:11.5px;margin-top:6px">Nada disso muda os seus dados: é para avaliar o visual e o modelo das contas novas antes de valer para todo mundo.</div></div>';
@@ -9658,11 +9814,16 @@ carregarModelo();
    cara: cartões sem borda, listas sem linha entre os itens, menos texto.
    As explicações longas dos cartões viram um "i": passar o mouse (ou tocar)
    mostra o texto. Desligado, o app fica exatamente como era. */
-function visualNovo(){ return lerLocal('easyapp:poc-visual')==='1' || /[?&]poc=1(&|$)/.test(location.search); }
+function visualNovo(){ return lerLocal('easyapp:poc-visual')==='1' || /[?&]poc=1(&|$)/.test(location.search) || visualArredondado(); }
+/* Visual arredondado (22/10/2026, POC por cima do v2): fundo com luz
+   colorida, cartões de vidro bem redondos, botões em pílula e o menu de
+   baixo solto da borda. Liga em Ajustes → Testes ou com ?poc=3. */
+function visualArredondado(){ return lerLocal('easyapp:poc-visual3')==='1' || /[?&]poc=3(&|$)/.test(location.search); }
 var obsVisual=null, tVisual=null;
 function aplicarVisual(){
   var on=visualNovo();
   document.body.classList.toggle('v2', on);
+  document.body.classList.toggle('v3', visualArredondado());
   // as explicações viram "i" em qualquer visual (20/10: "muito texto nas telas")
   if(!obsVisual && window.MutationObserver){
     obsVisual=new MutationObserver(function(){ clearTimeout(tVisual); tVisual=setTimeout(dicasViramI,60); });
@@ -10846,6 +11007,8 @@ function renderMes(){
       '<div style="font-size:17px;font-weight:600" class="neg">'+moeda(sai)+'</div></div></div>'+
       barra(sai, ent)+'</div>';
 
+  h+=cardSugestao(r);
+
   // despesas: tudo aberto, uma linha por conta, filtrado pela familia do cabecalho
   var lista=[];
   (r.grupos||[]).forEach(function(g){
@@ -10921,6 +11084,72 @@ function renderMes(){
     });
   }
   c.innerHTML=h;
+}
+
+/* Previsto sugerido (só no mês de hoje): o que foi gasto nos meses
+   anteriores numa conta que nunca teve previsto vira sugestão, com Usar.
+   Quem começou pelo caminho rápido e ainda não tem mês anterior vê o convite
+   para contar as contas fixas ao assistente. "Agora não" some até o mês que vem. */
+ST.sug={};
+function sugFora(mes){ return lerLocal('easyapp:sug-fora:'+mes)==='1'; }
+function cardSugestao(r){
+  var mes=r.mes;
+  if(mes!==mesDeHoje() || sugFora(mes) || window.EASYAPP_SUPORTE) return '';
+  var s=ST.sug[mes];
+  if(!s){
+    ST.sug[mes]={carregando:true};
+    google.script.run.withSuccessHandler(function(x){
+      ST.sug[mes]=(x&&x.ok)?x:{itens:[]};
+      if(ST.mes===mes) renderMes();
+    }).withFailureHandler(function(){ ST.sug[mes]={itens:[]}; }).apiSugestoesPrevisto(mes);
+    return '';
+  }
+  if(s.carregando) return '';
+  var fechar='<button class="bt-no" style="padding:8px 12px" onclick="sugAgoraNao()">Agora não</button>';
+  if(s.itens && s.itens.length){
+    var marc=s.marc||(s.marc={});
+    var h='<div class="card sug"><div class="lbl">✨ Previsto sugerido'+
+      dica('Pelo que você gastou '+(s.meses>1?'nos últimos '+s.meses+' meses (média por mês)':'no mês passado')+
+           ', nas contas que ainda não têm previsto. Usar grava o valor neste mês e nos 11 seguintes; dá para mudar na linha depois.')+'</div>'+
+      '<div class="m" style="font-size:12.5px;margin:4px 0 8px">Seu previsto montado a partir dos seus gastos. Confira e toque em <b>Usar</b>.</div>';
+    s.itens.forEach(function(x,i){
+      var on=marc[i]!==false;
+      h+='<label class="lc" style="display:flex;align-items:center;gap:8px;padding:6px 0">'+
+         '<input type="checkbox" style="width:auto;margin:0" '+(on?'checked ':'')+'onchange="ST.sug[\''+mes+'\'].marc['+i+']=this.checked">'+
+         '<span class="t" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+tx(x.categoria)+'</span>'+
+         '<input id="sugv'+i+'" value="'+num(x.valor)+'" inputmode="decimal" onfocus="this.select()" '+
+           'style="width:96px;flex:none;margin:0;text-align:right">'+
+         '<span style="font-size:11px;color:var(--dim);flex:none">/mês</span></label>';
+    });
+    return h+'<div style="display:flex;gap:8px;margin-top:10px"><button class="bt-ok" style="flex:1;padding:10px" onclick="sugUsar()">Usar os marcados</button>'+fechar+'</div></div>';
+  }
+  // nada a sugerir: só convida quem ainda não tem previsto nenhum de despesa
+  if((r.totalPrevistoDespesa||0)>0.005) return '';
+  return '<div class="card sug"><div class="lbl">📋 Seu previsto</div>'+
+    '<div class="m" style="font-size:12.5px;margin:4px 0 10px">Com os gastos entrando sozinhos, no mês que vem o app sugere o previsto de cada conta. '+
+    'Quer adiantar? Conte as suas contas fixas ao assistente (uns 2 minutos).</div>'+
+    '<div style="display:flex;gap:8px"><button class="bt-ac" style="flex:1;width:auto" onclick="sugAssistente()">Contar ao assistente ✦</button>'+fechar+'</div></div>';
+}
+function sugAgoraNao(){ gravarLocal('easyapp:sug-fora:'+ST.mes,'1'); renderMes(); }
+function sugAssistente(){
+  if(!window.EASYAPP_IA || !EASYAPP_IA.perguntar) return toast('Toque no ✦ para abrir o assistente');
+  EASYAPP_IA.perguntar('Quero montar o previsto das minhas contas fixas (aluguel, energia, internet, escola...). '+
+    'Me pergunte uma de cada vez, quanto é e se é todo mês, e no fim grave o previsto deste mês e dos próximos 12.');
+}
+function sugUsar(){
+  var mes=ST.mes, s=ST.sug[mes]; if(!s||!s.itens) return;
+  var itens=[];
+  s.itens.forEach(function(x,i){
+    if(s.marc && s.marc[i]===false) return;
+    var inp=el('sugv'+i), v=inp?parseFloat(String(inp.value).replace(/\./g,'').replace(',','.')):x.valor;
+    if(v>0) itens.push({categoria:x.categoria, valor:v});
+  });
+  if(!itens.length) return toast('Marque pelo menos uma conta');
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok) return toast((r&&r.erro)||'Não consegui gravar');
+    toast('Previsto de '+r.quantos+(r.quantos===1?' conta':' contas')+' gravado ✅');
+    ST.sug[mes]={itens:[]}; carregar(mes);
+  }).withFailureHandler(function(){ toast('Não consegui gravar'); }).apiUsarSugestoes(mes, itens);
 }
 
 /* O botao no fim da linha do mes:
