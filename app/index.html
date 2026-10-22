@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.32.3 \u00b7 22/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.33.0 \u00b7 22/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -9558,6 +9558,12 @@ window.pedirTexto = function (o, feito) {
   body.v3 .mini.resumo4{border-radius:22px;-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);
      box-shadow:0 0 0 1px rgba(255,255,255,.06) inset,0 12px 32px rgba(0,0,0,.28)}
 
+  /* olhinho: valores borrados (o texto continua no lugar, a tela não pula) */
+  #btOlho{display:inline-flex;align-items:center;justify-content:center}
+  #btOlho svg{width:17px;height:17px;display:block}
+  body.oculto .val-oc{filter:blur(7px);-webkit-user-select:none;user-select:none}
+  body.oculto input[inputmode=decimal],body.oculto input[inputmode=numeric]{color:transparent!important;text-shadow:0 0 9px rgba(232,237,247,.75)}
+
   /* o logo (as barrinhas) ao lado do nome: uma ondinha de tempos em tempos */
   .logo-bar{display:inline-flex;align-items:flex-end;gap:2px;height:15px;margin-right:7px;vertical-align:-1px}
   .logo-bar i{display:block;width:4px;border-radius:1.5px;transform-origin:bottom;animation:logoOnda 7s ease-in-out infinite}
@@ -9577,6 +9583,7 @@ window.pedirTexto = function (o, feito) {
   <div class="row">
     <div style="min-width:0;overflow:hidden"><h1><span class="logo-bar" aria-hidden="true"><i></i><i></i><i></i></span>EasyAPP<b> Financial</b></h1></div>
     <div style="display:flex;align-items:center;gap:6px">
+      <button class="bt-ico" id="btOlho" onclick="alternarOlho()" title="Esconder os valores" aria-label="Esconder os valores"></button>
       <button class="pill" id="badge" onclick="irParaTela('pendentes')" title="Classificar" style="border:0;cursor:pointer">-</button>
       <button class="bt-ico" onclick="abrirLancar()" title="Lançar à mão">+</button>
       <button id="btAtualizar" class="bt-ico" onclick="atualizarTudo()" title="Atualizar tudo">&#8635;</button>
@@ -9897,6 +9904,37 @@ function visualNovo(){ return lerLocal('easyapp:poc-visual')==='1' || /[?&]poc=1
 /* Visual arredondado (22/10/2026, POC por cima do v2): fundo com luz
    colorida, cartões de vidro bem redondos, botões em pílula e o menu de
    baixo solto da borda. Liga em Ajustes → Testes ou com ?poc=3. */
+/* Olhinho do cabeçalho (22/10/2026): esconde os valores em qualquer tela.
+   Marca o elemento de cada texto com dinheiro (R$, 1.234,56, 507K) e o CSS
+   borra; um observador marca o que for desenhado depois. Fica salvo no aparelho. */
+var OLHO_RE=/R\$\s*-?\s*\d|\d,\d{2}(?!\d)|\d+(,\d+)?\s?[KkMm]\b/;
+var IC_OLHO='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+var IC_OLHO_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-2.7 3.6M6.1 6.1C3.6 7.8 2 12 2 12s3.6 7 10 7a9.8 9.8 0 0 0 5.9-1.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg>';
+function olhoFechado(){ return lerLocal('easyapp:ocultar')==='1'; }
+function marcarValores(raiz){
+  var w=document.createTreeWalker(raiz||document.body, NodeFilter.SHOW_TEXT, null), t;
+  while((t=w.nextNode())){
+    var e=t.parentNode;
+    if(!e || e.classList===undefined || e.classList.contains('val-oc')) continue;
+    if(/^(SCRIPT|STYLE|TEXTAREA)$/.test(e.nodeName) || e.closest('#cabecalho h1,nav')) continue;
+    if(OLHO_RE.test(t.nodeValue)) e.classList.add('val-oc');
+  }
+}
+var obsOlho=null, tOlho=null;
+function aplicarOlho(){
+  var f=olhoFechado(), b=el('btOlho');
+  document.body.classList.toggle('oculto', f);
+  if(b){ b.innerHTML=f?IC_OLHO_OFF:IC_OLHO; b.title=f?'Mostrar os valores':'Esconder os valores'; b.setAttribute('aria-label', b.title); }
+  if(f){
+    marcarValores();
+    if(!obsOlho && window.MutationObserver){
+      obsOlho=new MutationObserver(function(){ clearTimeout(tOlho); tOlho=setTimeout(function(){ if(olhoFechado()) marcarValores(); },30); });
+      obsOlho.observe(document.body,{childList:true,subtree:true,characterData:true});
+    }
+  }
+}
+function alternarOlho(){ gravarLocal('easyapp:ocultar', olhoFechado()?null:'1'); aplicarOlho(); }
+
 var FUNDOS=[['azul','Azul','linear-gradient(135deg,#3b82f6,#a855f7)'],['roxo','Roxo','linear-gradient(135deg,#8b5cf6,#ec4899)'],
   ['verde','Verde','linear-gradient(135deg,#10b981,#0ea5e9)'],['sol','Pôr do sol','linear-gradient(135deg,#f97316,#db2777)'],
   ['grafite','Grafite','linear-gradient(135deg,#64748b,#1e293b)']];
@@ -9954,6 +9992,7 @@ document.addEventListener('click', function(ev){
   pop.style.top=(r.bottom+8)+'px';
 }, true);
 aplicarVisual();
+aplicarOlho();
 
 function mesDeHoje(){
   var d=new Date();
