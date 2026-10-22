@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.33.0 \u00b7 22/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.33.1 \u00b7 22/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -9920,7 +9920,7 @@ function marcarValores(raiz){
     if(OLHO_RE.test(t.nodeValue)) e.classList.add('val-oc');
   }
 }
-var obsOlho=null, tOlho=null;
+var obsOlho=null;
 function aplicarOlho(){
   var f=olhoFechado(), b=el('btOlho');
   document.body.classList.toggle('oculto', f);
@@ -9928,7 +9928,19 @@ function aplicarOlho(){
   if(f){
     marcarValores();
     if(!obsOlho && window.MutationObserver){
-      obsOlho=new MutationObserver(function(){ clearTimeout(tOlho); tOlho=setTimeout(function(){ if(olhoFechado()) marcarValores(); },30); });
+      /* marca na hora, só o que mudou: o observador roda antes de a tela ser
+         pintada, então o valor novo já nasce borrado. Antes esperava 30 ms
+         (adiados a cada mudança) e o valor piscava ou ficava à mostra. */
+      obsOlho=new MutationObserver(function(ms){
+        if(!document.body.classList.contains('oculto')) return;
+        ms.forEach(function(m){
+          if(m.type==='characterData'){ var e=m.target.parentNode; if(e&&e.classList&&OLHO_RE.test(m.target.nodeValue)) e.classList.add('val-oc'); return; }
+          m.addedNodes.forEach(function(nd){
+            if(nd.nodeType===1) marcarValores(nd);
+            else if(nd.nodeType===3 && nd.parentNode && nd.parentNode.classList && OLHO_RE.test(nd.nodeValue)) nd.parentNode.classList.add('val-oc');
+          });
+        });
+      });
       obsOlho.observe(document.body,{childList:true,subtree:true,characterData:true});
     }
   }
