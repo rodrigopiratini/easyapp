@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.37.0 \u00b7 23/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.37.1 \u00b7 23/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -9635,7 +9635,7 @@ window.pedirTexto = function (o, feito) {
      O fundo são três luzes coloridas (--g1..--g3) sobre --gbase; o cliente
      escolhe a cor em Ajustes → Aparência (data-fundo no body). Desde 23/10/2026
      é o visual de todos (visualArredondado). */
-  body.v3{--acc:#5b8cff;--ok:#34d399;--bad:#f26464;--warn:#fbbf24;--card2:rgba(255,255,255,.055);--line:rgba(255,255,255,.07);
+  body.v3{--acc:#5b8cff;--acc2:#8b5cf6;--accr:91,140,255;--ok:#34d399;--bad:#f26464;--warn:#fbbf24;--card2:rgba(255,255,255,.055);--line:rgba(255,255,255,.07);
      --g1:rgba(59,130,246,.30);--g2:rgba(168,85,247,.24);--g3:rgba(16,185,129,.14);--gbase:#0a0f1c;
      --fundo:radial-gradient(900px 520px at -10% -8%,var(--g1),transparent 62%),
              radial-gradient(760px 480px at 115% 6%,var(--g2),transparent 60%),
@@ -9652,6 +9652,20 @@ window.pedirTexto = function (o, feito) {
   body.v3[data-fundo=floresta]{--g1:rgba(5,150,105,.22);--g2:rgba(22,101,52,.18);--g3:rgba(45,212,191,.06);--gbase:#030e0a}
   body.v3[data-fundo=cobre]{--g1:rgba(217,119,6,.22);--g2:rgba(154,52,18,.18);--g3:rgba(250,204,21,.05);--gbase:#0f0904}
   body.v3[data-fundo=noite]{--g1:rgba(91,140,255,.09);--g2:rgba(139,92,246,.07);--g3:rgba(255,255,255,.02);--gbase:#040507}
+
+  /* Tom de destaque de cada fundo (23/10/2026): botões, item do menu, balão
+     do chat e o ✦ acompanham a cor escolhida. --acc é a cor, --acc2 o fim do
+     degradê e --accr a mesma cor em r,g,b (para as transparências). */
+  body.v3[data-fundo=roxo]{--acc:#a78bfa;--acc2:#db2777;--accr:167,139,250}
+  body.v3[data-fundo=verde]{--acc:#2dd4bf;--acc2:#0284c7;--accr:45,212,191}
+  body.v3[data-fundo=sol]{--acc:#fb923c;--acc2:#db2777;--accr:251,146,60}
+  body.v3[data-fundo=grafite]{--acc:#94a3b8;--acc2:#475569;--accr:148,163,184}
+  body.v3[data-fundo=marinho]{--acc:#3b82f6;--acc2:#1e40af;--accr:59,130,246}
+  body.v3[data-fundo=vinho]{--acc:#e11d48;--acc2:#881337;--accr:225,29,72}
+  body.v3[data-fundo=floresta]{--acc:#10b981;--acc2:#065f46;--accr:16,185,129}
+  body.v3[data-fundo=cobre]{--acc:#f59e0b;--acc2:#9a3412;--accr:245,158,11}
+  body.v3[data-fundo=noite]{--acc:#6b8cff;--acc2:#3f3f9e;--accr:107,140,255}
+  body.v3 #iaBt{background:linear-gradient(135deg,var(--acc),var(--acc2));box-shadow:0 8px 22px rgba(var(--accr),.38)}
 
   /* Movimento (Aparência, ligado por padrão): a tela entra deslizando de leve
      e o toque afunda o botão. Só na troca de tela - atualizar os dados não
@@ -9678,7 +9692,7 @@ window.pedirTexto = function (o, feito) {
   body.v3 .bt-ok,body.v3 .bt-no,body.v3 .bt-ac,body.v3 .filtros button,body.v3 .evo-tabs button,body.v3 .pill,body.v3 .flt{border-radius:999px}
   body.v3 .bt-ok{background:var(--ok);color:#052e1f}
   body.v3 .bt-no{background:rgba(255,255,255,.09);color:#dbe4f5}
-  body.v3 .bt-ac{background:linear-gradient(135deg,#5b8cff,#8b5cf6);color:#fff;box-shadow:0 8px 20px rgba(91,140,255,.35)}
+  body.v3 .bt-ac{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;box-shadow:0 8px 20px rgba(var(--accr),.35)}
   body.v3 .bt-x{border-radius:10px}
   body.v3 select,body.v3 input{border-radius:12px;background:rgba(255,255,255,.06)}
   body.v3 input[type=checkbox]{accent-color:var(--acc)}
@@ -9701,9 +9715,9 @@ window.pedirTexto = function (o, feito) {
      background:rgba(18,24,42,.72);-webkit-backdrop-filter:saturate(170%) blur(20px);backdrop-filter:saturate(170%) blur(20px);
      box-shadow:0 0 0 1px rgba(255,255,255,.08) inset,0 14px 34px rgba(0,0,0,.45)}
   body.v3 nav a{border-radius:18px}
-  body.v3 nav a.on{color:#fff;background:rgba(91,140,255,.18)}
+  body.v3 nav a.on{color:#fff;background:rgba(var(--accr),.2)}
   body.v3 #toast{border-radius:999px}
-  body.v3 .card.sug{background:linear-gradient(135deg,rgba(91,140,255,.16),rgba(139,92,246,.12))}
+  body.v3 .card.sug{background:linear-gradient(135deg,rgba(var(--accr),.16),rgba(var(--accr),.06))}
   /* janelas por cima da tela (lista de contas, lançar, editar): o cartão de
      vidro é transparente e deixava a tela de trás aparecer (23/10) */
   body.v3 .picker-folha,body.v3 #rcForm,body.v3 #edForm{background:rgba(20,26,44,.97);
@@ -9715,14 +9729,14 @@ window.pedirTexto = function (o, feito) {
   body.v3 .ia-top,body.v3 .ia-abas,body.v3 .ia-pe{border:0!important}
   body.v3 .ia-m{border-radius:20px}
   body.v3 .ia-m.ele{background:var(--card2);border:0;box-shadow:0 0 0 1px rgba(255,255,255,.06) inset}
-  body.v3 .ia-m.eu{background:linear-gradient(135deg,#5b8cff,#7c5cf6)}
+  body.v3 .ia-m.eu{background:linear-gradient(135deg,var(--acc),var(--acc2))}
   body.v3 .ia-card,body.v3 .ia-mod{border-radius:20px;background:var(--card2)}
   body.v3 .ia-bts button,body.v3 .ia-ver button,body.v3 #iaPrevBar button,body.v3 #iaErroBar button,body.v3 .ia-chip{border-radius:999px}
   body.v3 .ia-mt{border-radius:999px;background:rgba(255,255,255,.06);border:0}
   body.v3 .ia-mt button{border-radius:999px}
-  body.v3 .ia-mt button.on{background:rgba(91,140,255,.35)}
+  body.v3 .ia-mt button.on{background:rgba(var(--accr),.35)}
   body.v3 .ia-pe textarea{border-radius:22px;background:rgba(255,255,255,.07);border-color:transparent}
-  body.v3 .ia-pe button{width:44px;height:44px;align-self:flex-end;border-radius:50%;background:linear-gradient(135deg,#5b8cff,#8b5cf6)}
+  body.v3 .ia-pe button{width:44px;height:44px;align-self:flex-end;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc2))}
   body.v3 #iaVer iframe,body.v3 #iaTela iframe{background:transparent}
 
   /* Resumo de 4 números do Extrato (conta e cartão): numa linha só */
