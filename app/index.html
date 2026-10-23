@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.33.1 \u00b7 22/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.33.2 \u00b7 23/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -9258,7 +9258,8 @@ window.pedirTexto = function (o, feito) {
   svg{width:100%;height:150px;display:block}
 
   /* ---------- botao de tirar a conta do mes ---------- */
-  .picker{position:fixed;inset:0;z-index:200;display:flex;align-items:flex-end}
+  /* acima do botão ✦ do assistente (900), que ficava por cima da lista */
+  .picker{position:fixed;inset:0;z-index:955;display:flex;align-items:flex-end}
   .picker-fundo{position:absolute;inset:0;background:rgba(0,0,0,.55)}
   .picker-folha{position:relative;width:100%;max-height:min(78vh, calc(100% - 16px));background:var(--card2);
                 border:1px solid var(--line);border-radius:16px 16px 0 0;
@@ -9531,6 +9532,12 @@ window.pedirTexto = function (o, feito) {
   body.v3 nav a.on{color:#fff;background:rgba(91,140,255,.18)}
   body.v3 #toast{border-radius:999px}
   body.v3 .card.sug{background:linear-gradient(135deg,rgba(91,140,255,.16),rgba(139,92,246,.12))}
+  /* janelas por cima da tela (lista de contas, lançar, editar): o cartão de
+     vidro é transparente e deixava a tela de trás aparecer (23/10) */
+  body.v3 .picker-folha,body.v3 #rcForm,body.v3 #edForm{background:rgba(20,26,44,.97);
+     -webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);box-shadow:0 0 0 1px rgba(255,255,255,.08) inset,0 18px 44px rgba(0,0,0,.55)}
+  body.v3 #rcForm,body.v3 #edForm{border-radius:24px}
+  body.v3 .picker-fundo{background:rgba(0,0,0,.6);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
   /* assistente e módulos no mesmo padrão */
   body.v3 #ia,body.v3 #iaVer{background:var(--fundo)}
   body.v3 .ia-top,body.v3 .ia-abas,body.v3 .ia-pe{border:0!important}
@@ -9632,7 +9639,7 @@ window.pedirTexto = function (o, feito) {
       <span id="pkTodosTxt">aplicar a todos deste fornecedor</span>
     </label>
     <div id="pkLista" class="picker-lista"></div>
-    <button class="bt-ac" id="pkNovo" style="margin:10px" onclick="pickerCriar()">+ criar conta nova</button>
+    <button class="bt-ac" id="pkNovo" style="margin:10px;width:calc(100% - 20px)" onclick="pickerCriar()">+ criar conta nova</button>
   </div>
 </div>
 
