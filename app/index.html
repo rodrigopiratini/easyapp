@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.34.0 \u00b7 23/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.35.0 \u00b7 23/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6214,6 +6214,7 @@ window.pedirTexto = function (o, feito) {
     guardarMenus();
     carregarTemaAtivo();
     menuDosModulos();
+    sincronizarLembretes();
   }
 
   // ------------------------------------------------------- aparência
@@ -7335,6 +7336,8 @@ window.pedirTexto = function (o, feito) {
     "function c(op,a){return new Promise(function(ok,f){var id=++n;e[id]=[ok,f];parent.postMessage({__easy:1,id:id,op:op,args:a},'*');});}" +
     "window.EASY={listar:function(x){return c('listar',[x])},salvar:function(x,d,id){return c('salvar',[x,d,id])}," +
     "listarDe:function(m,x){return c('listarDe',[m,x])}," +
+    "lembrete:function(d,id){return c('lembrete',[d,id])},lembretes:function(){return c('lembretes',[])}," +
+    "cancelarLembrete:function(id){return c('apagar',[id])}," +
     "apagar:function(id){return c('apagar',[id])},lancamentos:function(m){return c('lancamentos',[m])}," +
     "contas:function(){return c('contas',[])},previstos:function(m){return c('previstos',[m])}," +
     "resumo:function(m){return c('resumo',[m])},bancos:function(){return c('bancos',[])}," +
@@ -7486,6 +7489,95 @@ window.pedirTexto = function (o, feito) {
     };
   }
 
+  /* Lembretes dos módulos (EASY.lembrete). Moram nos registros do próprio
+     módulo, na coleção '_lembretes' (sem tabela nova: o RLS de registros já
+     vale). No APK viram alarmes do Android: Lembrete.agendar recebe a agenda
+     inteira de uma vez, a cada mudança e ao abrir o app. Sem o alarme
+     (navegador, iPhone, APK antigo), o que venceu desde a última abertura
+     aparece num aviso ao abrir o app. */
+  var LEMBRETES = '_lembretes';
+  var REPETE = ['diario', 'semanal', 'mensal', 'anual'];
+  function horaDe(q) {   // 'AAAA-MM-DD' (9h) ou 'AAAA-MM-DDTHH:MM', na hora do celular
+    var m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?$/.exec(String(q || '').trim());
+    if (!m) return 0;
+    return new Date(+m[1], +m[2] - 1, +m[3], m[4] ? +m[4] : 9, m[5] ? +m[5] : 0).getTime();
+  }
+  // a k-ésima vez a partir da data original (dia 31 num mês de 30 cai no dia 30, sem escorregar)
+  function vezK(l, k) {
+    var d = new Date(l.quando), y = d.getFullYear(), m = d.getMonth(), dia = d.getDate();
+    var h = d.getHours(), mi = d.getMinutes();
+    if (l.repetir === 'diario' || l.repetir === 'semanal') {
+      return new Date(y, m, dia + k * (l.repetir === 'semanal' ? 7 : 1), h, mi).getTime();
+    }
+    if (l.repetir === 'mensal') m += k; else y += k;
+    return new Date(y, m, Math.min(dia, new Date(y, m + 1, 0).getDate()), h, mi).getTime();
+  }
+  // a vez do lembrete mais perto de `t`: a primeira em/depois (ou a última até, com antes=true); 0 = nenhuma
+  function vezDe(l, t, antes) {
+    if (REPETE.indexOf(l.repetir) < 0) return antes ? (l.quando <= t ? l.quando : 0) : (l.quando >= t ? l.quando : 0);
+    var k = 0;
+    while (vezK(l, k) < t && k < 20000) k++;
+    if (!antes) return vezK(l, k);
+    if (vezK(l, k) > t) k--;
+    return k < 0 ? 0 : vezK(l, k);
+  }
+  function lembreteDoModulo(M, x, id) {
+    var t = horaDe(x.quando);
+    if (!t) return Promise.reject(new Error("quando: use 'AAAA-MM-DD' ou 'AAAA-MM-DDTHH:MM'"));
+    var titulo = String(x.titulo || '').trim().slice(0, 60);
+    if (!titulo) return Promise.reject(new Error('informe o titulo do lembrete'));
+    var rep = REPETE.indexOf(x.repetir) >= 0 ? x.repetir : '';
+    var dados = { quando: String(x.quando).trim(), titulo: titulo, texto: String(x.texto || '').slice(0, 200), repetir: rep };
+    return id
+      ? rest('/rest/v1/registros?id=eq.' + encodeURIComponent(id) + '&modulo_id=eq.' + M + '&colecao=eq.' + LEMBRETES,
+             { metodo: 'PATCH', corpo: { dados: dados, atualizado_em: new Date().toISOString() }, prefer: 'return=representation' })
+          .then(function (r) { if (!r[0]) throw new Error('lembrete não encontrado'); return r[0]; })
+      : rest('/rest/v1/registros', { metodo: 'POST', prefer: 'return=representation',
+             corpo: { user_id: P().sessao().user_id, modulo_id: M, colecao: LEMBRETES, dados: dados } })
+          .then(function (r) { return r[0]; });
+  }
+  function lembretesTodos() {
+    return Promise.all([
+      rest('/rest/v1/registros?select=id,dados,modulo_id&colecao=eq.' + LEMBRETES + '&limit=1000'),
+      rest('/rest/v1/modulos?select=id,nome')
+    ]).then(function (r) {
+      var nome = {}; r[1].forEach(function (m) { nome[m.id] = m.nome; });
+      return r[0].filter(function (x) { return nome[x.modulo_id] && horaDe((x.dados || {}).quando); }).map(function (x) {
+        var d = x.dados;
+        return { id: x.id, quando: horaDe(d.quando), repetir: d.repetir || '',
+                 titulo: d.titulo || nome[x.modulo_id], texto: d.texto ? d.texto : nome[x.modulo_id] };
+      });
+    });
+  }
+  // uma mudança no meio de uma sincronização pede outra logo depois (a agenda vai inteira)
+  var sincronizando = null, denovo = false;
+  function sincronizarLembretes() {
+    if (sincronizando) { denovo = true; return sincronizando; }
+    var cap = window.Capacitor;
+    var nativo = !!(cap && cap.nativePromise && cap.isNativePlatform && cap.isNativePlatform());
+    sincronizando = lembretesTodos().then(function (lista) {
+      var agora = Date.now();
+      var agenda = lista.map(function (l) {
+        return { id: l.id, base: l.quando, quando: vezDe(l, agora), repetir: l.repetir, titulo: l.titulo, texto: l.texto };
+      }).filter(function (l) { return l.quando > 0; });
+      var noNavegador = function () { avisarVencidos(lista); };
+      if (!nativo) return noNavegador();
+      return cap.nativePromise('Lembrete', 'agendar', { lista: agenda }).catch(noNavegador);
+    }).catch(function () {}).then(function () {
+      sincronizando = null;
+      if (denovo) { denovo = false; sincronizarLembretes(); }
+    });
+    return sincronizando;
+  }
+  function avisarVencidos(lista) {
+    var K = 'easyapp:lembretes-visto', agora = Date.now(), visto = 0;
+    try { visto = Number(localStorage.getItem(K)) || 0; localStorage.setItem(K, String(agora)); } catch (e) { return; }
+    if (!visto) return;     // primeira vez neste aparelho: daqui para frente
+    var venceu = lista.filter(function (l) { var t = vezDe(l, agora, true); return t > visto && t <= agora; });
+    if (venceu.length) toastIA('🔔 ' + venceu.slice(0, 3).map(function (l) { return l.titulo; }).join(' · ') +
+                               (venceu.length > 3 ? ' e mais ' + (venceu.length - 3) : ''));
+  }
+
   // o que o módulo pode pedir ao app - e nada além disso
   function ponte(ev) {
     var q = quadros.filter(function (x) { return x.frame.contentWindow === ev.source; })[0];
@@ -7509,6 +7601,11 @@ window.pedirTexto = function (o, feito) {
         return rest('/rest/v1/registros?select=id,dados,criado_em&modulo_id=eq.' + o.id + '&colecao=eq.' + col(a[1]) +
                     '&order=criado_em&limit=2000');
       }).then(function (r) { return r.map(plano); });
+    } else if (d.op === 'lembrete') {
+      p = lembreteDoModulo(M, a[0] || {}, a[1]).then(function (r) { sincronizarLembretes(); return plano(r); });
+    } else if (d.op === 'lembretes') {
+      p = rest('/rest/v1/registros?select=id,dados,criado_em&modulo_id=eq.' + M + '&colecao=eq.' + LEMBRETES +
+               '&order=criado_em&limit=500').then(function (r) { return r.map(plano); });
     } else if (d.op === 'salvar') {
       var dados = JSON.parse(JSON.stringify(a[1] || {}));
       delete dados.id; delete dados.criado_em;
@@ -7521,7 +7618,7 @@ window.pedirTexto = function (o, feito) {
             .then(function (r) { return plano(r[0]); });
     } else if (d.op === 'apagar') {
       p = rest('/rest/v1/registros?id=eq.' + encodeURIComponent(a[0]) + '&modulo_id=eq.' + M,
-               { metodo: 'DELETE', prefer: 'return=minimal' }).then(function () { return true; });
+               { metodo: 'DELETE', prefer: 'return=minimal' }).then(function () { sincronizarLembretes(); return true; });
     } else if (d.op === 'lancamentos') {
       var mes = /^\d{4}-\d{2}$/.test(a[0]) ? a[0] : new Date().toISOString().slice(0, 7);
       p = rest('/rest/v1/lancamentos?select=data,valor,natureza,descricao,fornecedor,meio,contas(nome),categorias(nome)' +
