@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.35.0 \u00b7 23/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.36.0 \u00b7 23/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -7337,7 +7337,7 @@ window.pedirTexto = function (o, feito) {
     "window.EASY={listar:function(x){return c('listar',[x])},salvar:function(x,d,id){return c('salvar',[x,d,id])}," +
     "listarDe:function(m,x){return c('listarDe',[m,x])}," +
     "lembrete:function(d,id){return c('lembrete',[d,id])},lembretes:function(){return c('lembretes',[])}," +
-    "cancelarLembrete:function(id){return c('apagar',[id])}," +
+    "cancelarLembrete:function(id){return c('apagar',[id])},pdf:function(o){return c('pdf',[o])}," +
     "apagar:function(id){return c('apagar',[id])},lancamentos:function(m){return c('lancamentos',[m])}," +
     "contas:function(){return c('contas',[])},previstos:function(m){return c('previstos',[m])}," +
     "resumo:function(m){return c('resumo',[m])},bancos:function(){return c('bancos',[])}," +
@@ -7578,6 +7578,44 @@ window.pedirTexto = function (o, feito) {
                                (venceu.length > 3 ? ' e mais ' + (venceu.length - 3) : ''));
   }
 
+  /* Relatório em PDF de um módulo (EASY.pdf): a página vem pronta do módulo e
+     é desenhada SEM JavaScript e sem internet (CSP aqui; no APK, a WebView do
+     plugin Pdf também desliga os dois). No APK abre a impressão do Android
+     ("Salvar como PDF" / compartilhar); no navegador e no iPhone, a impressão
+     do navegador, num quadro sem scripts (sandbox sem allow-scripts). */
+  function pdfDoModulo(x) {
+    var html = String(x.html || '');
+    if (!html.trim()) return Promise.reject(new Error('relatório vazio: passe {titulo, html}'));
+    if (html.length > 4000000) return Promise.reject(new Error('relatório grande demais (máx. 4 MB): use fotos menores'));
+    var titulo = String(x.titulo || 'Relatório').slice(0, 60);
+    var doc = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">' +
+      '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data:; font-src data:">' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(titulo) + '</title>' +
+      '<style>@page{size:A4;margin:14mm}html,body{margin:0;background:#fff;color:#111;' +
+      'font:12px -apple-system,system-ui,Roboto,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style>' +
+      '</head><body>' + html + '</body></html>';
+    var cap = window.Capacitor;
+    if (cap && cap.nativePromise && cap.isNativePlatform && cap.isNativePlatform() && !/iP(hone|ad|od)/.test(navigator.userAgent)) {
+      return cap.nativePromise('Pdf', 'imprimir', { html: doc, titulo: titulo }).then(function () { return true; }, function (e) {
+        var m = String(e && e.message || e);
+        throw new Error(/not implemented|não implementado|UNIMPLEMENTED/i.test(m) ? 'atualize o app para gerar PDF' : m);
+      });
+    }
+    return new Promise(function (ok, falha) {
+      var f = document.createElement('iframe');
+      f.setAttribute('sandbox', 'allow-same-origin allow-modals');
+      f.setAttribute('aria-hidden', 'true');
+      f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+      f.onload = function () {
+        try { f.contentWindow.focus(); f.contentWindow.print(); ok(true); }
+        catch (e) { falha(new Error('o navegador não deixou imprimir')); }
+        setTimeout(function () { f.remove(); }, 60000);
+      };
+      f.srcdoc = doc;
+      document.body.appendChild(f);
+    });
+  }
+
   // o que o módulo pode pedir ao app - e nada além disso
   function ponte(ev) {
     var q = quadros.filter(function (x) { return x.frame.contentWindow === ev.source; })[0];
@@ -7603,6 +7641,8 @@ window.pedirTexto = function (o, feito) {
       }).then(function (r) { return r.map(plano); });
     } else if (d.op === 'lembrete') {
       p = lembreteDoModulo(M, a[0] || {}, a[1]).then(function (r) { sincronizarLembretes(); return plano(r); });
+    } else if (d.op === 'pdf') {
+      p = pdfDoModulo(typeof a[0] === 'string' ? { html: a[0] } : (a[0] || {}));
     } else if (d.op === 'lembretes') {
       p = rest('/rest/v1/registros?select=id,dados,criado_em&modulo_id=eq.' + M + '&colecao=eq.' + LEMBRETES +
                '&order=criado_em&limit=500').then(function (r) { return r.map(plano); });
