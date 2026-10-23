@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.36.1 \u00b7 23/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.37.0 \u00b7 23/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -9633,7 +9633,8 @@ window.pedirTexto = function (o, feito) {
 
   /* ---------- VISUAL ARREDONDADO (POC, body.v3, sempre junto do v2) ----------
      O fundo são três luzes coloridas (--g1..--g3) sobre --gbase; o cliente
-     escolhe a cor em Ajustes → Testes (data-fundo no body). */
+     escolhe a cor em Ajustes → Aparência (data-fundo no body). Desde 23/10/2026
+     é o visual de todos (visualArredondado). */
   body.v3{--acc:#5b8cff;--ok:#34d399;--bad:#f26464;--warn:#fbbf24;--card2:rgba(255,255,255,.055);--line:rgba(255,255,255,.07);
      --g1:rgba(59,130,246,.30);--g2:rgba(168,85,247,.24);--g3:rgba(16,185,129,.14);--gbase:#0a0f1c;
      --fundo:radial-gradient(900px 520px at -10% -8%,var(--g1),transparent 62%),
@@ -9645,6 +9646,21 @@ window.pedirTexto = function (o, feito) {
   body.v3[data-fundo=verde]{--g1:rgba(16,185,129,.26);--g2:rgba(14,165,233,.20);--g3:rgba(132,204,22,.10);--gbase:#07130f}
   body.v3[data-fundo=sol]{--g1:rgba(249,115,22,.24);--g2:rgba(219,39,119,.20);--g3:rgba(139,92,246,.14);--gbase:#140a10}
   body.v3[data-fundo=grafite]{--g1:rgba(148,163,184,.13);--g2:rgba(100,116,139,.10);--g3:rgba(148,163,184,.05);--gbase:#0b0c10}
+  /* as escuras (23/10/2026): luz baixa, base quase preta */
+  body.v3[data-fundo=marinho]{--g1:rgba(37,99,235,.30);--g2:rgba(29,78,216,.20);--g3:rgba(56,189,248,.08);--gbase:#040a18}
+  body.v3[data-fundo=vinho]{--g1:rgba(190,24,60,.26);--g2:rgba(127,29,29,.22);--g3:rgba(234,88,12,.07);--gbase:#100508}
+  body.v3[data-fundo=floresta]{--g1:rgba(5,150,105,.22);--g2:rgba(22,101,52,.18);--g3:rgba(45,212,191,.06);--gbase:#030e0a}
+  body.v3[data-fundo=cobre]{--g1:rgba(217,119,6,.22);--g2:rgba(154,52,18,.18);--g3:rgba(250,204,21,.05);--gbase:#0f0904}
+  body.v3[data-fundo=noite]{--g1:rgba(91,140,255,.09);--g2:rgba(139,92,246,.07);--g3:rgba(255,255,255,.02);--gbase:#040507}
+
+  /* Movimento (Aparência, ligado por padrão): a tela entra deslizando de leve
+     e o toque afunda o botão. Só na troca de tela - atualizar os dados não
+     anima de novo. Desliga sozinho com "reduzir movimento" do celular. */
+  body.anim .wrap:not(.hide){animation:telaEntra .26s cubic-bezier(.2,.7,.2,1)}
+  @keyframes telaEntra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  body.anim button,body.anim nav a,body.anim .c-tile{transition:transform .12s ease,background-color .2s ease,color .2s ease}
+  body.anim button:active,body.anim nav a:active,body.anim .c-tile:active{transform:scale(.96)}
+  @media (prefers-reduced-motion:reduce){ body.anim .wrap:not(.hide){animation:none} body.anim button:active,body.anim nav a:active{transform:none} }
   body.v3 header{background:rgba(10,15,28,.55);-webkit-backdrop-filter:saturate(160%) blur(18px);backdrop-filter:saturate(160%) blur(18px)}
   body.v3 h1{font-size:17px;font-weight:700;letter-spacing:-.2px}
   /* cabeçalho fininho: os botões com a mesma altura dos meses */
@@ -10038,21 +10054,24 @@ function cfgRecursos(){
       }).join('')+
       '<div class="m" style="font-size:11.5px;margin-top:6px">Quer outra coisa? Peça ao assistente ✦: ele cria para você.</div></div>';
   }
+  // Aparência (para todos, guardada neste aparelho): a cor do fundo e o movimento
+  var fundoAt=lerLocal('easyapp:fundo')||'azul', nomeFundo=(FUNDOS.filter(function(x){ return x[0]===fundoAt; })[0]||FUNDOS[0])[1], mov=movimento();
+  h+='<div class="card"><div class="lbl" style="margin-bottom:10px">Aparência</div>'+
+    '<div class="row" style="padding:2px 0 6px"><span>Fundo</span><span class="m" style="font-size:12.5px">'+nomeFundo+'</span></div>'+
+    '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;justify-items:center;padding:4px 0 10px">'+FUNDOS.map(function(x){
+      var on=fundoAt===x[0];
+      return '<button title="'+x[1]+'" aria-label="Fundo '+x[1]+'" onclick="escolherFundo(\''+x[0]+'\')" style="width:34px;height:34px;padding:0;border-radius:50%;background:'+x[2]+';'+
+        'box-shadow:0 0 0 2px '+(on?'#fff':'rgba(255,255,255,.08)')+',0 0 0 4px '+(on?'var(--acc)':'transparent')+'"></button>';
+    }).join('')+'</div>'+
+    '<div class="row" style="padding:6px 0"><span>Movimento <span class="ajuda" data-dica="As telas entram deslizando de leve e o toque afunda o botão. Desligado, tudo aparece na hora.">i</span></span>'+
+      '<button class="'+(mov?'bt-ok':'bt-no')+'" style="padding:6px 12px;font-size:12.5px" onclick="alternarMovimento()">'+(mov?'Ligado':'Desligado')+'</button></div>'+
+    '</div>';
   if(ST.modelo.modelo!=='essencial'){
-    var vis=lerLocal('easyapp:poc-visual')==='1', vis3=lerLocal('easyapp:poc-visual3')==='1', ess=pocEssencial();
+    var ess=pocEssencial();
     h+='<div class="card"><div class="lbl" style="margin-bottom:8px">🧪 Testes (só neste aparelho)</div>'+
-      '<div class="row" style="padding:6px 0"><span>Visual novo (POC)</span>'+
-        '<button class="'+(vis?'bt-ok':'bt-no')+'" style="padding:6px 12px;font-size:12.5px" onclick="pocAlternar(\'easyapp:poc-visual\')">'+(vis?'Ligado':'Desligado')+'</button></div>'+
-      '<div class="row" style="padding:6px 0"><span>Visual arredondado (estilo iPhone)</span>'+
-        '<button class="'+(vis3?'bt-ok':'bt-no')+'" style="padding:6px 12px;font-size:12.5px" onclick="pocAlternar(\'easyapp:poc-visual3\')">'+(vis3?'Ligado':'Desligado')+'</button></div>'+
-      (vis3?'<div class="row" style="padding:6px 0"><span>Fundo</span><span style="display:flex;gap:8px">'+FUNDOS.map(function(x){
-        var on=(lerLocal('easyapp:fundo')||'azul')===x[0];
-        return '<button title="'+x[1]+'" onclick="escolherFundo(\''+x[0]+'\')" style="width:30px;height:30px;padding:0;border-radius:50%;background:'+x[2]+';'+
-          'box-shadow:0 0 0 2px '+(on?'#fff':'transparent')+',0 0 0 4px '+(on?'var(--acc)':'transparent')+'"></button>';
-      }).join('')+'</span></div>':'')+
       '<div class="row" style="padding:6px 0"><span>Ver como conta nova (Essencial)</span>'+
         '<button class="'+(ess?'bt-ok':'bt-no')+'" style="padding:6px 12px;font-size:12.5px" onclick="pocAlternar(\'easyapp:poc-essencial\')">'+(ess?'Ligado':'Desligado')+'</button></div>'+
-      '<div class="m" style="font-size:11.5px;margin-top:6px">Nada disso muda os seus dados: é para avaliar o visual e o modelo das contas novas antes de valer para todo mundo.</div></div>';
+      '<div class="m" style="font-size:11.5px;margin-top:6px">Não muda os seus dados: é para ver o app como uma conta nova o vê.</div></div>';
   }
   return h;
 }
@@ -10112,14 +10131,22 @@ function alternarOlho(){ gravarLocal('easyapp:ocultar', olhoFechado()?null:'1');
 
 var FUNDOS=[['azul','Azul','linear-gradient(135deg,#3b82f6,#a855f7)'],['roxo','Roxo','linear-gradient(135deg,#8b5cf6,#ec4899)'],
   ['verde','Verde','linear-gradient(135deg,#10b981,#0ea5e9)'],['sol','Pôr do sol','linear-gradient(135deg,#f97316,#db2777)'],
-  ['grafite','Grafite','linear-gradient(135deg,#64748b,#1e293b)']];
+  ['grafite','Grafite','linear-gradient(135deg,#64748b,#1e293b)'],
+  ['marinho','Azul marinho','linear-gradient(135deg,#1d4ed8,#0b1736)'],['vinho','Vinho','linear-gradient(135deg,#be123c,#3b0a12)'],
+  ['floresta','Floresta','linear-gradient(135deg,#047857,#052e1f)'],['cobre','Cobre','linear-gradient(135deg,#d97706,#3a1d06)'],
+  ['noite','Noite','linear-gradient(135deg,#1e2433,#050608)']];
+function movimento(){ return lerLocal('easyapp:movimento')!=='0'; }
+function alternarMovimento(){ gravarLocal('easyapp:movimento', movimento()?'0':null); aplicarVisual(); renderConfig(); }
 function escolherFundo(f){ gravarLocal('easyapp:fundo', f==='azul'?null:f); aplicarVisual(); renderConfig(); }
-function visualArredondado(){ return lerLocal('easyapp:poc-visual3')==='1' || /[?&]poc=3(&|$)/.test(location.search); }
+/* 23/10/2026: o arredondado (estilo iPhone) virou o visual do app para todos.
+   O antigo só com ?classico=1 no endereço (para comparar). */
+function visualArredondado(){ return !/[?&]classico=1(&|$)/.test(location.search); }
 var obsVisual=null, tVisual=null;
 function aplicarVisual(){
   var on=visualNovo();
   document.body.classList.toggle('v2', on);
   document.body.classList.toggle('v3', visualArredondado());
+  document.body.classList.toggle('anim', movimento());
   var f=lerLocal('easyapp:fundo'); if(f) document.body.setAttribute('data-fundo', f); else document.body.removeAttribute('data-fundo');
   // as explicações viram "i" em qualquer visual (20/10: "muito texto nas telas")
   if(!obsVisual && window.MutationObserver){
