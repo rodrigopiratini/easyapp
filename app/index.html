@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.33.2 \u00b7 23/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.34.0 \u00b7 23/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -7334,10 +7334,19 @@ window.pedirTexto = function (o, feito) {
     "if(d.__easy&&e[d.id]){var p=e[d.id];delete e[d.id];d.erro?p[1](new Error(d.erro)):p[0](d.res);}});" +
     "function c(op,a){return new Promise(function(ok,f){var id=++n;e[id]=[ok,f];parent.postMessage({__easy:1,id:id,op:op,args:a},'*');});}" +
     "window.EASY={listar:function(x){return c('listar',[x])},salvar:function(x,d,id){return c('salvar',[x,d,id])}," +
+    "listarDe:function(m,x){return c('listarDe',[m,x])}," +
     "apagar:function(id){return c('apagar',[id])},lancamentos:function(m){return c('lancamentos',[m])}," +
     "contas:function(){return c('contas',[])},previstos:function(m){return c('previstos',[m])}," +
     "resumo:function(m){return c('resumo',[m])},bancos:function(){return c('bancos',[])}," +
     "lancar:function(d){return c('lancar',[d])},abrir:function(t){return c('abrir',[t])},aviso:function(t){return c('aviso',[t])}," +
+    // a foto é escolhida e reduzida DENTRO do quadro (o toque do cliente vale só lá) e volta como data:image/jpeg
+    "foto:function(o){o=o||{};return new Promise(function(ok,f){var i=document.createElement('input');i.type='file';i.accept='image/*';" +
+    "if(o.camera)i.setAttribute('capture','environment');i.style.display='none';document.body.appendChild(i);" +
+    "i.onchange=function(){var a=i.files&&i.files[0];i.remove();if(!a)return f(new Error('nenhuma foto'));var r=new FileReader();" +
+    "r.onload=function(){var im=new Image();im.onload=function(){var mx=Math.max(100,Math.min(1600,Number(o.max)||800))," +
+    "k=Math.min(1,mx/Math.max(im.width,im.height)),cv=document.createElement('canvas');cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);" +
+    "cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);ok(cv.toDataURL('image/jpeg',0.7))};" +
+    "im.onerror=function(){f(new Error('não consegui abrir a imagem'))};im.src=r.result};r.onerror=function(){f(new Error('não consegui ler a foto'))};r.readAsDataURL(a)};i.click()})}," +
     "mesAtual:function(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)}," +
     "moeda:function(v){return (Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}};" +
     // erros do módulo vão para o app (que oferece pedir a correção ao assistente)
@@ -7491,6 +7500,15 @@ window.pedirTexto = function (o, feito) {
     if (d.op === 'listar') {
       p = rest('/rest/v1/registros?select=id,dados,criado_em&modulo_id=eq.' + M + '&colecao=eq.' + col(a[0]) +
                '&order=criado_em&limit=2000').then(function (r) { return r.map(plano); });
+    } else if (d.op === 'listarDe') {
+      // só leitura, e só de outro módulo do próprio cliente (o RLS de modulos e registros garante)
+      var nm = String(a[0] || '').trim().toLowerCase();
+      p = rest('/rest/v1/modulos?select=id,nome').then(function (ms) {
+        var o = ms.filter(function (x) { return String(x.nome || '').trim().toLowerCase() === nm; })[0];
+        if (!o) throw new Error('módulo não encontrado: ' + a[0]);
+        return rest('/rest/v1/registros?select=id,dados,criado_em&modulo_id=eq.' + o.id + '&colecao=eq.' + col(a[1]) +
+                    '&order=criado_em&limit=2000');
+      }).then(function (r) { return r.map(plano); });
     } else if (d.op === 'salvar') {
       var dados = JSON.parse(JSON.stringify(a[1] || {}));
       delete dados.id; delete dados.criado_em;
