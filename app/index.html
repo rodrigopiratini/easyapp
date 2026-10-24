@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.39.0 \u00b7 24/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.39.1 \u00b7 24/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6085,10 +6085,21 @@ window.pedirTexto = function (o, feito) {
     // a lista de módulos em ícones, como a tela inicial do iPhone (24/10/2026)
     '#iaMods .ia-ggrade{padding:14px 4px}#iaMods .ia-ggrade .nm{color:#e8edf7}' +
     '.ia-ggrade .off .ic{background:rgba(255,255,255,.08)!important;color:#8b99b5;box-shadow:none}.ia-ggrade .off .nm{color:#8b99b5}' +
-    '.ia-ggrade .sx{font-size:10.5px;color:#8b99b5;margin-top:-4px}' +
-    '#iaGrupo .ia-modfolha .ia-card{margin:0;background:none!important;box-shadow:none!important;padding:0}' +
+    // cada ícone da aba com a chavinha de ligar embaixo (24/10/2026)
+    '.ia-gitem{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0}' +
+    '.ia-gitem .ia-gbt{width:100%}' +
+    '.ia-gitem .ia-chave{width:36px;height:21px;border-radius:11px}.ia-gitem .ia-chave i{top:2.5px;left:3px;width:16px;height:16px}' +
+    '.ia-gitem .ia-chave.on i{left:17px}' +
+    // a folha de um módulo: sem moldura, sem o nome repetido, botões com respiro
+    '#iaGrupo .ia-modfolha .ia-card{margin:0;border:0!important;background:none!important;box-shadow:none!important;padding:0;opacity:1}' +
+    '#iaGrupo .ia-modfolha .ia-modnm .nm{display:none}#iaGrupo .ia-modfolha .ia-mod .sub{font-size:12.5px;line-height:1.4}' +
+    '#iaGrupo .ia-modfolha .ia-modtopo{padding:2px 0 12px}' +
+    '#iaGrupo .ia-modfolha .ia-bts{gap:10px;margin-top:10px!important}#iaGrupo .ia-modfolha .ia-bts button{padding:12px 8px;font-size:14px}' +
+    '#iaGrupo .ia-modfolha .ia-hist{margin-top:14px;padding:12px 0 2px;color:var(--acc,#60a5fa);font-size:13.5px;' +
+    ' background:none!important;border:0!important;border-top:1px solid rgba(255,255,255,.08)!important;border-radius:0!important}' +
+    '#iaGrupo .ia-modfolha .ia-bts button{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '.ia-ggrade{display:grid;grid-template-columns:repeat(4,1fr);gap:18px 8px;padding:10px 2px 6px}' +
-    '.ia-ggrade button{display:flex;flex-direction:column;align-items:center;gap:7px;padding:0;border:0;background:none;' +
+    '.ia-ggrade .ia-gbt{display:flex;flex-direction:column;align-items:center;gap:7px;padding:0;border:0;background:none;' +
     ' color:inherit;font:inherit;cursor:pointer;min-width:0;border-radius:0}' +
     '.ia-ggrade .ic{width:60px;height:60px;display:grid;place-items:center;border-radius:18px;font-size:28px;color:#fff;' +
     ' background:linear-gradient(145deg,var(--acc,#3b82f6),var(--acc2,#8b5cf6));box-shadow:0 6px 16px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.18)}' +
@@ -6362,7 +6373,7 @@ window.pedirTexto = function (o, feito) {
     f.innerHTML = '<div class="ia-gfundo"></div><div class="ia-gfolha"><div class="ia-gtopo"><b>Módulos</b>' +
       '<button class="ia-x" aria-label="fechar">×</button></div><div class="ia-ggrade">' +
       lista.map(function (m, i) {
-        return '<button data-i="' + i + '" aria-label="' + esc(m.nome) + '"><span class="ic">' + iconeMenu(m.icone) + '</span><span class="nm">' + esc(m.nome) + '</span></button>';
+        return '<button class="ia-gbt" data-i="' + i + '" aria-label="' + esc(m.nome) + '"><span class="ic">' + iconeMenu(m.icone) + '</span><span class="nm">' + esc(m.nome) + '</span></button>';
       }).join('') + '</div></div>';
     document.body.appendChild(f);
     f.querySelector('.ia-gfundo').onclick = fecharGrupo;
@@ -7250,12 +7261,16 @@ window.pedirTexto = function (o, feito) {
       var falha = function (e) { toastIA('Não consegui: ' + e.message); listarModulos(); };
       // cartão genérico: cabeçalho (toca para abrir), chave liga/desliga, Abrir e a lista de versões
       var cartao = function (o) {
-        var t = document.createElement('button');
-        t.className = o.ativo ? '' : 'off'; t.setAttribute('aria-label', o.nome);
-        t.innerHTML = '<span class="ic">' + o.icone + '</span><span class="nm">' + esc(o.nome) + '</span>' +
-          (o.ativo ? '' : '<span class="sx">desligado</span>');
-        t.onclick = function () { folhaModulo(o.chave); };
-        grade.appendChild(t);
+        var g = document.createElement('div'); g.className = 'ia-gitem' + (o.ativo ? '' : ' off');
+        g.innerHTML = '<button class="ia-gbt" aria-label="' + esc(o.nome) + '"><span class="ic">' + o.icone + '</span>' +
+          '<span class="nm">' + esc(o.nome) + '</span></button>' +
+          '<button class="ia-chave' + (o.ativo ? ' on' : '') + '" aria-label="' + (o.ativo ? 'desligar ' : 'ligar ') + esc(o.nome) + '"><i></i></button>';
+        g.querySelector('.ia-gbt').onclick = function () { folhaModulo(o.chave); };
+        g.querySelector('.ia-chave').onclick = function () {
+          this.disabled = true; this.classList.toggle('on');
+          (o.ativo ? o.desligar() : o.ligar()).then(listarModulos, falha);
+        };
+        grade.appendChild(g);
         var d = document.createElement('div'); d.className = 'ia-card ia-mod' + (o.ativo ? '' : ' off'); d.dataset.nome = o.nome;
         d.innerHTML = '<div class="ia-modtopo"><div class="ia-modnm"><div class="nm">' + o.titulo + '</div>' +
             '<div class="sub">' + o.sub + '</div></div>' +
@@ -7341,7 +7356,7 @@ window.pedirTexto = function (o, feito) {
           pedir: function () { aba('chat'); focar(m); $('iaTxt').focus(); },
           excluir: { confirmar: function () { return confirmarExclusao(m); }, fn: function () { return excluirModulo(m); } },
           mover: (ativa && m.lugar !== 'mes' && m.grupo !== undefined) ? (m.grupo
-            ? { rot: '⬇ Pôr no menu de baixo', fn: function () { return moverModulo(m.id, false); } }
+            ? { rot: '⬇ Pôr no menu', fn: function () { return moverModulo(m.id, false); } }
             : { rot: '▦ Guardar em Módulos', fn: function () { return moverModulo(m.id, true); } }) : null,
           ligar: function () { return aplicar(vs[0].id, null); },          // a mais nova
           desligar: function () { return desativarModulo(m).then(menuDosModulos); },
