@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.44.0 \u00b7 24/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.45.0 \u00b7 24/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6213,9 +6213,10 @@ window.pedirTexto = function (o, feito) {
     '.ia-ver{display:flex;align-items:center;gap:6px;padding:4px 0}.ia-ver span{flex:1;color:#c7cfdf}' +
     '.ia-ver button{padding:5px 10px;border-radius:8px;border:1px solid #2a3548;background:#0f1420;color:#e8edf7;font-size:12px}' +
     '.ia-ver button.ok{background:#16a34a;border-color:#16a34a;color:#fff}' +
-    '#iaBt{position:fixed;right:14px;bottom:calc(82px + env(safe-area-inset-bottom));z-index:900;' +
-    ' width:52px;height:52px;border-radius:26px;border:0;background:#3b82f6;color:#fff;font-size:22px;' +
-    ' box-shadow:0 6px 18px #0008;cursor:pointer}' +
+    // no cabeçalho, ao lado do olhinho (24/10/2026: o canto de baixo ficou para o + de lançar)
+    '#iaBt{position:static;flex:none;' +
+    ' width:32px;height:32px;border-radius:50%;border:0;padding:0;background:#3b82f6;color:#fff;font-size:16px;line-height:32px;' +
+    ' cursor:pointer}' +
     '#ia,#iaVer{position:fixed;inset:0;z-index:950;background:#0f1420;color:#e8edf7;display:flex;' +
     ' flex-direction:column;font:14px -apple-system,system-ui,sans-serif}' +
     '#iaVer{z-index:960}#ia[hidden],#iaVer[hidden],#ia [hidden]{display:none!important}' +
@@ -6342,9 +6343,11 @@ window.pedirTexto = function (o, feito) {
     var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
 
     var bt = document.createElement('button');
-    bt.id = 'iaBt'; bt.title = 'Assistente'; bt.textContent = '✦';
+    bt.id = 'iaBt'; bt.title = 'Assistente'; bt.textContent = '✦'; bt.setAttribute('aria-label', 'Assistente');
     bt.onclick = abrir;
-    document.body.appendChild(bt);
+    // no cabeçalho, primeiro dos botões da direita; sem cabeçalho, no corpo
+    var grupo = document.querySelector('#cabecalho .row > div:last-child');
+    if (grupo) grupo.insertBefore(bt, grupo.firstChild); else document.body.appendChild(bt);
 
     var p = document.createElement('div');
     p.id = 'ia'; p.hidden = true;
@@ -9935,7 +9938,7 @@ window.pedirTexto = function (o, feito) {
   body.v3[data-fundo=floresta]{--acc:#10b981;--acc2:#065f46;--accr:16,185,129}
   body.v3[data-fundo=cobre]{--acc:#f59e0b;--acc2:#9a3412;--accr:245,158,11}
   body.v3[data-fundo=noite]{--acc:#6b8cff;--acc2:#3f3f9e;--accr:107,140,255}
-  body.v3 #iaBt{background:linear-gradient(135deg,var(--acc),var(--acc2));box-shadow:0 8px 22px rgba(var(--accr),.38)}
+  body.v3 #iaBt{background:linear-gradient(135deg,var(--acc),var(--acc2));box-shadow:0 4px 12px rgba(var(--accr),.35)}
 
   /* Movimento (Aparência, ligado por padrão): a tela entra deslizando de leve
      e o toque afunda o botão. Só na troca de tela - atualizar os dados não
@@ -10021,6 +10024,47 @@ window.pedirTexto = function (o, feito) {
   body.v3 .mini.resumo4{border-radius:22px;-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);
      box-shadow:0 0 0 1px rgba(255,255,255,.06) inset,0 12px 32px rgba(0,0,0,.28)}
 
+  /* o mês no cabeçalho (24/10/2026): ‹ Outubro › e, embaixo, entrada, saldo e saída */
+  #mesNav{display:block;overflow:visible;margin-top:6px;padding-bottom:0}
+  #mesNav.hide,#mnSel.hide{display:none}
+  .mn-linha{display:flex;align-items:center;justify-content:center;gap:10px}
+  #mesNav button{background:none!important;border:0!important;box-shadow:none!important;height:auto!important;color:var(--txt)!important}
+  #mesNav .mn-seta{font-size:26px!important;line-height:1;padding:0 16px!important;color:var(--dim)!important}
+  #mesNav .mn-nome{font-size:17px!important;font-weight:700!important;padding:4px 10px!important;min-width:130px;justify-content:center}
+  .mn-resumo{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:2px;text-align:center}
+  .mn-resumo .k{font-size:11.5px;color:var(--dim);display:flex;align-items:center;justify-content:center;gap:5px}
+  .mn-resumo .k i{width:15px;height:15px;border-radius:50%;display:inline-grid;place-items:center;font-style:normal;font-size:10px;font-weight:800;color:#0b1220}
+  .mn-resumo .v{font-size:13.5px;font-weight:700;margin-top:2px;white-space:nowrap}
+  .mn-resumo .v.sd{font-size:16px}
+  #mnSel{padding:4px 0 2px}#mnSel #meses{flex-wrap:wrap}
+  /* lançar: + flutuante no lugar do ✦ (que foi para o cabeçalho) */
+  #fabMais{position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:900;width:56px;height:56px;
+    border-radius:50%;border:0;padding:0;background:linear-gradient(135deg,var(--acc),var(--acc2,#8b5cf6));color:#fff;
+    font-size:32px;font-weight:300;line-height:56px;box-shadow:0 8px 22px rgba(0,0,0,.45);cursor:pointer}
+  body.em-modulo #fabMais,body.em-novo #fabMais{display:none}
+  #menuMais{position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.35)}
+  #menuMais.hide{display:none}
+  #menuMais .mm-caixa{position:absolute;right:16px;bottom:calc(150px + env(safe-area-inset-bottom,0px));min-width:230px;
+    background:rgba(24,30,46,.98);border-radius:20px;padding:6px;box-shadow:0 14px 40px rgba(0,0,0,.5);
+    -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+  #menuMais button{display:flex;align-items:center;gap:16px;width:100%;padding:14px 16px;background:none;border:0;
+    color:var(--txt);font-size:15.5px;text-align:left;border-radius:14px;cursor:pointer}
+  #menuMais button:active{background:rgba(255,255,255,.07)}
+  #menuMais .mi{width:22px;text-align:center;font-size:20px;line-height:1}
+  /* Config → Categorias em árvore */
+  .cat-arv{padding:4px 12px 8px}
+  .cat-cab{display:flex;align-items:center;gap:12px;padding:8px 0}
+  .cat-ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:19px;color:#fff;font-weight:700;flex:none}
+  .cat-nm{flex:1;font-size:15px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cat-bt{width:32px;height:32px;border-radius:50%!important;border:0;background:rgba(255,255,255,.08);color:var(--txt);
+    font-size:18px;padding:0!important;display:grid;place-items:center;flex:none;cursor:pointer}
+  .sub-ln{display:flex;align-items:center;gap:10px;padding:9px 6px 9px 10px;cursor:pointer;border-radius:12px}
+  .sub-ln.aberta{background:rgba(255,255,255,.05)}
+  .sub-tr{color:var(--dim);font-size:13px;width:12px;text-align:center;flex:none}
+  .sub-pt{width:11px;height:11px;border-radius:50%;flex:none}
+  .sub-nm{flex:1;font-size:14px;min-width:0}
+  .sub-v{font-size:12px;color:var(--dim);white-space:nowrap}
+  .sub-ed{padding:0 4px 10px 32px}
   /* conta ou cartão, na linha do extrato em competência */
   .ic-meio{width:12px;height:12px;vertical-align:-1.5px;margin-right:4px;opacity:.85}
   /* olhinho: valores borrados (o texto continua no lugar, a tela não pula) */
@@ -10050,12 +10094,21 @@ window.pedirTexto = function (o, feito) {
     <div style="display:flex;align-items:center;gap:6px">
       <button class="bt-ico" id="btOlho" onclick="alternarOlho()" title="Esconder os valores" aria-label="Esconder os valores"></button>
       <button class="pill" id="badge" onclick="irParaTela('pendentes')" title="Classificar" style="border:0;cursor:pointer">-</button>
-      <button class="bt-ico" onclick="abrirLancar()" title="Lançar à mão">+</button>
       <button id="btAtualizar" class="bt-ico" onclick="atualizarTudo()" title="Atualizar tudo">&#8635;</button>
     </div>
   </div>
-  <div class="filtros"><span class="rot">ANO</span><span id="anos"></span>
-    <span class="rot">MÊS</span><span id="meses"></span></div>
+  <div class="filtros" id="mesNav">
+    <div class="mn-linha">
+      <button class="mn-seta" onclick="andarMes(-1)" aria-label="mês anterior">&#8249;</button>
+      <button class="mn-nome" id="mnNome" onclick="abrirSeletorMes()" aria-label="escolher o mês"></button>
+      <button class="mn-seta" onclick="andarMes(1)" aria-label="próximo mês">&#8250;</button>
+    </div>
+    <div class="mn-resumo" id="mnResumo"></div>
+  </div>
+  <div id="mnSel" class="hide">
+    <div class="filtros"><span class="rot">ANO</span><span id="anos"></span></div>
+    <div class="filtros"><span id="meses"></span></div>
+  </div>
   <div class="filtros" id="linhaFamilia"><span class="rot">CATEGORIA</span>
     <span id="familias"></span></div>
 </header>
@@ -10079,6 +10132,14 @@ window.pedirTexto = function (o, feito) {
   <a href="#" data-t="patrimonio"><b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5h4v5"/></svg></b>Patrimônio</a>
   <a href="#" data-t="config"><b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></b>Config</a>
 </nav>
+<!-- lançar: o + flutuante e o menu (Transferência, Receita, Despesa, Despesa cartão) -->
+<button id="fabMais" onclick="abrirMenuMais()" aria-label="Lançar">+</button>
+<div id="menuMais" class="hide" onclick="if(event.target===this)fecharMenuMais()"><div class="mm-caixa">
+  <button onclick="lancarComo('TRANSFERENCIA')"><b class="mi" style="color:#fbbf24">&#8645;</b>Transferência</button>
+  <button onclick="lancarComo('RECEITA')"><b class="mi" style="color:#22c55e">+</b>Receita</button>
+  <button onclick="lancarComo('DESPESA')"><b class="mi" style="color:#ef4444">&minus;</b>Despesa</button>
+  <button onclick="lancarComo('DESPESA', true)"><b class="mi" style="color:#60a5fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:19px;height:19px;display:block;margin:0 auto"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg></b>Despesa cartão</button>
+</div></div>
 <div class="toast" id="toast"></div>
 
 <input type="hidden" id="rcAlvo">
@@ -10201,6 +10262,7 @@ var TELAS=['pendentes','mes','painel','cartao','extrato','plano','novo','config'
    abriu lugar na barra para o Configuracoes. */
 function irParaTela(t){
   if(!recursoLiberado(t)) t='mes';
+  document.body.classList.remove('em-novo');
   document.querySelectorAll('nav a').forEach(function(x){
     x.classList.toggle('on', x.dataset.t===t); });
   ST.telaAtual=t;
@@ -10548,7 +10610,51 @@ function anoEscolhido(sel, mes){
     .apiAbrirAnoNaFC(y);
 }
 
+/* O mês no cabeçalho: setas andam um mês (a tela aberta - Mês, Cartão,
+   Extrato - acompanha); tocar no nome abre o ano e os 12 meses. Embaixo,
+   entrada, saldo e saída do mês - o mesmo número que estava no cartão
+   "Entrou/Saiu" do Mês (em competência: recebeu e gastou). */
+function andarMes(d){
+  if(!ST.mes) return;
+  var p=ST.mes.split('-'), a=Number(p[0]), m=Number(p[1])+d;
+  if(m<1){ m=12; a--; } if(m>12){ m=1; a++; }
+  irPara(a, m);
+}
+function abrirSeletorMes(){ var s=el('mnSel'); if(s){ s.classList.toggle('hide'); renderCabecalho(); } }
+function entradaSaida(r){
+  var cx=r&&r.caixa, comp=!!(r&&r.regime==='COMPETENCIA');
+  var cxOk=!comp && cx && cx.jaEntrou!==undefined;
+  return { ent: cxOk?cx.jaEntrou:((r&&r.totalRealizadoReceita)||0),
+           sai: cxOk?cx.jaSaiu:((r&&r.totalRealizadoDespesa)||0), comp: comp };
+}
+function renderMesNav(){
+  var n=el('mnNome'), z=el('mnResumo'); if(!n || !ST.mes) return;
+  var p=ST.mes.split('-'), ano=Number(p[0]);
+  n.textContent=NOMES_MES[Number(p[1])]+(ano!==new Date().getFullYear()?' '+ano:'');
+  var r=ST.resumo;
+  if(!r || r.mes!==ST.mes){ z.innerHTML=''; return; }
+  var x=entradaSaida(r), sd=x.ent-x.sai;
+  z.innerHTML=
+    '<div><div class="k"><i style="background:var(--ok)">&#8595;</i>'+(x.comp?'Recebeu':'Entrada')+'</div><div class="v pos">'+moeda(x.ent)+'</div></div>'+
+    '<div><div class="k"><i style="background:#94a3b8">=</i>Saldo</div><div class="v sd '+(sd>=0?'pos':'neg')+'">'+moeda(sd)+'</div></div>'+
+    '<div><div class="k"><i style="background:var(--bad)">&#8593;</i>'+(x.comp?'Gastou':'Saída')+'</div><div class="v neg">'+moeda(x.sai)+'</div></div>';
+}
+function abrirMenuMais(){ var m=el('menuMais'); if(m) m.classList.remove('hide'); }
+function fecharMenuMais(){ var m=el('menuMais'); if(m) m.classList.add('hide'); }
+/* Lançar já no tipo certo; "Despesa cartão" já vem com o primeiro cartão em "Saiu de" */
+function lancarComo(tipo, cartao){
+  fecharMenuMais(); abrirLancar();
+  if(tipo!=='DESPESA') escolherSeg('nTipo', tipo);
+  if(cartao){
+    var c=ondeItens().filter(function(x){ return x.grupo==='CARTAO'; })[0];
+    var i=el('nonde'), b=el('btn_nonde');
+    if(c && i && b){ i.value=c.valor; b.innerHTML=ponto('CARTAO')+tx(c.rotulo)+'<span style="margin-left:auto;color:var(--dim)">&#9662;</span>'; }
+  }
+  var d=el('nd'); if(d) setTimeout(function(){ try{ d.focus(); }catch(e){} }, 50);
+}
+
 function irPara(ano, mes){
+  var sel=el('mnSel'); if(sel) sel.classList.add('hide');
   if(ST.ano && ST.ano.ano !== Number(ano)) ST.ano=null;   // forca rebuscar o painel
   carregar(ano+'-'+('0'+mes).slice(-2), true);
 }
@@ -10588,9 +10694,7 @@ function renderCabecalho(){
              'style="border-left:3px solid '+cor(f)+'">'+f+'</button>';
     }).join('');
 
-  // mantem o mes selecionado visivel na barra rolavel
-  var sel=el('meses').querySelector('button.on');
-  if(sel && sel.scrollIntoView) sel.scrollIntoView({block:'nearest',inline:'center'});
+  renderMesNav();
 }
 
 function mudarFiltro(f){
@@ -11575,6 +11679,7 @@ function htmlSaldos(s){
 
 function renderMes(){
   var r=ST.resumo, c=el('tela-mes');
+  renderMesNav();
   if(!r){ c.innerHTML=''; return; }
   var pctMes = r.diaDeHoje / r.diasNoMes;
   var h='';
@@ -11660,11 +11765,7 @@ function renderMes(){
       (cxOk && cx.comecou!==null ? ' Começou com '+moeda(cx.comecou)+' → hoje '+moeda(cx.saldoHoje)+'.' : '')+
       (comp ? ' Competência: compra no cartão conta no mês em que foi feita (cada parcela no mês dela). O saldo e o "ainda sai" seguem o dinheiro na conta.'
             : ' Compra no cartão só conta quando a fatura é paga.');
-  h+='<div class="card cx"><div class="row"><div><div class="lbl">'+setaMov('in')+(comp?'Recebeu':'Entrou')+dica(dicaMov)+'</div>'+
-      '<div style="font-size:17px;font-weight:600" class="pos">'+moeda(ent)+'</div></div>'+
-      '<div style="text-align:right"><div class="lbl">'+setaMov('out')+(comp?'Gastou':'Saiu')+'</div>'+
-      '<div style="font-size:17px;font-weight:600" class="neg">'+moeda(sai)+'</div></div></div>'+
-      barra(sai, ent)+'</div>';
+  // entrada, saldo e saída ficam no cabeçalho, embaixo do mês (renderMesNav)
 
   h+=cardSugestao(r);
 
@@ -13875,6 +13976,7 @@ function mudarCat(linha, categoria, i){
 
 function abrirLancar(){
   ST.telaAnterior = ST.telaAtual || 'mes';
+  document.body.classList.add('em-novo');
   document.querySelectorAll('nav a').forEach(function(x){x.classList.remove('on');});
   TELAS.forEach(function(t){ el('tela-'+t).classList.add('hide'); });
   el('tela-novo').classList.remove('hide');
@@ -15461,23 +15563,42 @@ function cfgBuscar(v){
   if(!a || !b){ renderConfig(); return; }
   b.innerHTML=a.innerHTML; if(q && q2) q2.textContent=q.textContent;
 }
+/* Config → Categorias em árvore (24/10/2026): abas Despesas e Receitas; cada
+   categoria com o ícone na cor dela, "+" (subcategoria nova nela) e "⋮"
+   (renomear); embaixo, as subcategorias com o traço da árvore. Tocar numa
+   subcategoria abre o editar de sempre, com Meses e Excluir. */
+var ICONE_CAT={CASA:'🏠',MORADIA:'🏠',PESSOAL:'🛒',MERCADO:'🛒',ALIMENTACAO:'🍽️',VEICULO:'🚗',TRANSPORTE:'🚌',SAUDE:'🩺',
+  EDUCACAO:'🎓',LAZER:'🎉',CARTAO:'💳',FAMILIA:'👨‍👩‍👧',RECEITA:'💰',INVESTIMENTO:'📈',EVENTO:'📅',EMPRESA:'💼',
+  PETS:'🐾',PET:'🐾',VIAGENS:'✈️',VIAGEM:'✈️',DIVIDA:'💸',DIVIDAS:'💸',LOJA:'🛍️',TRANSFERENCIA:'⇄',IMPOSTOS:'🧾',
+  SEGUROS:'🛡️',ASSINATURAS:'📺',RESERVA:'🏦',IGREJA:'⛪',HOBBY:'🎨',ESPORTE:'⚽',FILHOS:'🧒'};
+function iconeCat(g){
+  var k=normaliza(g).toUpperCase().split(/[^A-Z]/)[0];
+  return ICONE_CAT[k] || String(g||'?').trim().charAt(0).toUpperCase();
+}
+function nomeBonito(s){
+  var t=String(s||'').toLowerCase().replace(/(^|[\s\/(-])(\S)/g, function(m,a,b){ return a+b.toUpperCase(); });
+  // "e", "de", "da"... ficam minúsculos no meio do nome (Restaurantes e Delivery)
+  return t.replace(/ (E|De|Da|Do|Das|Dos|A|O|Em|Na|No|Para|Com) /g, function(m){ return m.toLowerCase(); });
+}
+function cfgTrocarAba(a){ ST.cfgAba=a; ST.cfgEditando=null; ST.cfgReplicando=null; renderConfig(); }
 function cfgContas(){
   var cf=ST.config, mes=Number((ST.mes||mesDeHoje()).split('-')[1]);
-  var busca=normaliza(ST.cfgBusca||'');
+  var busca=normaliza(ST.cfgBusca||''), rec=ST.cfgAba==='RECEITAS';
   var lista=cf.contas.filter(function(x){
-    return !busca || normaliza(x.nome+' '+x.grupo).indexOf(busca)>=0; });
+    return (x.natureza==='RECEITA')===rec && (!busca || normaliza(x.nome+' '+x.grupo).indexOf(busca)>=0); });
 
-  var h='<div class="card" style="padding:8px 10px"><div class="row" style="gap:6px">'+
-    '<input id="cfgBusca" placeholder="buscar subcategoria" style="margin:0;flex:1;padding:7px 9px;font-size:13px" '+
+  var h='<div class="seg" style="width:100%;margin-bottom:10px">'+
+      '<button style="flex:1" class="'+(rec?'':'on')+'" onclick="cfgTrocarAba(\'DESPESAS\')">Despesas</button>'+
+      '<button style="flex:1" class="'+(rec?'on':'')+'" onclick="cfgTrocarAba(\'RECEITAS\')">Receitas</button></div>'+
+    '<div class="card" style="padding:8px 10px"><div class="row" style="gap:6px">'+
+    '<input id="cfgBusca" placeholder="buscar" style="margin:0;flex:1;padding:7px 9px;font-size:13px" '+
       'value="'+(ST.cfgBusca||'').replace(/"/g,'&quot;')+'" oninput="cfgBuscar(this.value)">'+
-    '<button class="bt-no" style="padding:7px 11px;font-size:12.5px" '+
-      'onclick="cfgNovaCategoria()">+&nbsp;categoria</button>'+
     '<button class="bt-no" style="padding:7px 11px;font-size:12.5px;background:var(--acc);color:#fff" '+
-      'onclick="cfgNovaConta()">+&nbsp;subcategoria</button>'+
+      'onclick="cfgNovaCategoria()">+&nbsp;categoria</button>'+
     '</div><div class="m" style="font-size:11px;margin-top:6px"><span id="cfgQtd">'+lista.length+
-    ' subcategorias</span> · o previsto mostrado é o de '+NOMES_MES[mes]+'</div></div>';
+    (lista.length===1?' subcategoria':' subcategorias')+'</span> · o previsto é o de '+NOMES_MES[mes]+'</div></div>';
 
-  // categoria nova: o nome e, em seguida, a primeira conta dela (categoria vive das contas)
+  // categoria nova: o nome e, em seguida, a primeira subcategoria dela (a categoria vive das subcategorias)
   if(ST.cfgNovaCat) h+='<div class="card" style="border-color:var(--acc)">'+
     '<div class="lbl" style="margin-bottom:8px">Categoria nova</div>'+
     '<input id="cfgCatNova" placeholder="ex.: VIAGENS, PETS, IGREJA" onkeydown="if(event.key===\'Enter\')cfgCriarCategoria()">'+
@@ -15489,10 +15610,14 @@ function cfgContas(){
   var fams={};
   lista.forEach(function(x){ (fams[x.grupo]=fams[x.grupo]||[]).push(x); });
   h+='<div id="cfgLista">';
+  if(!lista.length) h+='<div class="vazio" style="padding:22px">'+(busca?'Nada com essa busca.':'Nenhuma subcategoria de '+(rec?'receita':'despesa')+' ainda.')+'</div>';
   Object.keys(fams).sort().forEach(function(g){
     var gj=JSON.stringify(g).replace(/"/g,'&quot;');
+    var fixa=['RECEITA','EVENTO','INVESTIMENTO'].indexOf(g)>=0;
+    var pre=new RegExp('^'+g.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*-\\s*');
+    h+='<div class="card cat-arv">';
     if(ST.cfgRenomeandoCat===g){
-      h+='<div class="card" style="margin:14px 0 6px;border-color:var(--acc)">'+
+      h+='<div style="padding:8px 0">'+
         '<div class="lbl" style="margin-bottom:6px">Renomear a categoria '+tx(g)+'</div>'+
         '<input id="cfgCatNome" value="'+tx(g)+'" onkeydown="if(event.key===\'Enter\')cfgSalvarCategoria('+gj+')">'+
         '<div class="m" style="font-size:11px;margin-top:5px">As subcategorias dela mudam junto ('+tx(g)+' - LUZ vira NOVO - LUZ).</div>'+
@@ -15500,40 +15625,35 @@ function cfgContas(){
           '<button class="bt-no" style="flex:1" onclick="ST.cfgRenomeandoCat=null;renderConfig()">Cancelar</button>'+
           '<button class="bt-ok" style="flex:2" onclick="cfgSalvarCategoria('+gj+')">Salvar</button></div></div>';
     } else {
-      h+='<div class="row" style="margin:14px 0 6px;align-items:center">'+
-        '<div class="lbl" style="margin:0">'+ponto(g)+g+'</div>'+
-        '<span style="display:flex;gap:6px">'+
-          (['RECEITA','EVENTO','INVESTIMENTO'].indexOf(g)<0?'<button class="bt-no" style="padding:3px 10px;font-size:11.5px" title="renomear a categoria" onclick="cfgRenomearCategoria('+gj+')">✎</button>':'')+
-          '<button class="bt-no" style="padding:3px 10px;font-size:11.5px" title="subcategoria nova nesta categoria" onclick="cfgContaNaCategoria('+gj+')">+ subcategoria</button>'+
-        '</span></div>';
+      h+='<div class="cat-cab"><span class="cat-ic" style="background:'+cor(g)+'">'+iconeCat(g)+'</span>'+
+        '<span class="cat-nm">'+tx(nomeBonito(g))+'</span>'+
+        '<button class="cat-bt" title="subcategoria nova nesta categoria" aria-label="subcategoria nova em '+tx(g)+'" onclick="cfgContaNaCategoria('+gj+')">+</button>'+
+        (fixa ? '<span class="cat-bt" style="visibility:hidden"></span>'
+              : '<button class="cat-bt" title="renomear a categoria" aria-label="renomear '+tx(g)+'" onclick="cfgRenomearCategoria('+gj+')">&#8942;</button>')+
+        '</div>';
     }
     fams[g].forEach(function(x){
       var prev = x.previsto ? x.previsto[mes-1] : 0;
-      var aberta = ST.cfgEditando===x.nome;
-      h+='<div class="card" style="padding:9px 11px;border-left:4px solid '+cor(g)+(aberta?';border-color:var(--acc);border-left-color:'+cor(g):'')+'">'+
-         '<div class="row"><div style="min-width:0">'+
-           '<div class="d" style="font-size:13.5px;line-height:1.25">'+tx(x.nome)+'</div>'+
-           '<div class="m" style="font-size:11px">'+x.natureza.toLowerCase()+
-             ' · sai por '+String(x.saiPor).toLowerCase()+
-             (x.reajuste?' · reajusta '+num(x.reajuste*100)+'% em '+
-               (x.mesReajuste?NOMES_MES[x.mesReajuste].substring(0,3):'jan'):'')+
-             (x.ate?' · até '+x.ate.substring(5)+'/'+x.ate.substring(0,4):'')+'</div></div>'+
-           '<div style="text-align:right;white-space:nowrap;padding-left:8px">'+
-             '<div class="lbl">previsto</div>'+
-             '<div style="font-size:14px">'+moeda(prev)+'</div></div></div>'+
-         '<div class="row" style="gap:6px;margin-top:8px">'+
-           '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" '+
-             'onclick="cfgEditar('+JSON.stringify(x.nome).replace(/"/g,'&quot;')+')">'+
-             (aberta?'Fechar':'Editar')+'</button>'+
-           '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" '+
-             'onclick="cfgReplicar('+JSON.stringify(x.nome).replace(/"/g,'&quot;')+')">Meses</button>'+
-           '<button class="bt-no" style="padding:6px 10px;font-size:12px;color:var(--bad)" '+
-             'onclick="cfgExcluir('+JSON.stringify(x.nome).replace(/"/g,'&quot;')+')">Excluir</button>'+
-         '</div>'+
-         (aberta?cfgFormEditar(x):'')+
-         (ST.cfgReplicando===x.nome?cfgFormMeses(x):'')+
-         '</div>';
+      var aberta = ST.cfgEditando===x.nome, nj=JSON.stringify(x.nome).replace(/"/g,'&quot;');
+      h+='<div class="sub-ln'+(aberta?' aberta':'')+'" onclick="cfgEditar('+nj+')">'+
+        '<span class="sub-tr">&#9492;</span><span class="sub-pt" style="background:'+cor(g)+'"></span>'+
+        '<span class="sub-nm">'+tx(nomeBonito(x.nome.replace(pre,'')))+'</span>'+
+        '<span class="sub-v">'+(prev?moeda(prev):'')+'</span></div>';
+      if(aberta){
+        h+='<div class="sub-ed">'+
+          '<div class="m" style="font-size:11px">'+tx(x.nome)+' · '+x.natureza.toLowerCase()+' · sai por '+String(x.saiPor).toLowerCase()+
+            (x.reajuste?' · reajusta '+num(x.reajuste*100)+'% em '+(x.mesReajuste?NOMES_MES[x.mesReajuste].substring(0,3):'jan'):'')+
+            (x.ate?' · até '+x.ate.substring(5)+'/'+x.ate.substring(0,4):'')+'</div>'+
+          cfgFormEditar(x)+
+          '<div class="row" style="gap:6px;margin-top:8px">'+
+            '<button class="bt-no" style="flex:1;padding:7px;font-size:12px" onclick="cfgReplicar('+nj+')">Previsto mês a mês</button>'+
+            '<button class="bt-no" style="flex:1;padding:7px;font-size:12px;color:var(--bad)" onclick="cfgExcluir('+nj+')">Excluir</button></div>'+
+          (ST.cfgReplicando===x.nome?cfgFormMeses(x):'')+'</div>';
+      } else if(ST.cfgReplicando===x.nome){
+        h+='<div class="sub-ed">'+cfgFormMeses(x)+'</div>';
+      }
     });
+    h+='</div>';
   });
   h+='</div>';
   return h;
@@ -15780,7 +15900,7 @@ function cfgFormNova(){
     '<div class="lbl" style="margin-top:9px">Categoria</div>'+
     botaoEscolha('cnFam', fa, 'escolher a categoria…', 'categoria', fams, '', '+ criar categoria nova')+
     '<div class="lbl" style="margin-top:9px">Tipo</div>'+
-    segEscolha('cnNat', 'DESPESA', ['DESPESA','RECEITA','TRANSFERENCIA','INVESTIMENTO'])+
+    segEscolha('cnNat', ST.cfgAba==='RECEITAS'?'RECEITA':'DESPESA', ['DESPESA','RECEITA','TRANSFERENCIA','INVESTIMENTO'])+
     '<div class="lbl" style="margin-top:9px">Previsto por mês</div>'+
     '<input id="cnPrev" placeholder="0,00" inputmode="decimal" oninput="mascaraMoeda(this)">'+
     '<div class="row" style="margin-top:10px;gap:8px">'+
