@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.40.0 \u00b7 24/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.41.0 \u00b7 24/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -627,6 +627,20 @@ window.pedirTexto = function (o, feito) {
      dinheiro na conta e fica igual. forcarCaixa: quem precisa do dinheiro
      (Metas, Plano) pede o de caixa mesmo com competência ligada. */
   function competencia(c) { return String((c || {}).REGIME || '').toUpperCase() === 'COMPETENCIA'; }
+  // o mês como período de datas, para filtrar a compra no cartão pela data da compra
+  function dataEntre(mes) {
+    var a = Number(mes.slice(0, 4)), m = Number(mes.slice(5, 7)), ult = new Date(a, m, 0).getDate();
+    return '&data=gte.' + mes + '-01&data=lte.' + mes + '-' + ('0' + ult).slice(-2);
+  }
+  // em competência o "ciclo" do cartão é o mês do calendário (o mesmo formato do cicloDaFatura)
+  function cicloDoMes(ref) {
+    var a = Number(ref.slice(0, 4)), m = Number(ref.slice(5, 7));
+    var ini = new Date(a, m - 1, 1), fim = new Date(a, m, 0), dias = fim.getDate();
+    var h = new Date(), agora = new Date(h.getFullYear(), h.getMonth(), h.getDate());
+    var hoje = agora > fim ? dias : (agora < ini ? 0 : agora.getDate());
+    return { ini: ini, fim: fim, dias: dias, hoje: hoje, fechada: agora > fim,
+             rotulo: '01/' + ('0' + m).slice(-2) + ' a ' + dias + '/' + ('0' + m).slice(-2) };
+  }
   function resumo(mes, forcarCaixa) {
     return config().then(function (c0) {
     var comp = !forcarCaixa && competencia(c0);
@@ -771,21 +785,27 @@ window.pedirTexto = function (o, feito) {
     });
   }
 
+  /* Em competência (055) o cartão do mês são as compras FEITAS no mês (pela
+     data), e o ciclo é o mês do calendário; em caixa, a fatura que vence nele. */
   function cartao(mes) {
+    return config().then(function (c0) {
+    var comp = competencia(c0), rm = comp ? 'resumo_mes_comp' : 'resumo_mes';
     return Promise.all([
-      rest('/rest/v1/fatura_total?select=compras,total&mes_ref=eq.' + mes),
-      lerTudo('/rest/v1/resumo_mes?select=categoria,grupo,previsto,realizado,sai_por'
+      comp ? null : rest('/rest/v1/fatura_total?select=compras,total&mes_ref=eq.' + mes),
+      lerTudo('/rest/v1/' + rm + '?select=categoria,grupo,previsto,realizado,sai_por'
            + '&mes_ref=eq.' + mes + '&sai_por=eq.CARTAO&order=categoria'),
-      config(),
-      lerTudo('/rest/v1/lancamentos?select=data,valor,categorias(nome)&mes_ref=eq.' + mes
+      c0,
+      lerTudo('/rest/v1/lancamentos?select=data,valor,categorias(nome)'
+              + (comp ? dataEntre(mes) : '&mes_ref=eq.' + mes)
               + '&meio=eq.CARTAO_CREDITO&natureza=eq.DESPESA&status=neq.IGNORADO'),
-      lerTudo('/rest/v1/resumo_mes?select=categoria,previsto&mes_ref=eq.' + mes)
+      lerTudo('/rest/v1/' + rm + '?select=categoria,previsto&mes_ref=eq.' + mes)
     ]).then(function (r) {
-      var t = r[0][0] || { compras: 0, total: 0 };
+      var t = comp ? { compras: r[3].length, total: r[3].reduce(function (a, l) { return a + (Number(l.valor) || 0); }, 0) }
+                   : (r[0][0] || { compras: 0, total: 0 });
       var cfg = r[2] || {};
       var meta = Number(cfg.META_CARTAO) || 0;
-      // o cartao anda pelo CICLO da fatura (29/09 a 28/10), nao pelo mes
-      var ciclo = cicloDaFatura(cfg, mes);
+      // o cartao anda pelo CICLO da fatura (29/09 a 28/10), nao pelo mes - em competência, pelo mês
+      var ciclo = comp ? cicloDoMes(mes) : cicloDaFatura(cfg, mes);
       var dias = ciclo.dias, dia = ciclo.hoje;
 
       /* O gráfico "Ritmo: meta x real", como o apiCartao do Codigo.gs: o
@@ -844,8 +864,9 @@ window.pedirTexto = function (o, feito) {
         projecao: dia ? n(t.total / dia * dias) : 0,
         porDiaDisponivel: n((meta - t.total) / Math.max(1, dias - dia)),
         pendente: 0, fechada: ciclo.fechada, ciclo: ciclo.rotulo,
-        serie: serie, porCategoria: porCategoria
+        serie: serie, porCategoria: porCategoria, regime: comp ? 'COMPETENCIA' : 'CAIXA'
       };
+    });
     });
   }
 
@@ -918,7 +939,10 @@ window.pedirTexto = function (o, feito) {
           + '&mes_ref=eq.' + mes + '&meio=neq.CARTAO_CREDITO&order=data.desc,criado_em.desc,id.desc';
     // a busca é feita aqui, em todos os campos (antes: só o fornecedor, no banco)
     // o mês inteiro (antes: só os 400 primeiros, e os totais saíam errados)
-    return Promise.all([lerTudo(q), saldoAberturaDoMes(mes, filtro)]).then(function (r) {
+    // em competência (055) entram também as compras no cartão feitas no mês
+    return config().then(function (c0) { var comp = competencia(c0);
+    return Promise.all([lerTudo(q), saldoAberturaDoMes(mes, filtro),
+                        comp ? extratoCartaoDe(mes, '', 'TUDO', true) : null]).then(function (r) {
       // o mais recente em cima; no mesmo dia, o que entrou por último
       var itens = r[0].map(function (l) { return paraItem(l); }).sort(maisNovoPrimeiro);
       var inicial = r[1].inicial, vale = r[1].vale;
@@ -964,16 +988,31 @@ window.pedirTexto = function (o, feito) {
         cred = 0; deb = 0;
         itens.forEach(function (x) { if (!x.entreContas && !x.foraDoSaldo) { cred += x.credito || 0; deb += x.debito || 0; } });
       }
+      /* Competência: as compras do cartão do mês entram na lista, marcadas
+         (noCartao), fora do saldo da conta - o dinheiro só sai quando a fatura
+         é paga. Somam no "saiu" e têm o seu próprio total. */
+      var noCartao = 0;
+      if (r[2]) {
+        var doCartao = r[2].itens.filter(function (x) { return bateBusca(x, busca); });
+        doCartao.forEach(function (x) { x.noCartao = true; x.foraDoSaldo = true; noCartao += x.valor || 0; });
+        itens = itens.concat(doCartao).sort(maisNovoPrimeiro);
+        deb += noCartao;
+      }
       return { mes: mes, itens: itens, total: itens.length,
-               creditos: n(cred), debitos: n(deb),
-               saldoInicial: n(inicial), saldoFinal: n(saldo) };
+               creditos: n(cred), debitos: n(deb), cartao: n(noCartao),
+               saldoInicial: n(inicial), saldoFinal: n(saldo), regime: comp ? 'COMPETENCIA' : 'CAIXA' };
+    });
     });
   }
 
   function extratoCartao(mes, busca, cartaoSel) {
+    return config().then(function (c0) { return extratoCartaoDe(mes, busca, cartaoSel, competencia(c0)); });
+  }
+  // em competência: as compras feitas no mês (pela data), não as da fatura que vence nele
+  function extratoCartaoDe(mes, busca, cartaoSel, comp) {
     var q = '/rest/v1/lancamentos?select=id,data,valor,natureza,descricao,fornecedor,meio,'
           + 'status,origem,origem_id,parcela_num,parcela_total,dados,criado_em,contas(nome),categorias(nome)'
-          + '&mes_ref=eq.' + mes + '&meio=eq.CARTAO_CREDITO&status=neq.IGNORADO'
+          + (comp ? dataEntre(mes) : '&mes_ref=eq.' + mes) + '&meio=eq.CARTAO_CREDITO&status=neq.IGNORADO'
           // so compra e estorno: o credito do PAGAMENTO que o Open Finance poe
           // dentro do cartao (RECEITA) somava na fatura o que ja foi pago
           + '&natureza=eq.DESPESA&order=data.desc,id.desc';
@@ -9857,6 +9896,8 @@ window.pedirTexto = function (o, feito) {
   body.v3 .mini.resumo4{border-radius:22px;-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);
      box-shadow:0 0 0 1px rgba(255,255,255,.06) inset,0 12px 32px rgba(0,0,0,.28)}
 
+  /* conta ou cartão, na linha do extrato em competência */
+  .ic-meio{width:12px;height:12px;vertical-align:-1.5px;margin-right:4px;opacity:.85}
   /* olhinho: valores borrados (o texto continua no lugar, a tela não pula) */
   #btOlho{display:inline-flex;align-items:center;justify-content:center}
   #btOlho svg{width:17px;height:17px;display:block}
@@ -10048,7 +10089,10 @@ function irParaTela(t){
     if(ST.modoAnalise==='METAS') carregarMetas();
     if(ST.modoAnalise==='PATRIMONIO'){ ST.modoAnalise='PAINEL'; renderPainel(); }
   }
-  if(t==='cartao' && ST.saldos && ST.saldos.cartoes &&
+  // caixa: a fatura que está correndo; competência: as compras do mês de hoje
+  if(t==='cartao' && ST.regime==='COMPETENCIA'){
+    if(ST.mes!==mesDeHoje()) carregar(mesDeHoje(), true);
+  } else if(t==='cartao' && ST.saldos && ST.saldos.cartoes &&
      ST.saldos.cartoes.mes && ST.saldos.cartoes.mes!==ST.mes){
     carregar(ST.saldos.cartoes.mes, true);
   }
@@ -10196,16 +10240,25 @@ function cfgRecursos(){
   }
   // Como contar o mês: caixa ou competência (config REGIME, vale em todos os aparelhos)
   var cmp=ST.regime==='COMPETENCIA';
-  var opRegime=function(v,t,d){
-    var on=(v==='COMPETENCIA')===cmp;
-    return '<button onclick="escolherRegime(\''+v+'\')" style="display:block;width:100%;text-align:left;margin:0 0 8px;padding:11px 14px;'+
-      'border-radius:16px;border:1px solid '+(on?'var(--acc)':'var(--line)')+';background:'+(on?'rgba(var(--accr,91,140,255),.12)':'transparent')+';color:inherit;font:inherit">'+
-      '<b style="display:block;font-size:14px">'+(on?'● ':'○ ')+t+'</b><span class="m" style="display:block;font-size:12px;margin-top:3px">'+d+'</span></button>';
+  var IC_REG={
+    CAIXA:'<path d="M3 7h15a3 3 0 0 1 3 3v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7l12-4 2 4"/><path d="M16.5 14h.01"/>',
+    COMPETENCIA:'<path d="M3 4h2l2.4 11h11.2L21 7H6.2"/><path d="M9.5 20h.01M17.5 20h.01"/>'
   };
-  h+='<div class="card"><div class="lbl" style="margin-bottom:10px">Como contar o mês</div>'+
-    opRegime('CAIXA','Caixa (quando o dinheiro sai)','A compra no cartão entra no mês em que a fatura é paga. Mostra quanto saiu da conta.')+
-    opRegime('COMPETENCIA','Competência (quando você compra)','A compra no cartão entra no mês em que foi feita; parcelada, cada parcela no mês dela. Mostra quanto você gastou.')+
-    '<div class="m" style="font-size:11.5px;margin-top:2px">Muda o Mês (contas, gastou) e o Painel do ano. Saldo, "ainda sai", fatura, extrato e plano seguem sempre o dinheiro na conta.</div></div>';
+  var opRegime=function(v,t,sub){
+    var on=(v==='COMPETENCIA')===cmp;
+    return '<button onclick="escolherRegime(\''+v+'\')" aria-pressed="'+on+'" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;'+
+      'border-radius:18px;border:1px solid '+(on?'var(--acc)':'var(--line)')+';background:'+(on?'rgba(var(--accr,91,140,255),.14)':'transparent')+';color:var(--txt,#e8edf7);font:inherit">'+
+      '<svg viewBox="0 0 24 24" style="width:26px;height:26px;flex:none" fill="none" stroke="'+(on?'var(--acc)':'currentColor')+'" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+IC_REG[v]+'</svg>'+
+      '<b style="font-size:14px">'+t+'</b><span class="m" style="font-size:11.5px">'+sub+'</span></button>';
+  };
+  var dicaReg='Caixa: a compra no cartão entra no mês em que a fatura é paga (quanto saiu da conta). '+
+    'Competência: entra no mês em que foi feita; parcelada, cada parcela no mês dela (quanto você gastou). '+
+    'Muda o Mês, o Extrato, o Cartão e o Painel do ano. Saldo, "ainda sai" e plano seguem o dinheiro na conta.';
+  h+='<div class="card"><div class="lbl" style="margin-bottom:10px">Como contar o mês <span class="ajuda" data-dica="'+dicaReg.replace(/"/g,'&quot;')+'">i</span></div>'+
+    '<div style="display:flex;gap:10px">'+
+    opRegime('CAIXA','Caixa','quando paga')+
+    opRegime('COMPETENCIA','Competência','quando compra')+
+    '</div></div>';
   // Aparência (para todos, guardada neste aparelho): a cor do fundo e o movimento
   var fundoAt=lerLocal('easyapp:fundo')||'azul', nomeFundo=(FUNDOS.filter(function(x){ return x[0]===fundoAt; })[0]||FUNDOS[0])[1], mov=movimento();
   h+='<div class="card"><div class="lbl" style="margin-bottom:10px">Aparência</div>'+
@@ -12993,18 +13046,21 @@ function renderCartao(){
     '<div class="row"><div><div class="lbl">Onde estou</div>'+
       '<div class="big '+(acima>0?'neg':'pos')+'">'+moeda(k.total)+'</div></div>'+
     '<div style="text-align:right"><div class="lbl">Onde deveria estar'+
-      dica('Dia '+k.hoje+' de '+k.dias+' do ciclo · fatura de '+(k.ciclo||'')+'. O traço branco na barra é onde você deveria estar hoje. Meta do mês '+moeda(k.meta)+'.')+'</div>'+
+      dica(k.regime==='COMPETENCIA'
+        ? 'Dia '+k.hoje+' de '+k.dias+' do mês · compras de '+(k.ciclo||'')+' (competência: pela data da compra). O traço branco na barra é onde você deveria estar hoje. Meta do mês '+moeda(k.meta)+'.'
+        : 'Dia '+k.hoje+' de '+k.dias+' do ciclo · fatura de '+(k.ciclo||'')+'. O traço branco na barra é onde você deveria estar hoje. Meta do mês '+moeda(k.meta)+'.')+'</div>'+
       '<div class="num" style="font-size:22px;font-weight:700;color:var(--dim)">'+
       moeda(k.metaAteHoje)+'</div></div></div>'+
     '<div class="m" style="margin-top:4px;font-size:13px;color:'+(acima>0?'var(--bad)':'var(--ok)')+'">'+
       (acima>0 ? moeda(acima)+' acima do ritmo' : moeda(-acima)+' de folga')+
-      (k.fechada?' · fatura fechada':' · fecha em '+(k.dias-k.hoje)+' dias')+
+      (k.regime==='COMPETENCIA' ? (k.fechada?' · mês encerrado':' · o mês acaba em '+(k.dias-k.hoje)+' dias')
+                                : (k.fechada?' · fatura fechada':' · fecha em '+(k.dias-k.hoje)+' dias'))+
       (k.pendente>0?' · '+moeda(k.pendente)+' a confirmar':'')+'</div>'+
     barraComMarca(k.total, k.meta, k.metaAteHoje, k.fechada ? 0 : k.dias)+'</div>';
 
   h+='<div class="kpis" style="margin-bottom:12px">'+
      kpi('Posso gastar por dia', moeda(k.porDiaDisponivel),
-         (k.fechada?'fatura fechada':'nos '+k.diasRestantes+' dias que faltam'),
+         (k.fechada?(k.regime==='COMPETENCIA'?'mês encerrado':'fatura fechada'):'nos '+k.diasRestantes+' dias que faltam'),
          k.porDiaDisponivel<0?'neg':'pos')+
      kpi('Meta por dia', moeda(k.meta/k.dias), 'se fosse parelho o mês todo','')+
      kpi('Projeção', moeda(k.projecao),
@@ -13151,7 +13207,7 @@ function renderExtrato(){
 
   var abas='<div class="seg sub-fixo" style="width:100%;margin-bottom:10px">'+
     '<button style="flex:1" class="'+(ST.modoEx==='CONTA'?'on':'')+'" '+
-      'onclick="trocarExtrato(\'CONTA\')">Conta corrente</button>'+
+      'onclick="trocarExtrato(\'CONTA\')">'+(ST.regime==='COMPETENCIA'?'Conta e cartão':'Conta corrente')+'</button>'+
     '<button style="flex:1" class="'+(ST.modoEx==='CARTAO'?'on':'')+'" '+
       'onclick="trocarExtrato(\'CARTAO\')">Cartão</button></div>';
 
@@ -13200,7 +13256,7 @@ function trocarExtrato(m){ ST.modoEx=m; ST.extrato=null; mesDoExtrato(); renderE
 
 /* Conta corrente mostra o mes corrente; cartao mostra a fatura que esta correndo. */
 function mesDoExtrato(){
-  var alvo = (ST.modoEx==='CARTAO' && ST.saldos && ST.saldos.cartoes && ST.saldos.cartoes.mes)
+  var alvo = (ST.modoEx==='CARTAO' && ST.regime!=='COMPETENCIA' && ST.saldos && ST.saldos.cartoes && ST.saldos.cartoes.mes)
     ? ST.saldos.cartoes.mes : mesDeHoje();
   if(ST.mes!==alvo){ ST.extrato=null; carregar(alvo, true); }
 }
@@ -13453,10 +13509,15 @@ function salvarEditado(){
     .apiEditarLancamento(e.linha, e.id, dados);
 }
 
+/* Como foi pago, num ícone pequeno (competência: conta e cartão na mesma lista) */
+var IC_MEIO_CARTAO='<svg class="ic-meio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="cartão"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>';
+var IC_MEIO_CONTA='<svg class="ic-meio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="conta"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18"/></svg>';
 function extratoConta(e){
+  var comp=e.regime==='COMPETENCIA';
   // os quatro numa linha só, num cartão (22/10: os quatro cartões ocupavam meia tela)
+  // competência: no lugar do "inicial", quanto foi no cartão (já somado no "saiu")
   var h='<div class="mini resumo4">'+
-    miniCard('inicial', num(e.saldoInicial), e.saldoInicial>=0?'':'neg')+
+    (comp ? miniCard('no cartão', num(e.cartao||0), 'neg') : miniCard('inicial', num(e.saldoInicial), e.saldoInicial>=0?'':'neg'))+
     miniCard('entrou', num(e.creditos), 'pos')+
     miniCard('saiu', num(e.debitos), 'neg')+
     miniCard('final', num(e.saldoFinal), e.saldoFinal>=0?'pos':'neg')+
@@ -13470,14 +13531,14 @@ function extratoConta(e){
        '<span class="d2">'+tx(x.fornecedor)+
          (x.status==='PENDENTE'?'<b class="pend">a confirmar</b>':'')+
          seloManual(x)+
-         '<i>'+origemIc(x)+tx(x.categoria||'sem categoria')+' · '+tx(x.conta)+'</i></span>'+
+         '<i>'+(comp?(x.noCartao?IC_MEIO_CARTAO:IC_MEIO_CONTA):'')+origemIc(x)+tx(x.categoria||'sem categoria')+' · '+tx(x.cartao||x.conta)+'</i></span>'+
        '<span class="d3 '+(x.credito?'pos':'neg')+'">'+(x.credito?'+':'-')+moeda(v)+
-         '<i>'+(x.semConta?'sem conta':x.foraDoSaldo&&x.status!=='IGNORADO'?'fora do saldo':moeda(x.saldo))+'</i></span>'+
+         '<i>'+(x.noCartao?(x.parcela?'parcela '+x.parcela:'no cartão'):x.semConta?'sem conta':x.foraDoSaldo&&x.status!=='IGNORADO'?'fora do saldo':moeda(x.saldo))+'</i></span>'+
        botaoTrocarConta(x, x.credito?'RECEITA':'DESPESA')+
        '<button class="bt-x" title="excluir" onclick="excluirLanc('+x.linha+',this,\''+(x.id||'')+'\')">&times;</button>'+
        '</div>';
   });
-  if(!e.itens.length) h+='<div class="vazio" style="padding:24px">Nenhum movimento em conta neste mês.</div>';
+  if(!e.itens.length) h+='<div class="vazio" style="padding:24px">Nenhum movimento '+(comp?'':'em conta ')+'neste mês.</div>';
   return h+'</div></div>';
 }
 
