@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.48.1 \u00b7 24/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.48.2 \u00b7 24/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10217,6 +10217,8 @@ window.pedirTexto = function (o, feito) {
   .sub-grp::before{content:'';position:absolute;left:0;top:0;bottom:16px;width:2px;border-radius:1px;background:var(--c);opacity:.35}
   .sub-ln{position:relative;display:flex;align-items:center;gap:10px;padding:7px 8px;cursor:pointer;border-radius:10px}
   .sub-ln.aberta{background:rgba(255,255,255,.05)}
+  .sub-novo .sub-nm{color:var(--acc);font-weight:600;font-size:13.5px}
+  .sub-novo .sub-pt{background:none;border:2px solid var(--c);width:8px;height:8px;box-sizing:border-box}
   .sub-pt{position:absolute;left:-15px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--c)}
   .sub-nm{flex:1;font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .sub-v{font-size:12.5px;color:var(--dim);white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -15899,7 +15901,9 @@ function cfgContas(){
     '<div class="row" style="margin-top:10px;gap:8px">'+
       '<button class="bt-no" style="flex:1" onclick="ST.cfgNovaCat=false;renderConfig()">Cancelar</button>'+
       '<button class="bt-ok" style="flex:2" onclick="cfgCriarCategoria()">Criar e pôr a primeira subcategoria</button></div></div>';
-  if(ST.cfgCriando) h+=cfgFormNova();
+  // subcategoria nova numa categoria que já está na lista: o formulário abre dentro dela
+  var nasCats=cf.contas.some(function(x){ return x.grupo===ST.cfgNovaFam && (x.natureza==='RECEITA')===rec; });
+  if(ST.cfgCriando && !(ST.cfgNovaFam && nasCats)) h+=cfgFormNova();
 
   var fams={};
   lista.forEach(function(x){ (fams[x.grupo]=fams[x.grupo]||[]).push(x); });
@@ -15944,6 +15948,9 @@ function cfgContas(){
         h+='<div class="sub-ed">'+cfgFormMeses(x)+'</div>';
       }
     });
+    if(ST.cfgCriando && ST.cfgNovaFam===g) h+='<div class="sub-ed">'+cfgFormNovaAqui(g)+'</div>';
+    else h+='<div class="sub-ln sub-novo" onclick="cfgContaNaCategoria('+gj+')"><span class="sub-pt"></span>'+
+            '<span class="sub-nm">+ Nova subcategoria</span></div>';
     h+='</div></div>';
   });
   h+='</div>';
@@ -16218,6 +16225,21 @@ function cfgFormNova(){
       '<button class="bt-no" style="flex:1" onclick="ST.cfgCriando=false;ST.cfgNovaFam=null;renderConfig()">Cancelar</button>'+
       '<button class="bt-ok" style="flex:2" onclick="cfgCriarConta()">Criar</button></div></div>';
 }
+/* Subcategoria nova dentro da categoria: só o nome (o "CASA - " já vem), o previsto e o tipo */
+function cfgFormNovaAqui(g){
+  return '<input type="hidden" id="cnFam" value="'+tx(g)+'">'+
+    '<div class="fm">'+
+      '<div class="fm-c"><span>Nome da subcategoria</span><input id="cnSuf" placeholder="ex.: Seguro" '+
+        'onkeydown="if(event.key===\'Enter\')cfgCriarConta()"></div>'+
+      '<div class="fm-c"><span>Previsto por mês</span><input id="cnPrev" placeholder="0,00" inputmode="decimal" oninput="mascaraMoeda(this)"></div>'+
+      '<div class="fm-c fm-full"><span>Tipo</span>'+
+        segEscolha('cnNat', ST.cfgAba==='RECEITAS'?'RECEITA':'DESPESA', ['DESPESA','RECEITA','TRANSFERENCIA','INVESTIMENTO'],
+                   { TRANSFERENCIA:'Transf.', INVESTIMENTO:'Invest.' })+'</div>'+
+    '</div>'+
+    '<div class="fm-acoes">'+
+      '<button class="bt-no" style="flex:1" onclick="ST.cfgCriando=false;ST.cfgNovaFam=null;renderConfig()">Cancelar</button>'+
+      '<button class="bt-ok" style="flex:1.4" onclick="cfgCriarConta()">Criar</button></div>';
+}
 /* Categorias (o grupo das contas): criar, renomear e pôr conta numa delas */
 function cfgNovaCategoria(){
   ST.cfgNovaCat=!ST.cfgNovaCat; ST.cfgCriando=false; renderConfig();
@@ -16229,7 +16251,9 @@ function cfgCriarCategoria(){
   ST.cfgNovaCat=false; cfgContaNaCategoria(n);
 }
 function cfgContaNaCategoria(g){
-  ST.cfgNovaFam=g; ST.cfgCriando=true; ST.cfgRenomeandoCat=null; renderConfig();
+  ST.cfgNovaFam=g; ST.cfgCriando=true; ST.cfgRenomeandoCat=null; ST.cfgEditando=null; renderConfig();
+  var a=el('cnSuf');   // na categoria (o formulário abre ali mesmo)
+  if(a){ a.focus(); a.scrollIntoView({block:'center',behavior:'smooth'}); return; }
   var e=el('cnNome'); if(e){ e.focus(); try{ e.setSelectionRange(e.value.length,e.value.length); }catch(x){} }
   window.scrollTo(0,0);
 }
@@ -16250,7 +16274,8 @@ function cfgSalvarCategoria(g){
 }
 
 function cfgCriarConta(){
-  var nome=(el('cnNome').value||'').trim();
+  var suf=el('cnSuf');
+  var nome = suf ? (suf.value.trim() ? el('cnFam').value+' - '+suf.value.trim() : '') : (el('cnNome').value||'').trim();
   if(!nome){ toast('Dê um nome'); return; }
   var fam=el('cnFam').value;
   if(!fam){ toast('Escolha a categoria'); return; }
