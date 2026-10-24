@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.48.0 \u00b7 24/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.48.1 \u00b7 24/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10205,18 +10205,21 @@ window.pedirTexto = function (o, feito) {
   #menuMais button:active{background:rgba(255,255,255,.07)}
   #menuMais .mi{width:22px;text-align:center;font-size:20px;line-height:1}
   /* Config → Categorias em árvore */
-  .cat-arv{padding:4px 12px 8px}
-  .cat-cab{display:flex;align-items:center;gap:12px;padding:8px 0}
-  .cat-ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:19px;color:#fff;font-weight:700;flex:none}
-  .cat-nm{flex:1;font-size:15px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .cat-bt{width:32px;height:32px;border-radius:50%!important;border:0;background:rgba(255,255,255,.08);color:var(--txt);
-    font-size:18px;padding:0!important;display:grid;place-items:center;flex:none;cursor:pointer}
-  .sub-ln{display:flex;align-items:center;gap:10px;padding:9px 6px 9px 10px;cursor:pointer;border-radius:12px}
+  .cat-arv{padding:2px 12px 6px}
+  .cat-cab{display:flex;align-items:center;gap:10px;padding:8px 0 4px}
+  .cat-ic{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:17px;color:#fff;font-weight:700;flex:none}
+  .cat-nm{flex:1;font-size:15px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2}
+  .cat-nm small{display:block;font-size:11.5px;font-weight:500;color:var(--dim);margin-top:1px}
+  .cat-bt{width:30px;height:30px;border-radius:50%!important;border:0;background:rgba(255,255,255,.07);color:var(--txt);
+    font-size:17px;padding:0!important;display:grid;place-items:center;flex:none;cursor:pointer}
+  /* a linha das subcategorias, embaixo do ícone da categoria, com uma bolinha em cada */
+  .sub-grp{position:relative;margin-left:16px;padding-left:12px}
+  .sub-grp::before{content:'';position:absolute;left:0;top:0;bottom:16px;width:2px;border-radius:1px;background:var(--c);opacity:.35}
+  .sub-ln{position:relative;display:flex;align-items:center;gap:10px;padding:7px 8px;cursor:pointer;border-radius:10px}
   .sub-ln.aberta{background:rgba(255,255,255,.05)}
-  .sub-tr{color:var(--dim);font-size:13px;width:12px;text-align:center;flex:none}
-  .sub-pt{width:11px;height:11px;border-radius:50%;flex:none}
-  .sub-nm{flex:1;font-size:14px;min-width:0}
-  .sub-v{font-size:12px;color:var(--dim);white-space:nowrap}
+  .sub-pt{position:absolute;left:-15px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--c)}
+  .sub-nm{flex:1;font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sub-v{font-size:12.5px;color:var(--dim);white-space:nowrap;font-variant-numeric:tabular-nums}
   .sub-ed{margin:2px 0 8px;padding:10px;border-radius:14px;background:rgba(255,255,255,.04)}
   .fm{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .fm-full{grid-column:1/-1}
@@ -15916,18 +15919,22 @@ function cfgContas(){
           '<button class="bt-no" style="flex:1" onclick="ST.cfgRenomeandoCat=null;renderConfig()">Cancelar</button>'+
           '<button class="bt-ok" style="flex:2" onclick="cfgSalvarCategoria('+gj+')">Salvar</button></div></div>';
     } else {
+      var totG=fams[g].reduce(function(a,x){ return a+((x.previsto&&Number(x.previsto[mes-1]))||0); },0), qG=fams[g].length;
       h+='<div class="cat-cab"><span class="cat-ic" style="background:'+cor(g)+'">'+iconeCat(g)+'</span>'+
-        '<span class="cat-nm">'+tx(nomeBonito(g))+'</span>'+
+        '<span class="cat-nm">'+tx(nomeBonito(g))+
+          '<small>'+qG+(qG===1?' subcategoria':' subcategorias')+(totG?' · '+moeda(totG)+'/mês':'')+'</small></span>'+
         '<button class="cat-bt" title="subcategoria nova nesta categoria" aria-label="subcategoria nova em '+tx(g)+'" onclick="cfgContaNaCategoria('+gj+')">+</button>'+
         (fixa ? '<span class="cat-bt" style="visibility:hidden"></span>'
               : '<button class="cat-bt" title="renomear a categoria" aria-label="renomear '+tx(g)+'" onclick="cfgRenomearCategoria('+gj+')">&#8942;</button>')+
         '</div>';
     }
+    // as subcategorias penduradas numa linha na cor da categoria (no lugar do "└")
+    h+='<div class="sub-grp" style="--c:'+cor(g)+'">';
     fams[g].forEach(function(x){
       var prev = x.previsto ? x.previsto[mes-1] : 0;
       var aberta = ST.cfgEditando===x.nome, nj=JSON.stringify(x.nome).replace(/"/g,'&quot;');
       h+='<div class="sub-ln'+(aberta?' aberta':'')+'" onclick="cfgEditar('+nj+')">'+
-        '<span class="sub-tr">&#9492;</span><span class="sub-pt" style="background:'+cor(g)+'"></span>'+
+        '<span class="sub-pt"></span>'+
         '<span class="sub-nm">'+tx(nomeBonito(x.nome.replace(pre,'')))+'</span>'+
         '<span class="sub-v">'+(prev?moeda(prev):'')+'</span></div>';
       if(aberta){
@@ -15937,7 +15944,7 @@ function cfgContas(){
         h+='<div class="sub-ed">'+cfgFormMeses(x)+'</div>';
       }
     });
-    h+='</div>';
+    h+='</div></div>';
   });
   h+='</div>';
   return h;
