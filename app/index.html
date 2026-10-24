@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.45.0 \u00b7 24/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.45.1 \u00b7 24/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10042,6 +10042,10 @@ window.pedirTexto = function (o, feito) {
     border-radius:50%;border:0;padding:0;background:linear-gradient(135deg,var(--acc),var(--acc2,#8b5cf6));color:#fff;
     font-size:32px;font-weight:300;line-height:56px;box-shadow:0 8px 22px rgba(0,0,0,.45);cursor:pointer}
   body.em-modulo #fabMais,body.em-novo #fabMais{display:none}
+  /* o + some quando uma janela de editar está aberta ou o teclado está em uso:
+     no print de 24/10 ele cobria o Salvar da janela de corrigir o lançamento */
+  body.fab-off #fabMais,body:has(#edForm:not(.hide)) #fabMais,body:has(#rcForm:not(:empty)) #fabMais,
+  body:has(.picker) #fabMais{display:none}
   #menuMais{position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.35)}
   #menuMais.hide{display:none}
   #menuMais .mm-caixa{position:absolute;right:16px;bottom:calc(150px + env(safe-area-inset-bottom,0px));min-width:230px;
@@ -10639,6 +10643,16 @@ function renderMesNav(){
     '<div><div class="k"><i style="background:#94a3b8">=</i>Saldo</div><div class="v sd '+(sd>=0?'pos':'neg')+'">'+moeda(sd)+'</div></div>'+
     '<div><div class="k"><i style="background:var(--bad)">&#8593;</i>'+(x.comp?'Gastou':'Saída')+'</div><div class="v neg">'+moeda(x.sai)+'</div></div>';
 }
+// teclado aberto (um campo com foco): o + sai do caminho
+document.addEventListener('focusin', function(e){
+  if(/^(INPUT|TEXTAREA|SELECT)$/.test((e.target||{}).tagName||'')) document.body.classList.add('fab-off');
+});
+document.addEventListener('focusout', function(){
+  setTimeout(function(){
+    var a=document.activeElement;
+    if(!a || !/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) document.body.classList.remove('fab-off');
+  }, 120);
+});
 function abrirMenuMais(){ var m=el('menuMais'); if(m) m.classList.remove('hide'); }
 function fecharMenuMais(){ var m=el('menuMais'); if(m) m.classList.add('hide'); }
 /* Lançar já no tipo certo; "Despesa cartão" já vem com o primeiro cartão em "Saiu de" */
