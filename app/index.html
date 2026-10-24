@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.41.0 \u00b7 24/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.43.0 \u00b7 24/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -2495,7 +2495,7 @@ window.pedirTexto = function (o, feito) {
     anos = Number(anos) || 3;
     return Promise.all([projetarPorConta(anos), projecaoFutura(anos)]).then(function (R) {
       var d = R[0], proj = R[1];
-      var cab = ['CONTA', 'FAMILIA', 'TIPO'].concat(d.refs.map(function (r) { return r.ref; }));
+      var cab = ['CONTA', 'CATEGORIA', 'TIPO'].concat(d.refs.map(function (r) { return r.ref; }));
       var linhas = [cab], vazio = cab.map(function () { return ''; });
       var receitas = d.linhas.filter(function (l) { return l.natureza === 'RECEITA'; });
       var despesas = d.linhas.filter(function (l) { return l.natureza === 'DESPESA' || l.natureza === 'INVESTIMENTO'; });
@@ -4001,6 +4001,41 @@ window.pedirTexto = function (o, feito) {
       });
   }
 
+  /* Categoria = o grupo das contas (antes "família"). Renomear muda o grupo de
+     todas as contas dela e o começo do nome ("CASA - LUZ" vira "MORADIA - LUZ").
+     As contas que o app procura pelo NOME (a verba do cartão e a transferência
+     entre contas) só mudam de categoria; tudo o mais aponta para o id. */
+  var NOMES_FIXOS = [CAT_VERBA_CARTAO, 'TRANSFERENCIA ENTRE CONTAS'];
+  var CATEGORIAS_FIXAS = ['RECEITA', 'EVENTO', 'INVESTIMENTO'];
+  function renomearCategoria(antigo, novo) {
+    antigo = String(antigo || '').trim().toUpperCase();
+    novo = String(novo || '').replace(/\s+/g, ' ').trim().toUpperCase().slice(0, 30);
+    if (novo.length < 2) return Promise.resolve({ ok: false, erro: 'dê um nome' });
+    // o app conta com estas pelo nome (receitas, eventos do plano, investimentos)
+    if (CATEGORIAS_FIXAS.indexOf(antigo) >= 0) return Promise.resolve({ ok: false, erro: 'a categoria ' + antigo + ' é fixa' });
+    if (novo === antigo) return Promise.resolve({ ok: true, contas: 0 });
+    var pre = new RegExp('^' + antigo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*-\\s*');
+    return rest('/rest/v1/categorias?select=id,nome,grupo').then(function (todas) {
+      var nomes = {};
+      todas.forEach(function (c) { nomes[c.nome] = true; });
+      var delas = todas.filter(function (c) { return c.grupo === antigo; });
+      if (!delas.length) return { ok: false, erro: 'não achei a categoria ' + antigo };
+      var erro = '';
+      var mud = delas.map(function (c) {
+        var campos = { grupo: novo };
+        if (NOMES_FIXOS.indexOf(c.nome) < 0 && pre.test(c.nome)) {
+          var nn = novo + ' - ' + c.nome.replace(pre, '');
+          if (nomes[nn]) erro = erro || 'já existe a conta ' + nn;
+          campos.nome = nn;
+        }
+        return { id: c.id, campos: campos };
+      });
+      if (erro) return { ok: false, erro: erro };
+      return Promise.all(mud.map(function (m) { return mudar('categorias', 'id=eq.' + m.id, m.campos); }))
+        .then(function () { _projCache = {}; return { ok: true, contas: delas.length }; });
+    });
+  }
+
   function replicarPrevisto(categoria, valor, meses) {
     var linhas = (meses || []).map(function (m) {
       return { mes: m, categoria: categoria, valor: valor };
@@ -4635,6 +4670,7 @@ window.pedirTexto = function (o, feito) {
     apiConfiguracoes: configuracoes,
     apiSalvarAjuste: salvarAjuste,
     apiSalvarConta: salvarConta,
+    apiRenomearCategoria: renomearCategoria,
     apiReplicarPrevisto: replicarPrevisto,
     apiGravarBem: gravarBem,
     apiExcluirBem: excluirBem,
@@ -4858,6 +4894,10 @@ window.pedirTexto = function (o, feito) {
     '#entrar .topo{display:block;width:auto!important;background:none!important;color:#3b82f6!important;font-size:15px!important;' +
     ' font-weight:600!important;padding:4px 0 18px!important;text-align:left}' +
     '#entrar button:disabled{opacity:.5}' +
+    '#entrar .gBt{display:flex!important;align-items:center;justify-content:center;gap:10px;background:#fff!important;' +
+    ' color:#1f1f1f!important;font-weight:600!important;margin-bottom:4px}#entrar .gBt[hidden],#entrar .ou[hidden]{display:none!important}' +
+    '#entrar .ou{display:flex;align-items:center;gap:10px;color:#8b99b5;font-size:12.5px;margin:10px 0 12px}' +
+    '#entrar .ou:before,#entrar .ou:after{content:"";flex:1;height:1px;background:#2a3548}' +
     '#boas{position:fixed;inset:0;z-index:9998;background:#0f1420;color:#e8edf7;overflow-y:auto;' +
     ' font:15px -apple-system,system-ui,sans-serif;padding:calc(18px + env(safe-area-inset-top)) 16px calc(100px + env(safe-area-inset-bottom))}' +
     '#boas[hidden]{display:none}' +
@@ -4890,7 +4930,7 @@ window.pedirTexto = function (o, feito) {
   // ================================================================ ENTRAR
   var TELAS = {
     entrar: function () {
-      return '<h1>EasyAPP<i> Financial</i></h1><p>entre para ver os seus dados</p>' +
+      return '<h1>EasyAPP<i> Financial</i></h1><p>entre para ver os seus dados</p>' + botaoGoogle() +
         '<input id="eMail" type="email" placeholder="e-mail" autocomplete="username" value="' + esc(EMAIL) + '">' +
         '<input id="eSenha" type="password" placeholder="senha" autocomplete="current-password">' +
         '<button id="eBt">Entrar</button><div class="erro" id="eErro"></div>' +
@@ -4898,7 +4938,7 @@ window.pedirTexto = function (o, feito) {
         '<button class="lk" data-ir="criar">Primeiro acesso? <b>Criar minha conta</b></button>';
     },
     criar: function () {
-      return '<h1>Criar conta</h1><p>14 dias grátis, sem cartão.</p>' +
+      return '<h1>Criar conta</h1><p>14 dias grátis, sem cartão.</p>' + botaoGoogle() +
         '<input id="cNome" autocomplete="name" placeholder="nome completo (como no banco)">' +
         '<input id="cMail" type="email" autocomplete="email" placeholder="e-mail" value="' + esc(EMAIL) + '">' +
         '<input id="cSenha" type="password" autocomplete="new-password" placeholder="senha (8 caracteres ou mais)">' +
@@ -4984,6 +5024,7 @@ window.pedirTexto = function (o, feito) {
         });
       }
       $('eBt').onclick = vai; enter('eSenha', vai);
+      ligarGoogle();
     },
     criar: function () {
       function vai() {
@@ -5009,6 +5050,7 @@ window.pedirTexto = function (o, feito) {
       }
       mascaraZap($('cZap'));
       $('cBt').onclick = vai; enter('cSenha', vai); enter('cZap', vai);
+      ligarGoogle();
     },
     confirmar: function () {
       function vai() {
@@ -5181,7 +5223,7 @@ window.pedirTexto = function (o, feito) {
     { nome: 'PAGAMENTO DA FATURA DO CARTAO', grupo: 'TRANSFER', natureza: 'TRANSFERENCIA', sai_por: 'CAIXA' },
     { nome: 'TRANSFERENCIA ENTRE CONTAS', grupo: 'TRANSFER', natureza: 'TRANSFERENCIA', sai_por: 'CAIXA' },
     { nome: 'OUTROS REEMBOLSOS', grupo: 'RECEITA', natureza: 'RECEITA', sai_por: 'CAIXA' }];
-  var ETAPAS = ['Bancos', 'Seu dinheiro', 'Saldos', 'Famílias', 'Contas', 'Valores', 'Metas', 'Plano', 'Automação'];
+  var ETAPAS = ['Bancos', 'Seu dinheiro', 'Saldos', 'Categorias', 'Contas', 'Valores', 'Metas', 'Plano', 'Automação'];
   var MESES_C = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   var B, TESTE = false;
   function semAcento(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
@@ -5490,20 +5532,20 @@ window.pedirTexto = function (o, feito) {
     }));
   }
   function corpoFamilias() {
-    return '<h2>Agora vamos cadastrar suas famílias de contas</h2><p class="sub">Famílias juntam as contas parecidas (Casa, Saúde...). Marque as que fazem parte da sua vida.</p>' +
+    return '<h2>Agora vamos cadastrar suas categorias de contas</h2><p class="sub">Categorias juntam as contas parecidas (Casa, Saúde...). Marque as que fazem parte da sua vida.</p>' +
       '<div class="fam">' + familias().map(function (f) {
         var on = !!B.fams[f[0]], fixa = f[0] === 'RECEITA';
         return '<button data-fam="' + f[0] + '" class="' + (on ? 'on' : '') + '"' + (fixa ? ' disabled' : '') + '><i>' + f[1] + '</i>' + esc(f[2]) +
           '</button>';
-      }).join('') + '<button id="bNovaFam" style="border-style:dashed;color:#93b8ff"><i>＋</i>Criar família</button></div>' +
-      '<p class="sub" style="margin-top:12px">Receitas sempre entram. Faltou alguma? Toque em <b>Criar família</b>: na próxima etapa você coloca as contas dela.</p>';
+      }).join('') + '<button id="bNovaFam" style="border-style:dashed;color:#93b8ff"><i>＋</i>Criar categoria</button></div>' +
+      '<p class="sub" style="margin-top:12px">Receitas sempre entram. Faltou alguma? Toque em <b>Criar categoria</b>: na próxima etapa você coloca as contas dela.</p>';
   }
 
   function listaFamilia(f) {
     return f[3].concat((B.extras[f[0]] || []).map(function (n) { return [n, n.replace(/^[^-]+- /, '').toLowerCase().replace(/^./, function (c) { return c.toUpperCase(); }), f[0] === 'RECEITA' ? 'RECEITA' : 'DESPESA', 'CAIXA', 'mes', 0]; }));
   }
   function corpoContas() {
-    return '<h2>Agora as contas de cada família</h2><p class="sub">Toque nas que você tem. Os valores vêm na próxima etapa.</p>' +
+    return '<h2>Agora as contas de cada categoria</h2><p class="sub">Toque nas que você tem. Os valores vêm na próxima etapa.</p>' +
       familias().filter(function (f) { return B.fams[f[0]]; }).map(function (f) {
         return '<h3>' + f[1] + ' ' + esc(f[2]) + '</h3><div class="chips">' + listaFamilia(f).map(function (c) {
           return '<button class="chip' + (B.contas[c[0]] ? ' on' : '') + '" data-conta="' + esc(c[0]) + '">' + esc(c[1]) + '</button>';
@@ -5685,7 +5727,7 @@ window.pedirTexto = function (o, feito) {
         passo(B.passo);
       }; });
       $('bNovaFam').onclick = function () {
-        pedirTexto({ titulo: 'Nova família', dica: 'Junta contas parecidas. Ex.: Viagens, Pets, Igreja, Hobby.', placeholder: 'nome da família', ok: 'Criar' }, function (n) {
+        pedirTexto({ titulo: 'Nova categoria', dica: 'Junta contas parecidas. Ex.: Viagens, Pets, Igreja, Hobby.', placeholder: 'nome da categoria', ok: 'Criar' }, function (n) {
           var id = semAcento(String(n || '')).toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30);
           if (id.length < 2) return;
           if (!familias().some(function (f) { return f[0] === id; })) (B.novasFams = B.novasFams || []).push(id);
@@ -5987,11 +6029,94 @@ window.pedirTexto = function (o, feito) {
       });
   }
 
+  /* ---------- Entrar com o Google (24/10/2026) ----------
+     Supabase Auth com PKCE, sem biblioteca: o app guarda um segredo (o
+     verificador), o Google devolve um código e o código vira a sessão. No
+     navegador a página volta com ?code=. No APK o Google não deixa entrar
+     dentro do app (WebView): abre no navegador do celular e volta pelo
+     endereço br.com.easyapp.financial://login. O botão só aparece com o
+     Google ligado no Supabase (/auth/v1/settings) - antes disso, nada muda.
+     Conta nova pelo Google cai no mesmo caminho da de e-mail: o aceite dos
+     termos aparece depois do login e o teste de 14 dias começa (novo_usuario). */
+  var NATIVO = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  var VOLTA_APP = 'br.com.easyapp.financial://login';
+  var googleOk = null;
+  function botaoGoogle() {
+    return '<button class="gBt" id="gBt"' + (googleOk ? '' : ' hidden') + '><svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Continuar com o Google</button>' +
+      '<div class="ou"' + (googleOk ? '' : ' hidden') + '>ou com e-mail</div>';
+  }
+  function ligarGoogle() {
+    var b = $('gBt'); if (b) b.onclick = entrarComGoogle;
+    if (googleOk !== null) return;
+    fetch(CFG.url + '/auth/v1/settings', { headers: { 'apikey': CFG.anon } })
+      .then(function (r) { return r.json(); }).then(function (d) {
+        googleOk = !!(d && d.external && d.external.google);
+        if (!googleOk) return;
+        Array.prototype.forEach.call(caixa.querySelectorAll('.gBt,.ou'), function (x) { x.hidden = false; });
+      }).catch(function () { googleOk = false; });
+  }
+  function b64url(bytes) {
+    var t = ''; bytes = new Uint8Array(bytes);
+    for (var i = 0; i < bytes.length; i++) t += String.fromCharCode(bytes[i]);
+    return btoa(t).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function entrarComGoogle() {
+    var r = new Uint8Array(32); crypto.getRandomValues(r);
+    var v = b64url(r);
+    try { localStorage.setItem('easyapp:pkce', v); } catch (e) {}
+    msg('abrindo o Google...', true);
+    crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)).then(function (h) {
+      var volta = NATIVO ? VOLTA_APP : location.origin + location.pathname;
+      var url = CFG.url + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(volta) +
+        '&code_challenge=' + b64url(h) + '&code_challenge_method=s256';
+      if (NATIVO) window.Capacitor.nativePromise('Browser', 'open', { url: url }).catch(function () { location.href = url; });
+      else location.href = url;
+    }).catch(function () { msg('este aparelho não abriu o login do Google'); });
+  }
+  // a volta do Google: ?code= (ou ?error_description= quando a pessoa cancela)
+  function voltaDoGoogle(url) {
+    var q = {};
+    String(url || '').replace(/^[^?#]*[?#]?/, '').split(/[&#?]/).forEach(function (p) {
+      var i = p.indexOf('='); if (i > 0) q[decodeURIComponent(p.slice(0, i))] = decodeURIComponent(p.slice(i + 1).replace(/\+/g, ' '));
+    });
+    if (q.error_description || q.error) {
+      caixa.hidden = false; ir('entrar', 'não deu para entrar com o Google: ' + (q.error_description || q.error)); return true;
+    }
+    if (!q.code) return false;
+    var v = null; try { v = localStorage.getItem('easyapp:pkce'); } catch (e) {}
+    if (!v) return false;
+    caixa.hidden = false; ir('entrar'); msg('entrando com o Google...', true); ocupado(true);
+    fetch(CFG.url + '/auth/v1/token?grant_type=pkce', {
+      method: 'POST', headers: { 'apikey': CFG.anon, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auth_code: q.code, code_verifier: v })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      try { localStorage.removeItem('easyapp:pkce'); } catch (e) {}
+      if (!d.access_token) throw new Error(d.error_description || d.msg || d.message || 'o Google não confirmou');
+      P.usarSessao(d); ocupado(false); entrou();
+    }).catch(function (x) { ocupado(false); msg('não deu para entrar com o Google: ' + x.message); });
+    return true;
+  }
+  if (NATIVO && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+    window.Capacitor.Plugins.App.addListener('appUrlOpen', function (e) {
+      if (String(e && e.url || '').indexOf(VOLTA_APP) !== 0) return;
+      try { window.Capacitor.nativePromise('Browser', 'close', {}).catch(function () {}); } catch (x) {}
+      voltaDoGoogle(e.url);
+    });
+  }
+
   // ================================================================ início
   var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
-  if (P.sessao()) { caixa.hidden = true; primeiroAcesso(); }
+  // voltou do Google no navegador: tira o ?code= do endereço e entra
+  var voltouGoogle = !NATIVO && /[?&](code|error_description)=/.test(location.search) && !P.sessao();
+  if (voltouGoogle) {
+    var urlVolta = location.href;
+    try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}
+    voltouGoogle = voltaDoGoogle(urlVolta);
+  }
+  if (voltouGoogle) { /* a troca do código já está em andamento */ }
+  else if (P.sessao()) { caixa.hidden = true; primeiroAcesso(); }
   else if (/teste-primeiro-acesso/.test(location.hash)) primeiroAcesso(true);
-  ir('entrar');
+  if (!voltouGoogle) ir('entrar');
   window.EASYAPP_ENTRADA = { ir: ir, primeiroAcesso: primeiroAcesso };
 })();
 </script>
@@ -6671,7 +6796,7 @@ window.pedirTexto = function (o, feito) {
 
   function boasVindas() {
     var sug = ['Põe no alto da tela Mês um cartão com quanto ainda posso gastar por dia até o fim do mês',
-               'Cria um gráfico dos meus gastos por família nos últimos 6 meses',
+               'Cria um gráfico dos meus gastos por categoria nos últimos 6 meses',
                'Cria um controle da minha empresa: clientes, serviços e contas a receber',
                'Cria uma lista de metas de economia com quanto falta para cada uma',
                'Cria um simulador: se eu cortar 20% do delivery, quanto sobra no ano?',
@@ -7165,7 +7290,7 @@ window.pedirTexto = function (o, feito) {
   // ------------------------------------------------- o que mudou, por extenso
   var MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   function mesTxt(ref) { return MESES[+String(ref).slice(5, 7) - 1] + '/' + String(ref).slice(2, 4); }
-  var CAMPOS = { nome: 'nome', grupo: 'família', natureza: 'tipo', sai_por: 'sai por', previsto_padrao: 'previsto',
+  var CAMPOS = { nome: 'nome', grupo: 'categoria', natureza: 'tipo', sai_por: 'sai por', previsto_padrao: 'previsto',
                  reajuste: 'reajuste', mes_reajuste: 'mês do reajuste', ate: 'até quando', ativa: 'ativa' };
   function descrever(alts, nomes) {
     var linhas = [], prev = {};
@@ -9931,7 +10056,7 @@ window.pedirTexto = function (o, feito) {
   </div>
   <div class="filtros"><span class="rot">ANO</span><span id="anos"></span>
     <span class="rot">MÊS</span><span id="meses"></span></div>
-  <div class="filtros" id="linhaFamilia"><span class="rot">FAMÍLIA</span>
+  <div class="filtros" id="linhaFamilia"><span class="rot">CATEGORIA</span>
     <span id="familias"></span></div>
 </header>
 
@@ -11314,9 +11439,9 @@ function abrirCriar(alvo, selectId, natureza){
     '<div style="border:1px solid var(--acc);border-radius:10px;padding:10px;margin-top:8px">'+
     '<div class="lbl" style="margin-bottom:7px">Nova conta</div>'+
     '<input id="xNome" placeholder="nome da conta (ex.: CASA - SEGURO PORTAO)">'+
-    '<div class="lbl" style="margin-top:9px">Família</div>'+
-    botaoEscolha('xFam', '', 'escolher a família…', 'família', fams, '',
-                 '+ criar família nova')+
+    '<div class="lbl" style="margin-top:9px">Categoria</div>'+
+    botaoEscolha('xFam', '', 'escolher a categoria…', 'categoria', fams, '',
+                 '+ criar categoria nova')+
     '<div class="lbl" style="margin-top:9px">Previsto por mês</div>'+
     '<input id="xPrev" placeholder="0,00" inputmode="decimal" oninput="mascaraMoeda(this)">'+
     '<div class="row" style="gap:8px;margin-top:9px">'+
@@ -11346,7 +11471,7 @@ function criarNaClassificacao(alvo, selectId, natureza){
   var nome=el('xNome').value.trim();
   if(!nome){ toast('Dê um nome para a conta'); return; }
   var fam=(el('xFam').value||'').trim();
-  if(!fam){ toast('Escolha a família'); return; }
+  if(!fam){ toast('Escolha a categoria'); return; }
   var prev=parseFloat(String(el('xPrev').value||'0').replace(/\./g,'').replace(',','.'))||0;
   toast('Criando...');
   google.script.run.withSuccessHandler(function(r){
@@ -11915,9 +12040,9 @@ function linhaMais(natureza){
         (ehReceita?'Nova entrada — dinheiro que chega':'Nova conta — dinheiro que sai')+'</div>'+
       '<input id="ncNome" placeholder="'+
         (ehReceita?'ex.: ALUGUEL DA LOJA':'ex.: CASA - SEGURO PORTAO')+'">'+
-      '<div class="lbl" style="margin-top:10px">Família</div>'+
-      botaoEscolha('ncFam', ehReceita?'RECEITA':'', 'escolher a família…', 'família',
-                   (ehReceita?['RECEITA']:[]).concat(fams), '', '+ criar família nova')+
+      '<div class="lbl" style="margin-top:10px">Categoria</div>'+
+      botaoEscolha('ncFam', ehReceita?'RECEITA':'', 'escolher a categoria…', 'categoria',
+                   (ehReceita?['RECEITA']:[]).concat(fams), '', '+ criar categoria nova')+
       '<div class="lbl" style="margin-top:10px">Previsto por mês</div>'+
       '<input id="ncPrev" placeholder="0,00" inputmode="decimal" oninput="mascaraMoeda(this)">'+
       '<div class="row" style="margin-top:10px;gap:8px">'+
@@ -11976,7 +12101,7 @@ function criarConta(nat){
   var nome=el('ncNome').value.trim();
   if(!nome){ toast('Dê um nome para a conta'); return; }
   var sel=el('ncFam').value;
-  if(!sel){ toast('Escolha a família'); return; }
+  if(!sel){ toast('Escolha a categoria'); return; }
   var g=sel.toUpperCase();
   var p=parseFloat(String(el('ncPrev').value||'0').replace(/\./g,'').replace(',','.'))||0;
   toast('Criando...');
@@ -15345,18 +15470,43 @@ function cfgContas(){
   var h='<div class="card" style="padding:8px 10px"><div class="row" style="gap:6px">'+
     '<input id="cfgBusca" placeholder="buscar conta" style="margin:0;flex:1;padding:7px 9px;font-size:13px" '+
       'value="'+(ST.cfgBusca||'').replace(/"/g,'&quot;')+'" oninput="cfgBuscar(this.value)">'+
+    '<button class="bt-no" style="padding:7px 11px;font-size:12.5px" '+
+      'onclick="cfgNovaCategoria()">+&nbsp;categoria</button>'+
     '<button class="bt-no" style="padding:7px 11px;font-size:12.5px;background:var(--acc);color:#fff" '+
       'onclick="cfgNovaConta()">+&nbsp;conta</button>'+
     '</div><div class="m" style="font-size:11px;margin-top:6px"><span id="cfgQtd">'+lista.length+
     ' contas</span> · o previsto mostrado é o de '+NOMES_MES[mes]+'</div></div>';
 
+  // categoria nova: o nome e, em seguida, a primeira conta dela (categoria vive das contas)
+  if(ST.cfgNovaCat) h+='<div class="card" style="border-color:var(--acc)">'+
+    '<div class="lbl" style="margin-bottom:8px">Categoria nova</div>'+
+    '<input id="cfgCatNova" placeholder="ex.: VIAGENS, PETS, IGREJA" onkeydown="if(event.key===\'Enter\')cfgCriarCategoria()">'+
+    '<div class="row" style="margin-top:10px;gap:8px">'+
+      '<button class="bt-no" style="flex:1" onclick="ST.cfgNovaCat=false;renderConfig()">Cancelar</button>'+
+      '<button class="bt-ok" style="flex:2" onclick="cfgCriarCategoria()">Criar e pôr a primeira conta</button></div></div>';
   if(ST.cfgCriando) h+=cfgFormNova();
 
   var fams={};
   lista.forEach(function(x){ (fams[x.grupo]=fams[x.grupo]||[]).push(x); });
   h+='<div id="cfgLista">';
   Object.keys(fams).sort().forEach(function(g){
-    h+='<div class="lbl" style="margin:14px 0 6px">'+ponto(g)+g+'</div>';
+    var gj=JSON.stringify(g).replace(/"/g,'&quot;');
+    if(ST.cfgRenomeandoCat===g){
+      h+='<div class="card" style="margin:14px 0 6px;border-color:var(--acc)">'+
+        '<div class="lbl" style="margin-bottom:6px">Renomear a categoria '+tx(g)+'</div>'+
+        '<input id="cfgCatNome" value="'+tx(g)+'" onkeydown="if(event.key===\'Enter\')cfgSalvarCategoria('+gj+')">'+
+        '<div class="m" style="font-size:11px;margin-top:5px">As contas dela mudam junto ('+tx(g)+' - LUZ vira NOVO - LUZ).</div>'+
+        '<div class="row" style="margin-top:9px;gap:8px">'+
+          '<button class="bt-no" style="flex:1" onclick="ST.cfgRenomeandoCat=null;renderConfig()">Cancelar</button>'+
+          '<button class="bt-ok" style="flex:2" onclick="cfgSalvarCategoria('+gj+')">Salvar</button></div></div>';
+    } else {
+      h+='<div class="row" style="margin:14px 0 6px;align-items:center">'+
+        '<div class="lbl" style="margin:0">'+ponto(g)+g+'</div>'+
+        '<span style="display:flex;gap:6px">'+
+          (['RECEITA','EVENTO','INVESTIMENTO'].indexOf(g)<0?'<button class="bt-no" style="padding:3px 10px;font-size:11.5px" title="renomear a categoria" onclick="cfgRenomearCategoria('+gj+')">✎</button>':'')+
+          '<button class="bt-no" style="padding:3px 10px;font-size:11.5px" title="conta nova nesta categoria" onclick="cfgContaNaCategoria('+gj+')">+ conta</button>'+
+        '</span></div>';
+    }
     fams[g].forEach(function(x){
       var prev = x.previsto ? x.previsto[mes-1] : 0;
       var aberta = ST.cfgEditando===x.nome;
@@ -15394,8 +15544,8 @@ function cfgFormEditar(x){
   return '<div style="border-top:1px solid var(--line);margin-top:9px;padding-top:9px">'+
     '<div class="lbl">Nome</div><input id="cfNome" value="'+tx(x.nome)+'">'+
     '<div class="row" style="gap:8px;margin-top:8px">'+
-      '<div style="flex:1"><div class="lbl">Família</div>'+
-        botaoEscolha('cfFam', x.grupo, 'escolher…', 'família', fams, '', '+ criar família nova')+
+      '<div style="flex:1"><div class="lbl">Categoria</div>'+
+        botaoEscolha('cfFam', x.grupo, 'escolher…', 'categoria', fams, '', '+ criar categoria nova')+
         '</div></div>'+
     '<div class="lbl" style="margin-top:8px">Tipo</div>'+
     segEscolha('cfNat', x.natureza, ['DESPESA','RECEITA','TRANSFERENCIA','INVESTIMENTO'])+
@@ -15464,7 +15614,7 @@ function edNatMudou(nat){
 
 function cfgSalvarConta(nome){
   var fam=(el('cfFam').value||'').trim();
-  if(!fam){ toast('Escolha a família'); return; }
+  if(!fam){ toast('Escolha a categoria'); return; }
   var rj=parseFloat(String(el('cfReaj').value||'0').replace(',','.'))||0;
   var ate=(el('cfAte').value||'').trim();
   if(ate && !/^\d{4}-\d{2}$/.test(ate)){ toast('Em "até quando", use AAAA-MM'); return; }
@@ -15622,32 +15772,63 @@ function cfgNovaConta(){ ST.cfgCriando=!ST.cfgCriando; renderConfig();
   if(ST.cfgCriando){ var e=el('cnNome'); if(e) e.focus(); } }
 
 function cfgFormNova(){
-  var fams=ST.config.familias;
+  var fams=ST.config.familias, fa=ST.cfgNovaFam||'';
+  if(fa && fams.indexOf(fa)<0) fams=fams.concat([fa]);
   return '<div class="card" style="border-color:var(--acc)">'+
-    '<div class="lbl" style="margin-bottom:8px">Conta nova</div>'+
-    '<input id="cnNome" placeholder="ex.: CASA - SEGURO PORTÃO">'+
-    '<div class="lbl" style="margin-top:9px">Família</div>'+
-    botaoEscolha('cnFam', '', 'escolher a família…', 'família', fams, '', '+ criar família nova')+
+    '<div class="lbl" style="margin-bottom:8px">Conta nova'+(fa?' em '+tx(fa):'')+'</div>'+
+    '<input id="cnNome" placeholder="ex.: CASA - SEGURO PORTÃO" value="'+(fa?tx(fa)+' - ':'')+'">'+
+    '<div class="lbl" style="margin-top:9px">Categoria</div>'+
+    botaoEscolha('cnFam', fa, 'escolher a categoria…', 'categoria', fams, '', '+ criar categoria nova')+
     '<div class="lbl" style="margin-top:9px">Tipo</div>'+
     segEscolha('cnNat', 'DESPESA', ['DESPESA','RECEITA','TRANSFERENCIA','INVESTIMENTO'])+
     '<div class="lbl" style="margin-top:9px">Previsto por mês</div>'+
     '<input id="cnPrev" placeholder="0,00" inputmode="decimal" oninput="mascaraMoeda(this)">'+
     '<div class="row" style="margin-top:10px;gap:8px">'+
-      '<button class="bt-no" style="flex:1" onclick="ST.cfgCriando=false;renderConfig()">Cancelar</button>'+
+      '<button class="bt-no" style="flex:1" onclick="ST.cfgCriando=false;ST.cfgNovaFam=null;renderConfig()">Cancelar</button>'+
       '<button class="bt-ok" style="flex:2" onclick="cfgCriarConta()">Criar</button></div></div>';
+}
+/* Categorias (o grupo das contas): criar, renomear e pôr conta numa delas */
+function cfgNovaCategoria(){
+  ST.cfgNovaCat=!ST.cfgNovaCat; ST.cfgCriando=false; renderConfig();
+  if(ST.cfgNovaCat){ var e=el('cfgCatNova'); if(e) e.focus(); }
+}
+function cfgCriarCategoria(){
+  var n=String((el('cfgCatNova')||{}).value||'').replace(/\s+/g,' ').trim().toUpperCase().slice(0,30);
+  if(n.length<2){ toast('Dê um nome à categoria'); return; }
+  ST.cfgNovaCat=false; cfgContaNaCategoria(n);
+}
+function cfgContaNaCategoria(g){
+  ST.cfgNovaFam=g; ST.cfgCriando=true; ST.cfgRenomeandoCat=null; renderConfig();
+  var e=el('cnNome'); if(e){ e.focus(); try{ e.setSelectionRange(e.value.length,e.value.length); }catch(x){} }
+  window.scrollTo(0,0);
+}
+function cfgRenomearCategoria(g){
+  ST.cfgRenomeandoCat=(ST.cfgRenomeandoCat===g)?null:g; renderConfig();
+  var e=el('cfgCatNome'); if(e) e.focus();
+}
+function cfgSalvarCategoria(g){
+  var n=String((el('cfgCatNome')||{}).value||'').trim();
+  if(!n){ toast('Dê um nome'); return; }
+  toast('Salvando...');
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
+    toast(r.contas?'Categoria renomeada · '+r.contas+(r.contas===1?' conta':' contas'):'Nada mudou');
+    ST.cfgRenomeandoCat=null; if(ST.familia===g) ST.familia='TUDO'; recarregarConfig();
+  }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
+    .apiRenomearCategoria(g, n);
 }
 
 function cfgCriarConta(){
   var nome=(el('cnNome').value||'').trim();
   if(!nome){ toast('Dê um nome'); return; }
   var fam=el('cnFam').value;
-  if(!fam){ toast('Escolha a família'); return; }
+  if(!fam){ toast('Escolha a categoria'); return; }
   var p=parseFloat(String(el('cnPrev').value||'0').replace(/\./g,'').replace(',','.'))||0;
   toast('Criando...');
   google.script.run.withSuccessHandler(function(r){
     if(!r||!r.ok){ toast('Não criei: '+((r&&r.erro)||'')); return; }
     toast('Conta criada');
-    ST.cfgCriando=false; ST.cfgReplicando=nome.toUpperCase();
+    ST.cfgCriando=false; ST.cfgNovaFam=null; ST.cfgReplicando=nome.toUpperCase();
     recarregarConfig();
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
     .apiNovaCategoria(nome, fam, el('cnNat').value, p);
