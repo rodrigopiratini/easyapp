@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.47.0 \u00b7 24/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.48.0 \u00b7 24/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6394,7 +6394,7 @@ window.pedirTexto = function (o, feito) {
     '.ia-prev .ln.on .meses{display:grid}' +
     '.ia-prev .rec{color:#22c55e}.ia-prev .des{color:#e8edf7}' +
     '.ia-passos{font-size:12.5px;color:#8b99b5;line-height:1.6}.ia-passos .at{color:#e8edf7}' +
-    'body.em-modulo header .filtros{display:none!important}' +
+    'body.em-modulo #cabCorpo .filtros{display:none!important}' +
     '#iaWidgets{padding-bottom:0}#iaWidgets.hide{display:none}.ia-wg{padding:10px 12px!important}' +
     '.ia-wg iframe{display:block;width:100%;height:60px;border:0;background:transparent}' +
     '#iaErroBar{position:fixed;left:10px;right:10px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:980;' +
@@ -6410,9 +6410,9 @@ window.pedirTexto = function (o, feito) {
     var bt = document.createElement('button');
     bt.id = 'iaBt'; bt.title = 'Assistente'; bt.textContent = '✦'; bt.setAttribute('aria-label', 'Assistente');
     bt.onclick = abrir;
-    // no cabeçalho, primeiro dos botões da direita; sem cabeçalho, no corpo
+    // no cabeçalho, o último dos botões da direita; sem cabeçalho, no corpo
     var grupo = document.querySelector('#cabecalho .row > div:last-child');
-    if (grupo) grupo.insertBefore(bt, grupo.firstChild); else document.body.appendChild(bt);
+    if (grupo) grupo.appendChild(bt); else document.body.appendChild(bt);
 
     var p = document.createElement('div');
     p.id = 'ia'; p.hidden = true;
@@ -10112,6 +10112,41 @@ window.pedirTexto = function (o, feito) {
   #mesNav .mn-seta{font-size:26px!important;line-height:1;padding:0 16px!important;color:var(--dim)!important}
   #mesNav .mn-nome{font-size:17px!important;font-weight:700!important;padding:4px 10px!important;min-width:130px;justify-content:center}
   .mn-resumo{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:2px;text-align:center}
+  /* cabeçalho A (24/10): mês numa pílula, saldo grande, entrada e saída em dois cartões */
+  #cabCorpo{padding:0 16px 4px}
+  .mes-pill{display:inline-flex;align-items:center;gap:2px;background:rgba(255,255,255,.07);border-radius:999px;padding:2px 4px}
+  #mesNav .mn-linha{margin-top:4px}
+  #mesNav .mes-pill .mn-seta{font-size:22px!important;padding:2px 10px!important}
+  #mesNav .mes-pill .mn-nome{min-width:0;font-size:15.5px!important;padding:6px 4px!important}
+  #mesNav .mn-resumo{display:block;margin-top:12px}
+  .hr-l{font-size:12.5px;color:var(--dim)}
+  .hr-v{font-size:38px;font-weight:800;letter-spacing:-1px;line-height:1.1;margin:2px 0 14px;white-space:nowrap}
+  .hr-chips{display:flex;gap:10px}
+  .mn-resumo .hr-chip.mn-bt{flex:1;position:relative;text-align:left;background:rgba(255,255,255,.06);border-radius:18px;padding:10px 14px}
+  .hr-chip small{display:block;font-size:11.5px;color:var(--dim)}
+  .hr-chip b{font-size:15.5px;font-weight:700;white-space:nowrap}
+  .hr-chip i{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--dim);font-size:18px}
+  #linhaFamilia{margin-top:14px}
+  /* sininho do classificar */
+  #badge{position:relative}
+  #badge .sino-n{position:absolute;top:-4px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;
+    background:#ef4444;color:#fff;font-size:10px;font-weight:800;line-height:17px;text-align:center;box-sizing:border-box}
+  /* encolhido: barra de cima com o mês e o saldo */
+  #barMini{display:none;align-items:center;gap:10px;min-width:0}
+  #barMini .mes-pill button{background:none;border:0;color:var(--txt);font-size:14px;font-weight:700;padding:5px 6px;cursor:pointer}
+  #barMini .mes-pill button:first-child,#barMini .mes-pill button:last-child{color:var(--dim);font-size:18px;line-height:1;padding:3px 8px}
+  #miniSaldo{margin-left:auto;display:flex;align-items:baseline;gap:6px;white-space:nowrap}
+  #miniSaldo small{font-size:11.5px;color:var(--dim)}#miniSaldo b{font-size:15px}
+  body.cab-mini #cabecalho h1,body.cab-mini #btOlho,body.cab-mini #badge{display:none!important}
+  body.cab-mini #barMini{display:flex}
+  body.cab-mini[data-tela]:not([data-tela="mes"]) #miniSaldo{display:none}
+  /* puxar para atualizar */
+  #ptr{position:fixed;left:50%;top:calc(var(--topo,60px) + 4px);z-index:8;width:36px;height:36px;border-radius:50%;
+    background:var(--card2,#1b2335);color:var(--txt);display:grid;place-items:center;font-size:18px;opacity:0;
+    transform:translate(-50%,-44px);box-shadow:0 6px 18px rgba(0,0,0,.4);pointer-events:none}
+  #ptr.pronto{color:var(--acc)}
+  #ptr.girando{animation:ptrGira .8s linear infinite;opacity:1}
+  @keyframes ptrGira{from{transform:translate(-50%,30px) rotate(0)}to{transform:translate(-50%,30px) rotate(360deg)}}
   .mn-resumo .k{font-size:11.5px;color:var(--dim);display:flex;align-items:center;justify-content:center;gap:5px}
   .mn-resumo .k i{width:15px;height:15px;border-radius:50%;display:inline-grid;place-items:center;font-style:normal;font-size:10px;font-weight:800;color:#0b1220}
   .mn-resumo .v{font-size:13.5px;font-weight:700;margin-top:2px;white-space:nowrap}
@@ -10219,28 +10254,38 @@ window.pedirTexto = function (o, feito) {
 
 <header id="cabecalho">
   <div class="row">
-    <div style="min-width:0;overflow:hidden"><h1><span class="logo-bar" aria-hidden="true"><i></i><i></i><i></i></span>EasyAPP<b> Financial</b></h1></div>
-    <div style="display:flex;align-items:center;gap:6px">
+    <div class="cab-esq" style="min-width:0;overflow:hidden;flex:1">
+      <h1><span class="logo-bar" aria-hidden="true"><i></i><i></i><i></i></span>EasyAPP<b> Financial</b></h1>
+      <!-- cabeçalho encolhido (rolou a tela): o mês e o saldo numa linha só -->
+      <div id="barMini"><span class="mes-pill">
+        <button onclick="andarMes(-1)" aria-label="mês anterior">&#8249;</button>
+        <button id="miniNome" onclick="window.scrollTo({top:0,behavior:'smooth'})"></button>
+        <button onclick="andarMes(1)" aria-label="próximo mês">&#8250;</button></span>
+        <span id="miniSaldo"></span></div>
+    </div>
+    <div class="cab-dir" style="display:flex;align-items:center;gap:8px">
       <button class="bt-ico" id="btOlho" onclick="alternarOlho()" title="Esconder os valores" aria-label="Esconder os valores"></button>
-      <button class="pill" id="badge" onclick="irParaTela('pendentes')" title="Classificar" style="border:0;cursor:pointer">-</button>
-      <button id="btAtualizar" class="bt-ico" onclick="atualizarTudo()" title="Atualizar tudo">&#8635;</button>
+      <button class="bt-ico" id="badge" onclick="irParaTela('pendentes')" title="Classificar" aria-label="Classificar"></button>
     </div>
   </div>
+</header>
+<!-- o resto do cabeçalho rola junto com a tela (só a barra de cima fica presa) -->
+<div id="cabCorpo">
   <div class="filtros" id="mesNav">
-    <div class="mn-linha">
+    <div class="mn-linha"><span class="mes-pill">
       <button class="mn-seta" onclick="andarMes(-1)" aria-label="mês anterior">&#8249;</button>
       <button class="mn-nome" id="mnNome" onclick="abrirSeletorMes()" aria-label="escolher o mês"></button>
       <button class="mn-seta" onclick="andarMes(1)" aria-label="próximo mês">&#8250;</button>
-    </div>
+    </span></div>
     <div class="mn-resumo" id="mnResumo"></div>
   </div>
   <div id="mnSel" class="hide">
     <div class="filtros"><span class="rot">ANO</span><span id="anos"></span></div>
     <div class="filtros"><span id="meses"></span></div>
   </div>
-  <div class="filtros" id="linhaFamilia"><span class="rot">CATEGORIA</span>
-    <span id="familias"></span></div>
-</header>
+  <div class="filtros" id="linhaFamilia"><span id="familias"></span></div>
+</div>
+<div id="ptr" aria-hidden="true">&#8635;</div>
 
 <div id="tela-mes"       class="wrap"><div class="load">Carregando...</div></div>
 <div id="tela-pendentes" class="wrap hide"></div>
@@ -10398,7 +10443,7 @@ function irParaTela(t){
   document.querySelectorAll('nav a').forEach(function(x){
     x.classList.toggle('on', x.dataset.t===t); });
   ST.telaAtual=t;
-  document.body.dataset.tela=t; fecharMovimento();
+  document.body.dataset.tela=t; fecharMovimento(); setTimeout(ajustarCabMini, 0);
 
   if(t==='analise'){
     ST.modoAnalise = ST.modoAnalise || 'PAINEL';
@@ -10765,14 +10810,61 @@ function renderMesNav(){
   var n=el('mnNome'), z=el('mnResumo'); if(!n || !ST.mes) return;
   var p=ST.mes.split('-'), ano=Number(p[0]);
   n.textContent=NOMES_MES[Number(p[1])]+' '+ano;   // sempre com o ano (antes só fora do ano corrente)
+  var mn=el('miniNome'), ms=el('miniSaldo');
+  if(mn) mn.textContent=NOMES_MES[Number(p[1])].substring(0,3)+' '+ano;
   var r=ST.resumo;
-  if(!r || r.mes!==ST.mes){ z.innerHTML=''; return; }
-  var x=entradaSaida(r), sd=x.ent-x.sai;
+  if(!r || r.mes!==ST.mes){ z.innerHTML=''; if(ms) ms.innerHTML=''; return; }
+  var x=entradaSaida(r), sd=x.ent-x.sai, cs=sd>=0?'pos':'neg';
+  // o saldo em destaque; entrada e saída embaixo, tocáveis (abrem os lançamentos)
   z.innerHTML=
-    '<div class="mn-bt" onclick="abrirMovimento(\'E\')"><div class="k"><i style="background:var(--ok)">&#8595;</i>'+(x.comp?'Recebeu':'Entrada')+'</div><div class="v pos">'+moeda(x.ent)+'</div></div>'+
-    '<div><div class="k"><i style="background:#94a3b8">=</i>Saldo</div><div class="v sd '+(sd>=0?'pos':'neg')+'">'+moeda(sd)+'</div></div>'+
-    '<div class="mn-bt" onclick="abrirMovimento(\'S\')"><div class="k"><i style="background:var(--bad)">&#8593;</i>'+(x.comp?'Gastou':'Saída')+'</div><div class="v neg">'+moeda(x.sai)+'</div></div>';
+    '<div class="hr-l">'+(x.comp?'sobra do mês':'saldo do mês')+'</div>'+
+    '<div class="hr-v '+cs+'">'+moeda(sd)+'</div>'+
+    '<div class="hr-chips">'+
+      '<div class="hr-chip mn-bt" onclick="abrirMovimento(\'E\')"><small>&#8595; '+(x.comp?'Recebeu':'Entrada')+'</small><b class="pos">'+moeda(x.ent)+'</b><i>&#8250;</i></div>'+
+      '<div class="hr-chip mn-bt" onclick="abrirMovimento(\'S\')"><small>&#8593; '+(x.comp?'Gastou':'Saída')+'</small><b class="neg">'+moeda(x.sai)+'</b><i>&#8250;</i></div>'+
+    '</div>';
+  if(ms) ms.innerHTML='<small>saldo</small><b class="'+cs+'">'+moeda(sd)+'</b>';
 }
+/* Cabeçalho que encolhe: o mês e o saldo grandes rolam junto com a tela;
+   quando somem por baixo da barra de cima, ela mostra os dois numa linha só. */
+function ajustarCabMini(){
+  var nav=el('mesNav'), cab=el('cabecalho');
+  if(!nav || !cab) return;
+  var mini = nav.offsetParent!==null && !nav.classList.contains('hide') &&
+             nav.getBoundingClientRect().bottom < cab.getBoundingClientRect().bottom + 4;
+  document.body.classList.toggle('cab-mini', mini);
+}
+window.addEventListener('scroll', ajustarCabMini, { passive:true });
+/* Puxar para atualizar (o ↻ saiu do cabeçalho): no topo da tela, puxe para baixo. */
+(function(){
+  var y0=null, puxou=0, LIM=80;
+  function ptr(){ return el('ptr'); }
+  document.addEventListener('touchstart', function(e){
+    if(window.scrollY>0 || document.body.classList.contains('em-modulo') ||
+       e.target.closest('#ia,#iaVer,#iaTela,#movFolha,.picker,#menuMais,#edForm,#rcForm,input,textarea,select')){ y0=null; return; }
+    y0=e.touches[0].clientY; puxou=0;
+  }, { passive:true });
+  document.addEventListener('touchmove', function(e){
+    if(y0===null) return;
+    puxou=Math.max(0, e.touches[0].clientY-y0);
+    if(window.scrollY>0){ puxou=0; }
+    var p=ptr(); if(!p) return;
+    var d=Math.min(puxou, LIM*1.4);
+    p.style.transform='translate(-50%,'+(d*0.8-44)+'px) rotate('+(d*3)+'deg)';
+    p.style.opacity=Math.min(1, d/LIM);
+    p.classList.toggle('pronto', puxou>=LIM);
+  }, { passive:true });
+  document.addEventListener('touchend', function(){
+    if(y0===null) return;
+    var p=ptr(), vai=puxou>=LIM; y0=null; puxou=0;
+    if(!p) return;
+    if(vai){
+      p.classList.add('girando'); p.style.transform='translate(-50%,30px)';
+      atualizarTudo();
+      setTimeout(function(){ p.classList.remove('girando','pronto'); p.style.opacity=0; p.style.transform=''; }, 1200);
+    } else { p.style.opacity=0; p.style.transform=''; p.classList.remove('pronto'); }
+  });
+})();
 /* Toque em Entrada ou Saída: a folha com os lançamentos que fazem o número -
    total, as categorias que mais pesam e a lista por dia. */
 function abrirMovimento(lado){
@@ -11125,15 +11217,16 @@ function render(){ renderPendentes(); renderMes(); renderPainel(); renderCartao(
    Com coisa para ver, ele acende. */
 function marcarBadge(q){
   var b=el('badge'); if(!b) return;
-  b.textContent = q ? '● '+q+' a classificar' : 'classificar';
-  b.style.background = q ? 'var(--acc)' : '';
-  b.style.color = q ? '#fff' : '';
+  // sininho: com coisa para classificar, o número em vermelho por cima
+  b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;display:block"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>'+
+    (q ? '<span class="sino-n">'+(q>99?'99+':q)+'</span>' : '');
+  b.title = q ? q+' para classificar' : 'Classificar';
 }
 
 function ajustarFiltros(){
   var t=ST.telaAtual||'mes';
   var sem=(t==='analise'||t==='pendentes'||t==='config'||t==='patrimonio');
-  document.querySelectorAll('header .filtros').forEach(function(f){
+  document.querySelectorAll('#cabCorpo .filtros').forEach(function(f){
     f.classList.toggle('hide', sem); });
   // no extrato so ano e mes fazem sentido: a lista ja mostra conta e categoria
   var fam=el('linhaFamilia');
