@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.39.1 \u00b7 24/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.40.0 \u00b7 24/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -620,15 +620,28 @@ window.pedirTexto = function (o, feito) {
     });
   }
 
-  function resumo(mes) {
+  /* Regime do mês (055, Config → Ajustes → "Como contar o mês"): em
+     competência, a compra no cartão conta no mês da COMPRA (cada parcela no
+     dela), e não no da fatura. Muda o que o mês GASTOU (as contas, o total, o
+     Painel do ano); o caixa (saldo, "ainda sai", fatura, extrato, plano) é
+     dinheiro na conta e fica igual. forcarCaixa: quem precisa do dinheiro
+     (Metas, Plano) pede o de caixa mesmo com competência ligada. */
+  function competencia(c) { return String((c || {}).REGIME || '').toUpperCase() === 'COMPETENCIA'; }
+  function resumo(mes, forcarCaixa) {
+    return config().then(function (c0) {
+    var comp = !forcarCaixa && competencia(c0);
     return Promise.all([
-      lerTudo('/rest/v1/resumo_mes?select=categoria,grupo,natureza,sai_por,previsto,realizado'
+      lerTudo('/rest/v1/' + (comp ? 'resumo_mes_comp' : 'resumo_mes') + '?select=categoria,grupo,natureza,sai_por,previsto,realizado'
            + '&mes_ref=eq.' + mes + '&order=categoria'),
       categorias(),
       caixaDoMes(mes),
-      lerTudo('/rest/v1/lancamentos?select=valor,meio,categorias(nome)&mes_ref=eq.' + mes
+      comp
+        ? lerTudo('/rest/v1/lancamentos_comp?select=valor,meio,categoria&mes_comp=eq.' + mes
+                  + '&status=neq.IGNORADO&categoria_id=not.is.null')
+            .then(function (l) { return l.map(function (x) { return { valor: x.valor, meio: x.meio, categorias: { nome: x.categoria } }; }); })
+        : lerTudo('/rest/v1/lancamentos?select=valor,meio,categorias(nome)&mes_ref=eq.' + mes
               + '&status=neq.IGNORADO&categoria_id=not.is.null'),
-      config()
+      c0
     ]).then(function (r) {
       var linhas = r[0], cats = r[1], caixa = r[2], cfg = r[4];
       // o gasto do mês de cada conta, separado: no cartão e na conta corrente
@@ -668,7 +681,8 @@ window.pedirTexto = function (o, feito) {
       });
       // os totais de despesa saem DEPOIS da verba: o que ela cobriu passa a
       // ser previsto da conta que gastou, e sai da linha da verba
-      despesas = distribuirVerbaCartao(cicloDaFatura(cfg, mes).fechada, despesas, realCartao);
+      // em competência a "fatura" do mês é o próprio mês: fecha quando ele acaba
+      despesas = distribuirVerbaCartao(comp ? mes < hojeRef() : cicloDaFatura(cfg, mes).fechada, despesas, realCartao);
       despesas.forEach(function (d) { tpd += d.previsto; trd += d.realizado; });
       // mesma ordem do app: alfabetica dentro da familia
       var ordena = function (a, b) {
@@ -698,8 +712,9 @@ window.pedirTexto = function (o, feito) {
         diaDeHoje: diaDeHoje(mes), diasNoMes: diasNoMes(mes),
         totalPrevistoReceita: n(tpr), totalPrevistoDespesa: n(tpd),
         totalRealizadoReceita: n(trr), totalRealizadoDespesa: n(trd),
-        caixa: caixa
+        caixa: caixa, regime: comp ? 'COMPETENCIA' : 'CAIXA'
       };
+    });
     });
   }
 
@@ -1939,9 +1954,9 @@ window.pedirTexto = function (o, feito) {
 
   function ano(a) {
     a = Number(a) || Number(hojeRef().slice(0, 4));
-    return garantirHorizonte().then(function () { return Promise.all([
-      rest('/rest/v1/ano_mes?select=*&mes_ref=gte.' + a + '-01&mes_ref=lte.' + a + '-12&order=mes_ref'),
-      rest('/rest/v1/ano_categoria?select=categoria,grupo,valor&ano=eq.' + a),
+    return garantirHorizonte().then(config).then(function (c0) { var sfx = competencia(c0) ? '_comp' : ''; return Promise.all([
+      rest('/rest/v1/ano_mes' + sfx + '?select=*&mes_ref=gte.' + a + '-01&mes_ref=lte.' + a + '-12&order=mes_ref'),
+      rest('/rest/v1/ano_categoria' + sfx + '?select=categoria,grupo,valor&ano=eq.' + a),
       rest('/rest/v1/lancamentos?select=mes_ref&order=mes_ref.asc&limit=1'),
       rest('/rest/v1/lancamentos?select=mes_ref&order=mes_ref.desc&limit=1'),
       rest('/rest/v1/previstos?select=mes_ref&order=mes_ref.desc&limit=1'),
@@ -2001,7 +2016,7 @@ window.pedirTexto = function (o, feito) {
       for (var y = Math.min.apply(null, ys); y <= Math.max.apply(null, ys); y++) anos[String(y)] = true;
 
       return {
-        ano: a, serie: serie,
+        ano: a, serie: serie, regime: competencia(r[5]) ? 'COMPETENCIA' : 'CAIXA',
         categorias: lista(porCat, 'categoria'),
         grupos: lista(porGrupo, 'grupo'),
         receitaTotal: n(receitaTotal), despesaTotal: n(despesaTotal),
@@ -2910,7 +2925,7 @@ window.pedirTexto = function (o, feito) {
     return Promise.all([
       rest('/rest/v1/resumo_mes?select=categoria,grupo,natureza,sai_por,previsto,realizado'
            + '&mes_ref=eq.' + mes + '&limit=800'),
-      resumo(mes)
+      resumo(mes, true)
     ]).then(function (r) {
       var linhas = r[0], res = r[1];
       var correndo = mes <= hojeRef();
@@ -3415,7 +3430,7 @@ window.pedirTexto = function (o, feito) {
         R0[1].forEach(function (x) { saiPor[x.nome] = x.sai_por; });
         var aberta = faturaAberta(c);
         return Promise.all([
-          resumo(mes), aberta !== mes ? resumo(aberta) : null,
+          resumo(mes, true), aberta !== mes ? resumo(aberta, true) : null,
           fechados.length ? carregarFluxo(fechados[0], fechados[fechados.length - 1]) : null,
           // o dinheiro do mês dia a dia, para a curva do saldo
           lerTudo('/rest/v1/lancamentos?select=data,valor,natureza,meio,categorias(natureza)'
@@ -3811,7 +3826,9 @@ window.pedirTexto = function (o, feito) {
     ['AUTO_CONFIRMAR_CONHECIDOS', 'simnao', 'Confirmar sozinho fornecedor já conhecido',
      'SIM deixa o app lançar sem perguntar quando já sabe a conta do fornecedor.'],
     ['AUTO_CONFIRMAR_ABAIXO_DE', 'dinheiro', 'Confirmar sozinho abaixo de',
-     'Zero = sempre perguntar.']
+     'Zero = sempre perguntar.'],
+    // caixa ou competência: tem cartão próprio no topo de Ajustes (cfgRegime)
+    ['REGIME', 'texto', 'Como contar o mês', '', 'plano']
   ];
 
   /* O que a projeção usa quando o ajuste não está gravado (os mesmos
@@ -3892,7 +3909,8 @@ window.pedirTexto = function (o, feito) {
     if (achou[1] === 'percent' || achou[1] === 'dinheiro') v = Number(valor) || 0;
     if (achou[1] === 'inteiro') v = Math.round(Number(valor) || 0);
     if (achou[1] === 'simnao') v = (String(valor).toUpperCase() === 'SIM') ? 'SIM' : 'NAO';
-    if (achou[1] === 'texto') {
+    if (chave === 'REGIME') v = String(valor).toUpperCase() === 'COMPETENCIA' ? 'COMPETENCIA' : 'CAIXA';
+    else if (achou[1] === 'texto') {
       v = String(valor || '').trim();
       if (chave === 'NASCIMENTO' && v) {
         var d = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/) || v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
@@ -7401,7 +7419,7 @@ window.pedirTexto = function (o, feito) {
     "window.EASY={listar:function(x){return c('listar',[x])},salvar:function(x,d,id){return c('salvar',[x,d,id])}," +
     "listarDe:function(m,x){return c('listarDe',[m,x])}," +
     "lembrete:function(d,id){return c('lembrete',[d,id])},lembretes:function(){return c('lembretes',[])}," +
-    "cancelarLembrete:function(id){return c('apagar',[id])},pdf:function(o){return c('pdf',[o])}," +
+    "cancelarLembrete:function(id){return c('apagar',[id])},pdf:function(o){return c('pdf',[o])},regime:function(){return c('regime',[])}," +
     "apagar:function(id){return c('apagar',[id])},lancamentos:function(m){return c('lancamentos',[m])}," +
     "contas:function(){return c('contas',[])},previstos:function(m){return c('previstos',[m])}," +
     "resumo:function(m){return c('resumo',[m])},bancos:function(){return c('bancos',[])}," +
@@ -7478,11 +7496,26 @@ window.pedirTexto = function (o, feito) {
       });
   }
   // previsto x realizado do mês, por conta e no total (o que a tela Mês mostra, sem a verba do cartão)
+  /* caixa ou competência (config REGIME, 055): EASY.lancamentos e EASY.resumo
+     seguem a escolha do cliente, para o módulo bater com a tela Mês */
+  var regimeCache = null;
+  function regimeDe() {
+    if (regimeCache && Date.now() - regimeCache.em < 60000) return Promise.resolve(regimeCache.v);
+    return rest('/rest/v1/config?select=valor&chave=eq.REGIME').then(function (r) {
+      var v = r && r[0] && String(r[0].valor).toUpperCase() === 'COMPETENCIA' ? 'competencia' : 'caixa';
+      regimeCache = { v: v, em: Date.now() }; return v;
+    }).catch(function () { return 'caixa'; });
+  }
   function resumoDe(m) {
     m = mesOk(m);
-    return Promise.all([previstosDe(m),
-      rest('/rest/v1/lancamentos?select=valor,natureza,categorias(nome,grupo,natureza)&mes_ref=eq.' + m + '&status=neq.IGNORADO&limit=5000')
-    ]).then(function (r) {
+    return regimeDe().then(function (rg) { return Promise.all([previstosDe(m),
+      rg === 'competencia'
+        ? rest('/rest/v1/lancamentos_comp?select=valor,natureza,categoria,categoria_grupo,categoria_natureza&mes_comp=eq.' + m + '&status=neq.IGNORADO&limit=5000')
+            .then(function (l) { return l.map(function (x) {
+              return { valor: x.valor, natureza: x.natureza, categorias: x.categoria ? { nome: x.categoria, grupo: x.categoria_grupo, natureza: x.categoria_natureza } : null };
+            }); })
+        : rest('/rest/v1/lancamentos?select=valor,natureza,categorias(nome,grupo,natureza)&mes_ref=eq.' + m + '&status=neq.IGNORADO&limit=5000')
+    ]); }).then(function (r) {
       var por = {};
       var linha = function (c) {
         return por[c.nome] = por[c.nome] || { categoria: c.nome, grupo: c.grupo, natureza: c.natureza, previsto: 0, realizado: 0 };
@@ -7723,10 +7756,20 @@ window.pedirTexto = function (o, feito) {
     } else if (d.op === 'apagar') {
       p = rest('/rest/v1/registros?id=eq.' + encodeURIComponent(a[0]) + '&modulo_id=eq.' + M,
                { metodo: 'DELETE', prefer: 'return=minimal' }).then(function () { sincronizarLembretes(); return true; });
+    } else if (d.op === 'regime') {
+      p = regimeDe();
     } else if (d.op === 'lancamentos') {
       var mes = /^\d{4}-\d{2}$/.test(a[0]) ? a[0] : new Date().toISOString().slice(0, 7);
-      p = rest('/rest/v1/lancamentos?select=data,valor,natureza,descricao,fornecedor,meio,contas(nome),categorias(nome)' +
-               '&mes_ref=eq.' + mes + '&status=neq.IGNORADO&order=data&limit=3000').then(function (r) {
+      p = regimeDe().then(function (rg) {
+        if (rg === 'competencia') {
+          return rest('/rest/v1/lancamentos_comp?select=data,valor,natureza,descricao,fornecedor,meio,conta,categoria' +
+                      '&mes_comp=eq.' + mes + '&status=neq.IGNORADO&order=data&limit=3000').then(function (r) {
+            return r.map(function (l) { l.contas = { nome: l.conta }; l.categorias = { nome: l.categoria }; return l; });
+          });
+        }
+        return rest('/rest/v1/lancamentos?select=data,valor,natureza,descricao,fornecedor,meio,contas(nome),categorias(nome)' +
+                    '&mes_ref=eq.' + mes + '&status=neq.IGNORADO&order=data&limit=3000');
+      }).then(function (r) {
         return r.map(function (l) {
           return { data: l.data, valor: Number(l.valor), natureza: l.natureza,
                    descricao: l.fornecedor || l.descricao, categoria: (l.categorias || {}).nome || '',
@@ -10091,8 +10134,28 @@ function ajustarNav(){
 }
 window.addEventListener('resize', function(){ ajustarNav(); });
 window.ajustarNav=ajustarNav;
+/* Caixa ou competência (config REGIME): o Ajustes mostra a escolha; o Mês e o
+   Painel já vêm calculados pelo regime (apiResumo / apiAno). */
+ST.regime='CAIXA';
+function carregarRegime(){
+  if(!window.EASYAPP_PONTE) return;
+  window.EASYAPP_PONTE.rest('/rest/v1/config?select=valor&chave=eq.REGIME').then(function(r){
+    ST.regime=(r&&r[0]&&String(r[0].valor).toUpperCase()==='COMPETENCIA')?'COMPETENCIA':'CAIXA';
+  }).catch(function(){});
+}
+function escolherRegime(v){
+  if(v===ST.regime) return;
+  var antes=ST.regime; ST.regime=v; renderConfig();
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok){ ST.regime=antes; renderConfig(); toast((r&&r.erro)||'Não consegui'); return; }
+    toast(v==='COMPETENCIA'?'Competência: o cartão conta no mês da compra':'Caixa: o cartão conta no mês da fatura');
+    atualizarTudo(true);
+  }).withFailureHandler(function(e){ ST.regime=antes; renderConfig(); toast('Falhou: '+((e&&e.message)||e)); })
+    .apiSalvarAjuste('REGIME', v);
+}
 function carregarModelo(){
   if(!window.EASYAPP_PONTE) return;
+  carregarRegime();
   window.EASYAPP_PONTE.rest('/rest/v1/perfis?select=modelo,recursos').then(function(r){
     if(r&&r[0]) ST.modelo={modelo:r[0].modelo||'completo', recursos:r[0].recursos||[]};
     aplicarModelo();
@@ -10131,6 +10194,18 @@ function cfgRecursos(){
       }).join('')+
       '<div class="m" style="font-size:11.5px;margin-top:6px">Quer outra coisa? Peça ao assistente ✦: ele cria para você.</div></div>';
   }
+  // Como contar o mês: caixa ou competência (config REGIME, vale em todos os aparelhos)
+  var cmp=ST.regime==='COMPETENCIA';
+  var opRegime=function(v,t,d){
+    var on=(v==='COMPETENCIA')===cmp;
+    return '<button onclick="escolherRegime(\''+v+'\')" style="display:block;width:100%;text-align:left;margin:0 0 8px;padding:11px 14px;'+
+      'border-radius:16px;border:1px solid '+(on?'var(--acc)':'var(--line)')+';background:'+(on?'rgba(var(--accr,91,140,255),.12)':'transparent')+';color:inherit;font:inherit">'+
+      '<b style="display:block;font-size:14px">'+(on?'● ':'○ ')+t+'</b><span class="m" style="display:block;font-size:12px;margin-top:3px">'+d+'</span></button>';
+  };
+  h+='<div class="card"><div class="lbl" style="margin-bottom:10px">Como contar o mês</div>'+
+    opRegime('CAIXA','Caixa (quando o dinheiro sai)','A compra no cartão entra no mês em que a fatura é paga. Mostra quanto saiu da conta.')+
+    opRegime('COMPETENCIA','Competência (quando você compra)','A compra no cartão entra no mês em que foi feita; parcelada, cada parcela no mês dela. Mostra quanto você gastou.')+
+    '<div class="m" style="font-size:11.5px;margin-top:2px">Muda o Mês (contas, gastou) e o Painel do ano. Saldo, "ainda sai", fatura, extrato e plano seguem sempre o dinheiro na conta.</div></div>';
   // Aparência (para todos, guardada neste aparelho): a cor do fundo e o movimento
   var fundoAt=lerLocal('easyapp:fundo')||'azul', nomeFundo=(FUNDOS.filter(function(x){ return x[0]===fundoAt; })[0]||FUNDOS[0])[1], mov=movimento();
   h+='<div class="card"><div class="lbl" style="margin-bottom:10px">Aparência</div>'+
@@ -11393,7 +11468,10 @@ function renderMes(){
   /* Entrou e saiu pelo DINHEIRO na conta: compra no cartão só sai quando a
      fatura é paga. Pelo realizado das contas (que conta a compra no dia dela)
      entrou - saiu não batia com o saldo. Com o "começou com", fecha. */
-  var cxOk = cx && cx.jaEntrou!==undefined;
+  /* Em competência (Ajustes → Como contar o mês) o cartão é "Recebeu x
+     Gastou": o realizado das contas, com a compra no cartão no mês da compra. */
+  var comp = r.regime==='COMPETENCIA';
+  var cxOk = !comp && cx && cx.jaEntrou!==undefined;
   var ent = cxOk ? cx.jaEntrou : r.totalRealizadoReceita, sai = cxOk ? cx.jaSaiu : r.totalRealizadoDespesa;
   // o texto que ficava embaixo virou a dica do "i": a tela fica só com os números
   var dicaMov =
@@ -11402,10 +11480,11 @@ function renderMes(){
       (ent>=Math.max(10, sai*0.01) ? 'Saiu '+pct(sai,ent)+'% do que entrou' : 'Ainda não entrou nada neste mês')+
       ' · sobrou '+moeda(ent-sai)+'.'+
       (cxOk && cx.comecou!==null ? ' Começou com '+moeda(cx.comecou)+' → hoje '+moeda(cx.saldoHoje)+'.' : '')+
-      ' Compra no cartão só conta quando a fatura é paga.';
-  h+='<div class="card cx"><div class="row"><div><div class="lbl">'+setaMov('in')+'Entrou'+dica(dicaMov)+'</div>'+
+      (comp ? ' Competência: compra no cartão conta no mês em que foi feita (cada parcela no mês dela). O saldo e o "ainda sai" seguem o dinheiro na conta.'
+            : ' Compra no cartão só conta quando a fatura é paga.');
+  h+='<div class="card cx"><div class="row"><div><div class="lbl">'+setaMov('in')+(comp?'Recebeu':'Entrou')+dica(dicaMov)+'</div>'+
       '<div style="font-size:17px;font-weight:600" class="pos">'+moeda(ent)+'</div></div>'+
-      '<div style="text-align:right"><div class="lbl">'+setaMov('out')+'Saiu</div>'+
+      '<div style="text-align:right"><div class="lbl">'+setaMov('out')+(comp?'Gastou':'Saiu')+'</div>'+
       '<div style="font-size:17px;font-weight:600" class="neg">'+moeda(sai)+'</div></div></div>'+
       barra(sai, ent)+'</div>';
 
@@ -11424,7 +11503,7 @@ function renderMes(){
   });
 
   h+='<div class="card"><div class="row" style="margin-bottom:8px">'+
-     '<div class="lbl">Despesas'+(ST.familia!=='TUDO'?' · '+ST.familia:'')+
+     '<div class="lbl">Despesas'+(ST.familia!=='TUDO'?' · '+ST.familia:'')+(r.regime==='COMPETENCIA'?' <span class="pill" style="font-size:10.5px;padding:1px 8px;vertical-align:1px">competência</span>':'')+
      ' <span style="opacity:.6">('+lista.length+')</span>'+
      dica('O previsto é editável direto na linha. Contas sem movimento no mês ficam ocultas.')+'</div>'+
      '</div>'+
@@ -11919,6 +11998,7 @@ function renderPainel(){
   var mediaCart=a.cartaoTotal/a.mesesComDados;
   var h='';
 
+  if(a.regime==='COMPETENCIA') h+='<div class="m" style="font-size:11.5px;margin:-2px 2px 8px">Por competência: compra no cartão no mês da compra.</div>';
   h+='<div class="kpis" style="margin-bottom:12px">'+
      kpi('Saldo do ano', moeda(a.saldoTotal), a.mesesComDados+' meses com dados', a.saldoTotal>=0?'pos':'neg')+
      kpi('Taxa de poupança', a.taxaPoupanca.toFixed(1).replace('.',',')+'%',
