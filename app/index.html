@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.46.0 \u00b7 24/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.46.1 \u00b7 24/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10760,7 +10760,7 @@ function renderMesNav(){
   ST.mov=null;   // os lançamentos do Entrada/Saída são relidos a cada toque
   var n=el('mnNome'), z=el('mnResumo'); if(!n || !ST.mes) return;
   var p=ST.mes.split('-'), ano=Number(p[0]);
-  n.textContent=NOMES_MES[Number(p[1])]+(ano!==new Date().getFullYear()?' '+ano:'');
+  n.textContent=NOMES_MES[Number(p[1])]+' '+ano;   // sempre com o ano (antes só fora do ano corrente)
   var r=ST.resumo;
   if(!r || r.mes!==ST.mes){ z.innerHTML=''; return; }
   var x=entradaSaida(r), sd=x.ent-x.sai;
