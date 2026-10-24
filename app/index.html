@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.43.0 \u00b7 24/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.44.0 \u00b7 24/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1150,7 +1150,7 @@ window.pedirTexto = function (o, feito) {
   /* ---------------------------------------------------------- previsto */
   function salvarPrevisto(mes, categoria, valor) {
     return idDaCategoria(categoria).then(function (cid) {
-      if (!cid) return { ok: false, erro: 'não achei a conta ' + categoria };
+      if (!cid) return { ok: false, erro: 'não achei a subcategoria ' + categoria };
       return gravar('previstos', [{ categoria_id: cid, mes_ref: mes, valor: n(valor) }],
                     'user_id,categoria_id,mes_ref')
         .then(function () { return { ok: true, mes: mes, categoria: categoria, valor: n(valor) }; });
@@ -1169,7 +1169,7 @@ window.pedirTexto = function (o, feito) {
           .map(function (l) {
             return { categoria_id: mapa[l.categoria], mes_ref: l.mes, valor: n(l.valor) };
           });
-        if (!fora.length) return { ok: false, erro: 'nenhuma conta reconhecida' };
+        if (!fora.length) return { ok: false, erro: 'nenhuma subcategoria reconhecida' };
         return gravar('previstos', fora, 'user_id,categoria_id,mes_ref')
           .then(function () { return { ok: true, quantos: fora.length }; });
       });
@@ -1221,7 +1221,7 @@ window.pedirTexto = function (o, feito) {
           for (var k = 0, ref = mes; k < 12; k++, ref = mesSeguinte(ref))
             linhas.push({ categoria_id: id[x.categoria], mes_ref: ref, valor: n(x.valor) });
         });
-        if (!linhas.length) return { ok: false, erro: 'não achei as contas' };
+        if (!linhas.length) return { ok: false, erro: 'não achei as subcategorias' };
         return gravar('previstos', linhas, 'user_id,categoria_id,mes_ref').then(function () {
           return Promise.all(itens.map(function (x) {
             return mudar('categorias', 'id=eq.' + id[x.categoria], { previsto_padrao: n(x.valor) });
@@ -1263,7 +1263,7 @@ window.pedirTexto = function (o, feito) {
       rest('/rest/v1/resumo_mes?select=previsto,realizado&mes_ref=eq.' + mes
            + '&categoria=eq.' + encodeURIComponent(categoria))]).then(function (R) {
       var cid = R[0], l = R[1] && R[1][0];
-      if (!cid || !l) return { ok: false, erro: 'não achei a conta ' + categoria };
+      if (!cid || !l) return { ok: false, erro: 'não achei a subcategoria ' + categoria };
       var prev = Number(l.previsto) || 0, sobra = Math.max(0, prev - Math.max(0, Number(l.realizado) || 0));
       var v = Math.round(Math.min(Number(valor) || 0, sobra) * 100);
       if (v <= 0) return { ok: false, erro: 'não sobrou nada para reprogramar' };
@@ -1313,7 +1313,7 @@ window.pedirTexto = function (o, feito) {
   /* ---------------------------------------------------------- categorias */
   function novaCategoria(nome, grupo, natureza, previsto) {
     nome = String(nome || '').trim();
-    if (!nome) return Promise.resolve({ ok: false, erro: 'dê um nome à conta' });
+    if (!nome) return Promise.resolve({ ok: false, erro: 'dê um nome à subcategoria' });
     return gravar('categorias', [{
       nome: nome, grupo: String(grupo || 'OUTROS').trim(),
       natureza: natureza || 'DESPESA', previsto_padrao: n(previsto),
@@ -1337,7 +1337,7 @@ window.pedirTexto = function (o, feito) {
           // Apagar conta com lançamento sem dizer para onde eles vão é perder
           // histórico. O app velho também recusava - e por isso mesmo.
           if (usados.length && !destino) {
-            return { ok: false, erro: 'essa conta tem lançamentos; escolha para onde levá-los' };
+            return { ok: false, erro: 'essa subcategoria tem lançamentos; escolha para onde levá-los' };
           }
           var mover = usados.length
             ? mudar('lancamentos', 'categoria_id=eq.' + de, { categoria_id: destino })
@@ -1353,7 +1353,7 @@ window.pedirTexto = function (o, feito) {
   function confirmar(linha, categoria, valor, id) {
     return Promise.all([acharLinha(id), idDaCategoria(categoria)]).then(function (r) {
       if (!r[0]) return { ok: false, erro: 'não achei o lançamento' };
-      if (!r[1]) return { ok: false, erro: 'não achei a conta ' + categoria };
+      if (!r[1]) return { ok: false, erro: 'não achei a subcategoria ' + categoria };
       return mudar('lancamentos', 'id=eq.' + r[0],
                    { categoria_id: r[1], status: 'CONFIRMADO' })
         .then(function () { return { ok: true, lancamento: r[0] }; });
@@ -1453,7 +1453,7 @@ window.pedirTexto = function (o, feito) {
       rest('/rest/v1/categorias?select=id&nome=in.(%22CARTAO%20-%20A%20CLASSIFICAR%22,'
            + '%22CARTAO%20-%20NAO%20CLASSIFICADO%20(HISTORICO)%22)')]).then(function (r) {
       var cid = r[0], cats = r[1];
-      if (!cid) return { ok: false, erro: 'não achei a conta ' + categoria };
+      if (!cid) return { ok: false, erro: 'não achei a subcategoria ' + categoria };
       var semConta = cats.length
         ? 'or(categoria_id.is.null,categoria_id.in.(' + cats.map(function (c) { return c.id; }).join(',') + '))'
         : 'categoria_id.is.null';
@@ -1784,7 +1784,7 @@ window.pedirTexto = function (o, feito) {
         if (Math.abs(soma - total) > 0.05) {
           return { ok: false, erro: 'as partes somam ' + soma.toFixed(2) + ' e o lançamento é ' + total.toFixed(2) };
         }
-        for (var k = 0; k < ids.length; k++) if (!ids[k]) return { ok: false, erro: 'não achei a conta ' + partes[k].categoria };
+        for (var k = 0; k < ids.length; k++) if (!ids[k]) return { ok: false, erro: 'não achei a subcategoria ' + partes[k].categoria };
         var desc = o.fornecedor || o.descricao || '';
         var novas = partes.map(function (p, i) {
           return { data: o.data, mes_ref: o.mes_ref, valor: n(Number(p.valor) * (Number(o.valor) < 0 ? -1 : 1)),
@@ -1795,7 +1795,7 @@ window.pedirTexto = function (o, feito) {
         });
         return gravar('lancamentos', novas)
           .then(function () {
-            var d = o.dados || {}; d.obs = (d.obs ? d.obs + ' | ' : '') + 'distribuído em ' + partes.length + ' contas';
+            var d = o.dados || {}; d.obs = (d.obs ? d.obs + ' | ' : '') + 'distribuído em ' + partes.length + ' subcategorias';
             return mudar('lancamentos', 'id=eq.' + uuid, { status: 'IGNORADO', dados: d });
           })
           .then(function () {
@@ -3229,7 +3229,7 @@ window.pedirTexto = function (o, feito) {
       dica: 'trocar metade dos pedidos e almoços fora por comida feita em casa, e marmita nos dias de trabalho' },
     { tipo: 'semdono', titulo: 'Gasto sem dono (PIX, dia a dia, cartão a classificar)', corte: 0.30,
       re: /OUTRAS|DIA-A-DIA|A CLASSIFICAR|NAO CLASSIFICADO/,
-      dica: 'é dinheiro que sai sem conta definida — classificar tudo por um mês e pôr um teto semanal costuma revelar o vazamento' },
+      dica: 'é dinheiro que sai sem subcategoria definida — classificar tudo por um mês e pôr um teto semanal costuma revelar o vazamento' },
     { tipo: 'lazer', titulo: 'Lazer e viagens', corte: 0.30,
       re: /LAZER|VIAGEM|PASSEIO|INGRESSO/,
       dica: 'uma viagem a menos por ano, destino mais perto, ou fora da alta temporada' },
@@ -3851,7 +3851,7 @@ window.pedirTexto = function (o, feito) {
     ['FECHAMENTOS', 'texto', 'Meses em que o banco mudou o dia',
      'Anote só a exceção: 2026-10:28;2026-11:30 — o resto segue o dia padrão.'],
     ['INFLACAO', 'percent', 'Inflação anual das despesas',
-     'Corrige as contas que não têm reajuste próprio, ano a ano.'],
+     'Corrige as subcategorias que não têm reajuste próprio, ano a ano.'],
     ['REAJUSTE_CONTRATO', 'percent', 'Reajuste anual do salário', ''],
     ['MES_REAJUSTE_CONTRATO', 'inteiro', 'Mês do reajuste do salário', '1 = janeiro, 12 = dezembro.'],
     /* Saíram da tela de Ajustes: rendimento, valorização, depreciação e juros
@@ -3863,7 +3863,7 @@ window.pedirTexto = function (o, feito) {
     ['IDADE_APOSENTADORIA', 'inteiro', 'Com quantos anos quer parar', '', 'plano'],
     ['RENTABILIDADE_PLANO', 'percent', 'Rendimento-alvo do plano (acima da inflação)', '', 'plano'],
     ['AUTO_CONFIRMAR_CONHECIDOS', 'simnao', 'Confirmar sozinho fornecedor já conhecido',
-     'SIM deixa o app lançar sem perguntar quando já sabe a conta do fornecedor.'],
+     'SIM deixa o app lançar sem perguntar quando já sabe a subcategoria do fornecedor.'],
     ['AUTO_CONFIRMAR_ABAIXO_DE', 'dinheiro', 'Confirmar sozinho abaixo de',
      'Zero = sempre perguntar.'],
     // caixa ou competência: tem cartão próprio no topo de Ajustes (cfgRegime)
@@ -3979,7 +3979,7 @@ window.pedirTexto = function (o, feito) {
   function salvarConta(nome, dados) {
     return rest('/rest/v1/categorias?select=id&nome=eq.' + encodeURIComponent(nome) + '&limit=1')
       .then(function (r) {
-        if (!r.length) return { ok: false, erro: 'não achei a conta ' + nome };
+        if (!r.length) return { ok: false, erro: 'não achei a subcategoria ' + nome };
         var campos = {};
         if (dados.nome && dados.nome !== nome) campos.nome = dados.nome;
         if (dados.grupo) campos.grupo = String(dados.grupo).toUpperCase();
@@ -4025,7 +4025,7 @@ window.pedirTexto = function (o, feito) {
         var campos = { grupo: novo };
         if (NOMES_FIXOS.indexOf(c.nome) < 0 && pre.test(c.nome)) {
           var nn = novo + ' - ' + c.nome.replace(pre, '');
-          if (nomes[nn]) erro = erro || 'já existe a conta ' + nn;
+          if (nomes[nn]) erro = erro || 'já existe a subcategoria ' + nn;
           campos.nome = nn;
         }
         return { id: c.id, campos: campos };
@@ -5398,7 +5398,7 @@ window.pedirTexto = function (o, feito) {
       '<h3 style="margin-top:22px">Como quer começar?</h3>' +
       '<button class="escolha rec" id="bRapido"><b>⚡ Rápido, em 1 minuto</b><span>Só os seus bancos. Os gastos entram sozinhos e o app monta o previsto a partir deles.</span></button>' +
       '<button class="escolha" id="bTemPlan"><b>📎 Tenho uma planilha</b><span>O assistente lê do jeito que ela estiver, mostra a prévia e só grava quando você aprovar.</span></button>' +
-      '<button class="escolha" id="bSemPlan"><b>🧩 Montar tudo agora</b><span>Bancos, cartões, contas do mês com o previsto, metas e plano. Uns 5 minutos.</span></button>';
+      '<button class="escolha" id="bSemPlan"><b>🧩 Montar tudo agora</b><span>Bancos, cartões, categorias com o previsto do mês, metas e plano. Uns 5 minutos.</span></button>';
   }
 
   function logo(b) {
@@ -5522,7 +5522,7 @@ window.pedirTexto = function (o, feito) {
       });
     });
     return '<h2>Saldos e cartões</h2><p class="sub">O saldo de hoje em cada conta e, de cada cartão, o fechamento, o vencimento e de qual conta sai o pagamento da fatura. ' +
-      'A <b>conta principal</b> é a que já vem escolhida quando você diz onde cai ou de onde sai cada conta.</p>' + h;
+      'A <b>conta principal</b> é a que já vem escolhida quando você diz onde cai ou de onde sai cada despesa.</p>' + h;
   }
 
   // as famílias de fábrica e as que a pessoa criou aqui (B.novasFams)
@@ -5532,20 +5532,20 @@ window.pedirTexto = function (o, feito) {
     }));
   }
   function corpoFamilias() {
-    return '<h2>Agora vamos cadastrar suas categorias de contas</h2><p class="sub">Categorias juntam as contas parecidas (Casa, Saúde...). Marque as que fazem parte da sua vida.</p>' +
+    return '<h2>Agora vamos cadastrar suas categorias</h2><p class="sub">Categorias juntam as subcategorias parecidas (Casa, Saúde...). Marque as que fazem parte da sua vida.</p>' +
       '<div class="fam">' + familias().map(function (f) {
         var on = !!B.fams[f[0]], fixa = f[0] === 'RECEITA';
         return '<button data-fam="' + f[0] + '" class="' + (on ? 'on' : '') + '"' + (fixa ? ' disabled' : '') + '><i>' + f[1] + '</i>' + esc(f[2]) +
           '</button>';
       }).join('') + '<button id="bNovaFam" style="border-style:dashed;color:#93b8ff"><i>＋</i>Criar categoria</button></div>' +
-      '<p class="sub" style="margin-top:12px">Receitas sempre entram. Faltou alguma? Toque em <b>Criar categoria</b>: na próxima etapa você coloca as contas dela.</p>';
+      '<p class="sub" style="margin-top:12px">Receitas sempre entram. Faltou alguma? Toque em <b>Criar categoria</b>: na próxima etapa você coloca as subcategorias dela.</p>';
   }
 
   function listaFamilia(f) {
     return f[3].concat((B.extras[f[0]] || []).map(function (n) { return [n, n.replace(/^[^-]+- /, '').toLowerCase().replace(/^./, function (c) { return c.toUpperCase(); }), f[0] === 'RECEITA' ? 'RECEITA' : 'DESPESA', 'CAIXA', 'mes', 0]; }));
   }
   function corpoContas() {
-    return '<h2>Agora as contas de cada categoria</h2><p class="sub">Toque nas que você tem. Os valores vêm na próxima etapa.</p>' +
+    return '<h2>Agora as subcategorias de cada categoria</h2><p class="sub">Toque nas que você tem. Os valores vêm na próxima etapa.</p>' +
       familias().filter(function (f) { return B.fams[f[0]]; }).map(function (f) {
         return '<h3>' + f[1] + ' ' + esc(f[2]) + '</h3><div class="chips">' + listaFamilia(f).map(function (c) {
           return '<button class="chip' + (B.contas[c[0]] ? ' on' : '') + '" data-conta="' + esc(c[0]) + '">' + esc(c[1]) + '</button>';
@@ -5558,7 +5558,7 @@ window.pedirTexto = function (o, feito) {
       return marcadas.length ? '<h3>' + f[1] + ' ' + esc(f[2]) + '</h3>' + marcadas.map(linhaConta).join('') : '';
     }).join('');
     return '<h2>Quanto é cada uma</h2><p class="sub">O valor de um mês normal e com que frequência acontece. Não sabe? Deixe em branco e ajuste depois.</p>' +
-      (h || '<p class="sub">Nenhuma conta marcada. Volte e toque nas que você tem.</p>');
+      (h || '<p class="sub">Nenhuma subcategoria marcada. Volte e toque nas que você tem.</p>');
   }
   function mesesAFrente(sel) {
     var h = new Date(), r = '';
@@ -5644,7 +5644,7 @@ window.pedirTexto = function (o, feito) {
       (temSal ? '<div class="cartao"><div class="tt" style="font-size:14px">💼 Reajuste do salário</div><div class="mini">' +
         '<input id="iReajSal" inputmode="decimal" placeholder="%" value="' + esc(B.ind.reajSal) + '"><label>% ao ano, em</label><select id="iMesReajSal"><option value="">mês</option>' +
         MESES_C.map(function (m, k) { return k ? '<option value="' + k + '"' + (+B.ind.mesReajSal === k ? ' selected' : '') + '>' + m + '</option>' : ''; }).join('') + '</select></div></div>' : '') +
-      '<div class="cartao"><div class="tt" style="font-size:14px">📈 Inflação para corrigir as contas sem reajuste</div><div class="mini">' +
+      '<div class="cartao"><div class="tt" style="font-size:14px">📈 Inflação para corrigir as subcategorias sem reajuste</div><div class="mini">' +
         '<input id="iInfl" inputmode="decimal" value="' + esc(B.ind.inflacao) + '"><label>% ao ano</label></div></div>';
   }
 
@@ -5727,7 +5727,7 @@ window.pedirTexto = function (o, feito) {
         passo(B.passo);
       }; });
       $('bNovaFam').onclick = function () {
-        pedirTexto({ titulo: 'Nova categoria', dica: 'Junta contas parecidas. Ex.: Viagens, Pets, Igreja, Hobby.', placeholder: 'nome da categoria', ok: 'Criar' }, function (n) {
+        pedirTexto({ titulo: 'Nova categoria', dica: 'Junta subcategorias parecidas. Ex.: Viagens, Pets, Igreja, Hobby.', placeholder: 'nome da categoria', ok: 'Criar' }, function (n) {
           var id = semAcento(String(n || '')).toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30);
           if (id.length < 2) return;
           if (!familias().some(function (f) { return f[0] === id; })) (B.novasFams = B.novasFams || []).push(id);
@@ -5747,7 +5747,7 @@ window.pedirTexto = function (o, feito) {
       }; });
       todos('[data-outra]', function (b) { b.onclick = function () {
         var f = b.dataset.outra;
-        pedirTexto({ titulo: 'Nova conta', dica: 'O nome como você quer ver no app.', placeholder: 'Ex.: Academia, Escola de inglês', ok: 'Criar' }, function (n) {
+        pedirTexto({ titulo: 'Nova subcategoria', dica: 'O nome como você quer ver no app.', placeholder: 'Ex.: Academia, Escola de inglês', ok: 'Criar' }, function (n) {
           n = String(n || '').trim(); if (n.length < 2) return;
           var nome = (f === 'RECEITA' ? 'RECEITA' : f) + ' - ' + semAcento(n).toUpperCase().slice(0, 40);
           if (!(B.extras[f] || []).some(function (x) { return x === nome; })) (B.extras[f] = B.extras[f] || []).push(nome);
@@ -7300,11 +7300,11 @@ window.pedirTexto = function (o, feito) {
         var cid = (a.chave || {}).categoria_id, g = prev[cid] = prev[cid] || { meses: [], valores: {} };
         g.meses.push((a.chave || {}).mes_ref); g.valores[Number(dp.valor)] = 1;
       } else if (a.tabela === 'categorias') {
-        if (!a.antes) linhas.push('➕ conta criada: <b>' + esc(dp.nome) + '</b>');
+        if (!a.antes) linhas.push('➕ subcategoria criada: <b>' + esc(dp.nome) + '</b>');
         else {
           var mud = Object.keys(CAMPOS).filter(function (k) { return String(an[k]) !== String(dp[k]); })
             .map(function (k) { return CAMPOS[k] + ' ' + esc(an[k] == null ? '—' : an[k]) + ' → ' + esc(dp[k] == null ? '—' : dp[k]); });
-          linhas.push('✏️ conta <b>' + esc(dp.nome || an.nome) + '</b>' + (mud.length ? ': <small>' + mud.join(' · ') + '</small>' : ''));
+          linhas.push('✏️ subcategoria <b>' + esc(dp.nome || an.nome) + '</b>' + (mud.length ? ': <small>' + mud.join(' · ') + '</small>' : ''));
         }
       } else if (a.tabela === 'lancamentos' && a.operacao === 'delete') {
         linhas.push('🗑️ apagado: <b>' + esc(an.descricao) + '</b> ' + reais(an.valor) +
@@ -7314,7 +7314,7 @@ window.pedirTexto = function (o, feito) {
           ' <small>' + esc(String(dp.data || '').split('-').reverse().join('/')) + '</small>');
         else linhas.push('✏️ lançamento corrigido: <b>' + esc(dp.descricao || an.descricao) + '</b>' +
           (Number(an.valor) !== Number(dp.valor) ? ' <small>' + reais(an.valor) + ' → ' + reais(dp.valor) + '</small>' : '') +
-          (dp.status === 'IGNORADO' && an.status !== 'IGNORADO' ? ' <small>(tirado das contas)</small>' : ''));
+          (dp.status === 'IGNORADO' && an.status !== 'IGNORADO' ? ' <small>(ignorado)</small>' : ''));
       } else if (a.tabela === 'contas') {
         var mb = [];
         if (an.nome !== dp.nome) mb.push('nome ' + esc(an.nome) + ' → ' + esc(dp.nome));
@@ -7381,9 +7381,9 @@ window.pedirTexto = function (o, feito) {
             '<div class="ia-bts"><button class="no" data-lote="' + p.lote + '">Desfazer</button></div></div>';
         });
         c.innerHTML = h ? '<div class="m" style="font-size:12px;color:#8b99b5;margin:0 2px 8px">' +
-            'O que o assistente mudou nos seus dados (contas, lançamentos, previstos). Desfeito, sai da lista. ' +
+            'O que o assistente mudou nos seus dados (subcategorias, lançamentos, previstos). Desfeito, sai da lista. ' +
             'As versões dos módulos e do layout estão na aba Módulos.</div>' + h
-          : '<div class="ia-vazio">Nenhuma alteração nos seus dados ainda.<br>Quando o assistente mudar contas, lançamentos ou previstos, aparece aqui com o Desfazer.' +
+          : '<div class="ia-vazio">Nenhuma alteração nos seus dados ainda.<br>Quando o assistente mudar subcategorias, lançamentos ou previstos, aparece aqui com o Desfazer.' +
             '<br><br>As versões dos módulos e do layout estão na aba Módulos.</div>';
         Array.prototype.forEach.call(c.querySelectorAll('[data-lote]'), function (b) {
           b.onclick = function () {
@@ -7709,7 +7709,7 @@ window.pedirTexto = function (o, feito) {
     if (!v) return Promise.reject(new Error('valor zero'));
     var data = /^\d{4}-\d{2}-\d{2}$/.test(x.data) ? x.data : new Date().toISOString().slice(0, 10);
     var cat = String(x.categoria || '').trim();
-    if (!cat) return Promise.reject(new Error('informe a categoria (uma conta de EASY.contas())'));
+    if (!cat) return Promise.reject(new Error('informe a categoria (o nome de uma subcategoria, de EASY.contas())'));
     var nat = x.natureza === 'RECEITA' ? 'RECEITA' : 'DESPESA';
     var desc = String(x.descricao || cat).slice(0, 120);
     if (!confirm('O módulo ' + (q.nome || '') + ' quer lançar:\n\n' + (nat === 'RECEITA' ? '+ ' : '- ') + reais(v) +
@@ -10089,7 +10089,7 @@ window.pedirTexto = function (o, feito) {
   <div class="picker-fundo" onclick="fecharPicker()"></div>
   <div class="picker-folha">
     <div class="picker-topo">
-      <input id="pkBusca" placeholder="buscar conta..." oninput="filtrarPicker()">
+      <input id="pkBusca" placeholder="buscar subcategoria..." oninput="filtrarPicker()">
       <button class="bt-no" onclick="fecharPicker()">Fechar</button>
     </div>
     <label id="pkTodos" class="pk-todos hide">
@@ -10097,7 +10097,7 @@ window.pedirTexto = function (o, feito) {
       <span id="pkTodosTxt">aplicar a todos deste fornecedor</span>
     </label>
     <div id="pkLista" class="picker-lista"></div>
-    <button class="bt-ac" id="pkNovo" style="margin:10px;width:calc(100% - 20px)" onclick="pickerCriar()">+ criar conta nova</button>
+    <button class="bt-ac" id="pkNovo" style="margin:10px;width:calc(100% - 20px)" onclick="pickerCriar()">+ criar subcategoria nova</button>
   </div>
 </div>
 
@@ -10537,7 +10537,7 @@ function anoEscolhido(sel, mes){
   var v=String(sel.value);
   if(v.indexOf('abrir:')!==0){ irPara(v, mes); return; }
   var y=Number(v.slice(6));
-  if(!confirm('Abrir '+y+'? Ele é gravado com o que a projeção prevê para cada conta; depois você ajusta o que quiser.')){
+  if(!confirm('Abrir '+y+'? Ele é gravado com o que a projeção prevê para cada subcategoria; depois você ajusta o que quiser.')){
     renderCabecalho(); return;
   }
   toast('Abrindo '+y+'...');
@@ -10859,7 +10859,7 @@ function renderPendentes(){
   if(novos){
     h+='<div class="card" style="border-color:#7c5310;background:#2a1f0d">'+
        '<b>'+novos+' fornecedor'+(novos>1?'es':'')+' novo'+(novos>1?'s':'')+'</b>'+
-       '<div class="m" style="margin-top:3px">Escolha a conta e se vale <b>só para esta</b> ou <b>sempre</b> '+
+       '<div class="m" style="margin-top:3px">Escolha a subcategoria e se vale <b>só para esta</b> ou <b>sempre</b> '+
        'para o fornecedor — no "sempre", as próximas compras no mesmo lugar já vêm preenchidas.</div></div>';
   }
   ST.pendentes.forEach(function(p,i){
@@ -10868,7 +10868,7 @@ function renderPendentes(){
       : '';
     op += ST.categorias.filter(function(x){return serveParaNatureza(x, p.natureza);})
       .map(function(x){return '<option '+(x.nome===p.categoria?'selected':'')+'>'+tx(x.nome)+'</option>';}).join('');
-    op += '<option value="__nova">+ criar conta nova</option>';
+    op += '<option value="__nova">+ criar subcategoria nova</option>';
     /* Compacto: uma compra em ~3 linhas. Linha 1: nome e valor. Linha 2:
        quando, onde, como (e dólar, parcelas do aviso). Linha 3: a conta e o
        ✓. Ignorar, Distribuir e Parcelas ficam no ⋯ */
@@ -10882,7 +10882,7 @@ function renderPendentes(){
        '<div class="row" style="align-items:baseline;gap:8px">'+
          '<div class="d" style="font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+tx(p.descricao)+'</div>'+
          '<div class="big '+(p.natureza==='RECEITA'?'pos':'')+'" style="font-size:16px;white-space:nowrap">'+moeda(p.valor)+'</div></div>'+
-       '<div class="m" style="font-size:11.5px;margin-top:1px">'+p.dataHora+' · '+tx(p.conta||'sem conta')+' · '+meioTxt+
+       '<div class="m" style="font-size:11.5px;margin-top:1px">'+p.dataHora+' · '+tx(p.conta||'sem subcategoria')+' · '+meioTxt+
          (p.novo?' · <span class="tag">NOVO</span>':'')+
          (p.moeda?' · <b style="color:var(--warn)">'+p.moeda+' '+num(p.valorOriginal)+'</b> × '+num(p.cotacao)+(p.cotacaoAprox?' (aprox.)':''):'')+
          (p.parcelasAviso>1?' · aviso diz <b>'+p.parcelasAviso+'x</b>':'')+'</div>'+
@@ -10941,7 +10941,7 @@ function filaSemCategoria(){
   var h='<div class="card" style="border-color:#7c5310;background:#2a1f0d;margin-top:4px">'+
     '<b>'+s.quantos+' fornecedores sem categoria · '+moeda(s.total)+'</b>'+
     '<div class="m" style="margin-top:3px">Vieram das faturas. Classifique o fornecedor '+
-    'uma vez e todas as compras dele entram na conta certa.</div></div>';
+    'uma vez e todas as compras dele entram na subcategoria certa.</div></div>';
 
   s.fornecedores.forEach(function(f,i){
     h+='<div class="card" style="padding:9px 11px"><div class="forn" style="border:0;padding:0">'+
@@ -11021,7 +11021,7 @@ function painelRateio(p, i){
   ST.partes.forEach(function(pt,k){
     h+='<div class="row" style="gap:6px;margin-bottom:6px">'+
        '<div style="flex:2">'+
-         botaoEscolha('rc'+k, pt.cat||'', 'conta…', 'conta',
+         botaoEscolha('rc'+k, pt.cat||'', 'subcategoria…', 'subcategoria',
                       op.map(function(n){ return { valor:n, rotulo:n, grupo:familiaDe(n) }; }),
                       'recalcularRateio('+i+')')+'</div>'+
        '<label style="flex:1;display:flex;align-items:center;gap:4px;min-width:0">'+
@@ -11035,7 +11035,7 @@ function painelRateio(p, i){
   var soma=ST.partes.reduce(function(s,x){return s+(Number(x.valor)||0);},0);
   var falta=p.valor-soma;
   h+='<div class="row" style="margin:6px 0;font-size:12px">'+
-     '<button class="bt-mais" onclick="ST.partes.push({cat:\'\',valor:0});renderPendentes()">+ outra conta</button>'+
+     '<button class="bt-mais" onclick="ST.partes.push({cat:\'\',valor:0});renderPendentes()">+ outra subcategoria</button>'+
      '<span class="num '+(Math.abs(falta)<0.01?'pos':'wr')+'">'+
        (Math.abs(falta)<0.01?'fecha certo':'falta '+moeda(falta))+'</span></div>'+
      '<div class="row" style="gap:6px">'+
@@ -11058,7 +11058,7 @@ function sugerirRateio(i){
   lerPartes();
   var p=ST.pendentes[i];
   var cats=ST.partes.map(function(x){return x.cat;}).filter(Boolean);
-  if(cats.length<2){ toast('Escolha ao menos duas contas'); return; }
+  if(cats.length<2){ toast('Escolha ao menos duas subcategorias'); return; }
   google.script.run.withSuccessHandler(function(r){
     ST.partes=r.partes.map(function(x){ return {cat:x.categoria, valor:x.valor}; });
     toast(r.temPrevisto?'Rateado pelo previsto do mês':'Sem previsto: dividi por igual');
@@ -11071,10 +11071,10 @@ function salvarRateio(i){
   var p=ST.pendentes[i];
   var partes=ST.partes.filter(function(x){return x.cat && x.valor;})
     .map(function(x){ return {categoria:x.cat, valor:x.valor, aprender:false}; });
-  if(partes.length<2){ toast('Preencha ao menos duas contas'); return; }
+  if(partes.length<2){ toast('Preencha ao menos duas subcategorias'); return; }
   google.script.run.withSuccessHandler(function(r){
     if(!r.ok){ toast(r.erro); return; }
-    toast('Dividido em '+r.partes+' contas');
+    toast('Dividido em '+r.partes+' subcategorias');
     ST.rateio=null; ST.partes=[]; ST.ano=null; carregar(ST.mes);
   }).apiDistribuir(p.linha, partes, p.id);
 }
@@ -11129,7 +11129,7 @@ function confirmar(i){
       // e as próximas: a regra do fornecedor (e as antigas dele sem conta)
       google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){})
         .apiClassificarFornecedor(chaveFornecedor(p), cat);
-      toast('Confirmado · as próximas de '+chaveFornecedor(p)+' já vêm nesta conta');
+      toast('Confirmado · as próximas de '+chaveFornecedor(p)+' já vêm nesta subcategoria');
     } else toast('Confirmado');
     carregar();
     perguntarInvestimento(r && r.lancamento);
@@ -11231,15 +11231,15 @@ function botaoConta(id, valor, natureza, aoEscolher){
   return '<input type="hidden" id="'+id+'" value="'+tx(valor||'')+'">'+
     '<button class="bt-conta" id="btn_'+id+'" onclick="abrirPicker(\''+id+'\',\''+
       natureza+'\',\''+aoEscolher.replace(/'/g,"\\'")+'\')">'+
-    (valor ? ponto(familiaDe(valor))+tx(valor) : '<span style="color:var(--dim)">escolher conta…</span>')+
+    (valor ? ponto(familiaDe(valor))+tx(valor) : '<span style="color:var(--dim)">escolher subcategoria…</span>')+
     '<span style="margin-left:auto;color:var(--dim)">&#9662;</span></button>';
 }
 
 function abrirPicker(id, natureza, aoEscolher, podeLimpar, fornecedor){
   ST.pk={ id:id, natureza:natureza, aoEscolher:aoEscolher,
           podeLimpar:!!podeLimpar, fornecedor:fornecedor||'', itens:null };
-  el('pkBusca').placeholder='buscar conta...';
-  var bn=el('pkNovo'); bn.classList.remove('hide'); bn.textContent='+ criar conta nova';
+  el('pkBusca').placeholder='buscar subcategoria...';
+  var bn=el('pkNovo'); bn.classList.remove('hide'); bn.textContent='+ criar subcategoria nova';
   // PIX solto e usado para mil coisas: o padrao e valer para o fornecedor
   // inteiro, mas voce pode desmarcar e mexer so nesta linha.
   var lt=el('pkTodos');
@@ -11349,7 +11349,7 @@ function montarPicker(busca){
   // sem querer ficava grudada no lancamento para sempre.
   var limpar = (ST.pk.podeLimpar && !b)
     ? '<div class="pk" onclick="escolherConta(\'\')">'+
-      '<span style="color:var(--dim)">— deixar sem conta —</span></div>' : '';
+      '<span style="color:var(--dim)">— deixar sem subcategoria —</span></div>' : '';
   el('pkLista').innerHTML = limpar + (lista.length
     ? lista.map(function(x){
         var f=familiaDe(x.nome);
@@ -11357,7 +11357,7 @@ function montarPicker(busca){
           'onclick="escolherConta('+JSON.stringify(x.nome).replace(/"/g,'&quot;')+')">'+
           ponto(f)+'<span>'+tx(x.nome)+'</span><span class="fam">'+tx(f)+'</span></div>';
       }).join('')
-    : (limpar ? '' : '<div class="vazio" style="padding:26px">Nenhuma conta com esse nome.</div>'));
+    : (limpar ? '' : '<div class="vazio" style="padding:26px">Nenhuma subcategoria com esse nome.</div>'));
 }
 function normaliza(s){
   return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
@@ -11384,7 +11384,7 @@ function escolherConta(nome){
   el(p.id).value=nome;
   var bt=el('btn_'+p.id);
   if(bt) bt.innerHTML = (nome ? ponto(familiaDe(nome))+nome
-                              : '<span style="color:var(--dim)">sem conta</span>')+
+                              : '<span style="color:var(--dim)">sem subcategoria</span>')+
     '<span style="margin-left:auto;color:var(--dim)">&#9662;</span>';
   fecharPicker();
   if(p.aoEscolher) eval(p.aoEscolher);
@@ -11415,7 +11415,7 @@ function pickerCriar(){
       var bt=el('btn_'+p.id), d=document.createElement('div');
       d.id=alvo;
       if(bt && bt.parentNode) bt.parentNode.insertBefore(d, bt.nextSibling);
-      else { toast('Crie a conta em Config → Contas'); return; }
+      else { toast('Crie a subcategoria em Config → Categorias'); return; }
     }
   }
   abrirCriar(alvo, p.id, p.natureza==='TODAS' ? 'DESPESA' : p.natureza);
@@ -11437,8 +11437,8 @@ function abrirCriar(alvo, selectId, natureza){
   var fams=((ST.resumo&&ST.resumo.familias)||[]);
   el(alvo).innerHTML =
     '<div style="border:1px solid var(--acc);border-radius:10px;padding:10px;margin-top:8px">'+
-    '<div class="lbl" style="margin-bottom:7px">Nova conta</div>'+
-    '<input id="xNome" placeholder="nome da conta (ex.: CASA - SEGURO PORTAO)">'+
+    '<div class="lbl" style="margin-bottom:7px">Nova subcategoria</div>'+
+    '<input id="xNome" placeholder="nome da subcategoria (ex.: CASA - SEGURO PORTAO)">'+
     '<div class="lbl" style="margin-top:9px">Categoria</div>'+
     botaoEscolha('xFam', '', 'escolher a categoria…', 'categoria', fams, '',
                  '+ criar categoria nova')+
@@ -11469,7 +11469,7 @@ function cancelarCriar(alvo, selectId){
 
 function criarNaClassificacao(alvo, selectId, natureza){
   var nome=el('xNome').value.trim();
-  if(!nome){ toast('Dê um nome para a conta'); return; }
+  if(!nome){ toast('Dê um nome para a subcategoria'); return; }
   var fam=(el('xFam').value||'').trim();
   if(!fam){ toast('Escolha a categoria'); return; }
   var prev=parseFloat(String(el('xPrev').value||'0').replace(/\./g,'').replace(',','.'))||0;
@@ -11492,7 +11492,7 @@ function criarNaClassificacao(alvo, selectId, natureza){
     }
     ST.recemCriada={ categoria:r.categoria, select:selectId };
     reaplicarCriada();
-    toast('Conta criada');
+    toast('Subcategoria criada');
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
     .apiNovaCategoria(nome.toUpperCase(), fam.toUpperCase(), natureza, prev);
 }
@@ -11590,7 +11590,7 @@ function renderMes(){
       ? 'Inclui a fatura de todos os cartões que vence neste mês: '+moeda(cx.fatura)+
         (cx.faturaFechada?' (já fechada)':' (ainda aberta)')+
         ((cx.faturaVerba||0)>0.005 ? '. '+moeda(cx.faturaLancada||0)+' já comprados nela + '+moeda(cx.faturaVerba)+
-          ' da verba das contas do cartão ainda não gasta.' : '.')
+          ' da verba das subcategorias do cartão ainda não gasta.' : '.')
       : '';
     h+='<div class="card cx" style="border-left:3px solid '+
        (cx.saldoProjetado>=0?'var(--ok)':'var(--bad)')+'">'+
@@ -11683,9 +11683,9 @@ function renderMes(){
   h+='<div class="card"><div class="row" style="margin-bottom:8px">'+
      '<div class="lbl">Despesas'+(ST.familia!=='TUDO'?' · '+ST.familia:'')+(r.regime==='COMPETENCIA'?' <span class="pill" style="font-size:10.5px;padding:1px 8px;vertical-align:1px">competência</span>':'')+
      ' <span style="opacity:.6">('+lista.length+')</span>'+
-     dica('O previsto é editável direto na linha. Contas sem movimento no mês ficam ocultas.')+'</div>'+
+     dica('O previsto é editável direto na linha. Subcategorias sem movimento no mês ficam ocultas.')+'</div>'+
      '</div>'+
-     '<div class="cab-ln"><span>conta</span><span>previsto</span><span>realizado</span><span>diferença</span></div>'+
+     '<div class="cab-ln"><span>subcategoria</span><span>previsto</span><span>realizado</span><span>diferença</span></div>'+
      '<div class="cab-mob"><span>previsto</span><span>realizado</span><span>saldo</span></div>';
   lista.forEach(function(d,i){
     h+='<div class="ln tab" title="'+tx(d.grupo)+'">'+
@@ -11695,7 +11695,7 @@ function renderMes(){
              'onclick="abrirReprog('+JSON.stringify(d.categoria).replace(/"/g,'&quot;')+',\'linha\')">&#8618;</button>' : '')+
          iconePagaPor(d.pagaPor)+'</div>'+
        '<input id="pv'+i+'"'+((d.daVerba>0.005||d.distribuido>0.005)?' class="vb" title="o previsto veio da verba do cartão"':'')+' value="'+(d.previsto>0.005?num(d.previsto):'')+'" '+
-         'placeholder="0,00"'+(Number(d.padrao)>0.005&&d.previsto<=0.005?' title="sem previsto neste mês (o padrão da conta é '+num(d.padrao)+')"':'')+' inputmode="decimal" '+
+         'placeholder="0,00"'+(Number(d.padrao)>0.005&&d.previsto<=0.005?' title="sem previsto neste mês (o padrão da subcategoria é '+num(d.padrao)+')"':'')+' inputmode="decimal" '+
          'onfocus="this.select()" onblur="salvarPrevisto('+i+')" '+
          'onkeydown="if(event.key===\'Enter\')this.blur()">'+
        '<span class="n">'+moeda(d.realizado)+'</span>'+
@@ -11710,7 +11710,7 @@ function renderMes(){
   var rec=r.receitas.filter(function(d){return d.realizado>0||d.previsto>0;});
   if(rec.length && ST.familia==='TUDO'){
     h+='<div class="card"><div class="lbl" style="margin-bottom:8px">Entradas</div>'+
-       '<div class="cab-ln"><span>conta</span><span>previsto</span><span>realizado</span><span>diferença</span></div>'+
+       '<div class="cab-ln"><span>subcategoria</span><span>previsto</span><span>realizado</span><span>diferença</span></div>'+
        '<div class="cab-mob"><span>previsto</span><span>realizado</span><span>saldo</span></div>';
     // o previsto da entrada tambem e editavel: antes so a despesa era, e nao
     // havia como corrigir um salario ou um aluguel direto na linha
@@ -11719,7 +11719,7 @@ function renderMes(){
       var j=base+k;
       h+='<div class="ln tab"><div class="nm">'+ponto('RECEITA')+'<span>'+tx(d.categoria)+'</span></div>'+
          '<input id="pv'+j+'" value="'+(d.previsto>0.005?num(d.previsto):'')+'" '+
-           'placeholder="0,00"'+(Number(d.padrao)>0.005&&d.previsto<=0.005?' title="sem previsto neste mês (o padrão da conta é '+num(d.padrao)+')"':'')+' inputmode="decimal" '+
+           'placeholder="0,00"'+(Number(d.padrao)>0.005&&d.previsto<=0.005?' title="sem previsto neste mês (o padrão da subcategoria é '+num(d.padrao)+')"':'')+' inputmode="decimal" '+
            'onfocus="this.select()" onblur="salvarPrevisto('+j+')" '+
            'onkeydown="if(event.key===\'Enter\')this.blur()">'+
          '<span class="n">'+moeda(d.realizado)+'</span>'+
@@ -11739,7 +11739,7 @@ function renderMes(){
          '<div style="text-align:right"><div class="lbl">meta</div>'+
          '<div style="font-size:15px;color:var(--dim)">'+moeda(d.previsto)+'</div></div></div>'+
          '<div class="m" style="font-size:11.5px;margin-top:6px">não soma no total: cada compra '+
-         'do cartão já está na sua conta acima</div></div>';
+         'do cartão já está na sua subcategoria acima</div></div>';
     });
   }
   c.innerHTML=h;
@@ -11772,7 +11772,7 @@ function cardSugestao(r){
     var marc=s.marc||(s.marc={});
     var h='<div class="card sug"><div class="lbl">✨ Previsto sugerido'+
       dica('Pelo que você gastou '+(s.meses>1?'nos últimos '+s.meses+' meses (média por mês)':'no mês passado')+
-           ', nas contas que ainda não têm previsto. Usar grava o valor neste mês e nos 11 seguintes; dá para mudar na linha depois.')+'</div>'+
+           ', nas subcategorias que ainda não têm previsto. Usar grava o valor neste mês e nos 11 seguintes; dá para mudar na linha depois.')+'</div>'+
       '<div class="m" style="font-size:12.5px;margin:4px 0 8px">Seu previsto montado a partir dos seus gastos. Confira e toque em <b>Usar</b>.</div>';
     s.itens.forEach(function(x,i){
       var on=marc[i]!==false;
@@ -11806,10 +11806,10 @@ function sugUsar(){
     var inp=el('sugv'+i), v=inp?parseFloat(String(inp.value).replace(/\./g,'').replace(',','.')):x.valor;
     if(v>0) itens.push({categoria:x.categoria, valor:v});
   });
-  if(!itens.length) return toast('Marque pelo menos uma conta');
+  if(!itens.length) return toast('Marque pelo menos uma subcategoria');
   google.script.run.withSuccessHandler(function(r){
     if(!r||!r.ok) return toast((r&&r.erro)||'Não consegui gravar');
-    toast('Previsto de '+r.quantos+(r.quantos===1?' conta':' contas')+' gravado ✅');
+    toast('Previsto de '+r.quantos+(r.quantos===1?' subcategoria':' subcategorias')+' gravado ✅');
     ST.sug[mes]={itens:[]}; carregar(mes);
   }).withFailureHandler(function(){ toast('Não consegui gravar'); }).apiUsarSugestoes(mes, itens);
 }
@@ -11848,7 +11848,7 @@ function notaDaVerba(d){
   if(d.daVerba>0.005)
     nota='<span class="chip-verba" title="o previsto veio da verba do cartão">💳 '+num(d.daVerba)+'</span>';
   else if(d.distribuido>0.005)
-    nota='<span class="chip-verba" title="já distribuído nas contas que gastaram">💳 ➜ '+num(d.distribuido)+'</span>';
+    nota='<span class="chip-verba" title="já distribuído nas subcategorias que gastaram">💳 ➜ '+num(d.distribuido)+'</span>';
   if(!nota) return '';
   return '<div style="margin:-4px 0 7px 20px">'+nota+'</div>';
 }
@@ -11862,7 +11862,7 @@ function botaoLinhaMes(d){
     return '<button class="bt-x" title="tirar do mês" onclick="removerDoMes('+cat+
            ')">&times;</button>';
   if(Math.abs(d.realizado)>0.005) return '<span class="bt-x vazio2"></span>';
-  return '<button class="bt-x" title="apagar esta conta" onclick="apagarDoMes('+cat+
+  return '<button class="bt-x" title="apagar esta subcategoria" onclick="apagarDoMes('+cat+
          ')">&times;</button>';
 }
 
@@ -11870,12 +11870,12 @@ function botaoLinhaMes(d){
    nada (ja esta zerada), entao o X oferece o que realmente resolve. */
 function apagarDoMes(cat){
   if(!confirm('"'+cat+'" não tem previsto neste mês nem valor cadastrado.\n\n'+
-              'Apagar esta conta de vez?')) return;
+              'Apagar esta subcategoria de vez?')) return;
   toast('Apagando...');
   google.script.run.withSuccessHandler(function(r){
-    if(r && r.ok){ toast('Conta apagada'); ST.cacheMes={}; ST.extras=null; ST.ano=null; carregar(ST.mes); return; }
+    if(r && r.ok){ toast('Subcategoria apagada'); ST.cacheMes={}; ST.extras=null; ST.ano=null; carregar(ST.mes); return; }
     if(r && r.precisaDestino){
-      toast(r.lancamentos+' lançamentos nessa conta — apague pela aba Config');
+      toast(r.lancamentos+' lançamentos nessa subcategoria — apague pela aba Config');
       return;
     }
     toast((r&&r.erro)||'Não consegui');
@@ -11926,7 +11926,7 @@ function oferecerReplicar(categoria, valor){
     if(!confirm('Aplicar '+moeda(valor)+' também nos outros meses que têm '+
                 categoria.split(' - ').pop()+'?\n\n'+
                 m.length+' '+(m.length>1?'meses':'mês')+': '+nomes+
-                '\n\nOs meses em que esta conta não cai ficam como estão.')){
+                '\n\nOs meses em que esta subcategoria não cai ficam como estão.')){
       atualizarPorTras(); return;
     }
     var linhas = m.map(function(x){ return { mes:x.ref, categoria:categoria, valor:valor }; });
@@ -11974,7 +11974,7 @@ function painelReprog(x){
   var vz=''; for(var v=2;v<=12;v++) vz+='<option value="'+v+'">'+v+' meses</option>';
   return '<div class="card" style="margin:4px 0 8px;padding:10px 11px;border:1px solid #2b3a57">'+
     '<div class="m" style="font-size:11.5px;margin-bottom:7px">Levar o que não vai ser gasto de <b>'+tx(x.categoria)+'</b> para os próximos meses. '+
-      'Se o mês já tem previsto dessa conta, soma.</div>'+
+      'Se o mês já tem previsto dessa subcategoria, soma.</div>'+
     '<div class="lbl" style="font-size:10px">Valor</div>'+
     '<input id="rpVal" inputmode="decimal" value="'+num(x.falta)+'" oninput="mascaraMoeda(this)" style="margin:0 0 8px">'+
     '<div class="evo-tabs" style="margin-bottom:8px">'+
@@ -12023,7 +12023,7 @@ function restaurarPrevisto(cat){
 
 function removerDoMes(cat){
   if(!confirm('Tirar "'+cat+'" de '+NOMES_MES[Number(ST.mes.split('-')[1])]+'?\n\n'+
-              'A conta continua existindo; só deixa de aparecer neste mês.')) return;
+              'A subcategoria continua existindo; só deixa de aparecer neste mês.')) return;
   google.script.run.withSuccessHandler(function(r){
     toast(r.ok ? 'Tirada do mês' : (r.erro||'Não consegui'));
     ST.ano=null; carregar(ST.mes);
@@ -12037,7 +12037,7 @@ function linhaMais(natureza){
     var ehReceita = natureza==='RECEITA';
     return '<div class="card" style="border-color:var(--acc);margin:8px 0">'+
       '<div class="lbl" style="margin-bottom:8px">'+
-        (ehReceita?'Nova entrada — dinheiro que chega':'Nova conta — dinheiro que sai')+'</div>'+
+        (ehReceita?'Nova entrada — dinheiro que chega':'Nova subcategoria — dinheiro que sai')+'</div>'+
       '<input id="ncNome" placeholder="'+
         (ehReceita?'ex.: ALUGUEL DA LOJA':'ex.: CASA - SEGURO PORTAO')+'">'+
       '<div class="lbl" style="margin-top:10px">Categoria</div>'+
@@ -12055,7 +12055,7 @@ function linhaMais(natureza){
       'setTimeout(function(){var e=el(\'ncNome\');if(e)e.focus();},50)">+ nova '+
       (natureza==='RECEITA'?'entrada':'conta')+'</button>'+
     '<button class="bt-mais" style="flex:1" onclick="trazerConta(\''+natureza+'\')">'+
-      '+ conta que já existe</button></div>';
+      '+ subcategoria que já existe</button></div>';
 }
 
 /* Traz para ESTE mes uma conta que ja existe mas nao aparece aqui - porque o
@@ -12099,14 +12099,14 @@ function mascaraMoeda(inp){
 
 function criarConta(nat){
   var nome=el('ncNome').value.trim();
-  if(!nome){ toast('Dê um nome para a conta'); return; }
+  if(!nome){ toast('Dê um nome para a subcategoria'); return; }
   var sel=el('ncFam').value;
   if(!sel){ toast('Escolha a categoria'); return; }
   var g=sel.toUpperCase();
   var p=parseFloat(String(el('ncPrev').value||'0').replace(/\./g,'').replace(',','.'))||0;
   toast('Criando...');
   google.script.run.withSuccessHandler(function(r){
-    toast(r.ok ? 'Conta criada' : 'Não criei: '+r.erro);
+    toast(r.ok ? 'Subcategoria criada' : 'Não criei: '+r.erro);
     ST.criando=null; ST.ano=null; carregar(ST.mes);
   }).withFailureHandler(function(e){
     toast('Falhou: '+((e&&e.message)||e));
@@ -12207,9 +12207,9 @@ function renderPainel(){
   h+='<div class="card"><div class="lbl" style="margin-bottom:10px">Diagnóstico</div>'+
      diagnostico(a, mediaDesp, mediaRec, mediaCart)+'</div>';
 
-  h+='<div class="card"><div class="lbl" style="margin-bottom:4px">Conferir as contas</div>'+
+  h+='<div class="card"><div class="lbl" style="margin-bottom:4px">Conferir as subcategorias</div>'+
      '<div class="m" style="font-size:11.5px;margin-bottom:9px">Gera uma planilha com '+
-     '<b>previsto e realizado conta a conta, mês a mês</b>, deste ano e dos próximos três — '+
+     '<b>previsto e realizado subcategoria a subcategoria, mês a mês</b>, deste ano e dos próximos três — '+
      'com os totais e o saldo acumulado no rodapé.</div>'+
      '<button class="bt-ac" style="width:100%" '+
        'onclick="exportarPlanilha(\'expPainel\')">Exportar para Excel</button>'+
@@ -12775,7 +12775,7 @@ function blocoDiagnostico(p, falta){
        '<div class="card" style="padding:10px 12px">'+
        '<div class="m" style="font-size:11.5px;margin-bottom:6px">entram '+mil(d.receita)+
        ' por mês em média; '+(d.sobra>=0?'sobram '+mil(d.sobra):'<b class="neg">faltam '+
-       mil(-d.sobra)+'</b>')+'. As maiores contas:</div>';
+       mil(-d.sobra)+'</b>')+'. As maiores subcategorias:</div>';
     d.maiores.forEach(function(x){
       h+='<div class="ln" style="grid-template-columns:1fr auto auto;grid-template-areas:none">'+
          '<span style="font-size:12.5px">'+tx(x.conta)+'</span>'+
@@ -12823,7 +12823,7 @@ function blocoDiagnostico(p, falta){
   if(d.folgas && d.folgas.length){
     h+='<div class="lbl" style="margin:14px 0 6px">Folgas que já estão contratadas</div>'+
        '<div class="card" style="padding:10px 12px">'+
-       '<div class="m" style="font-size:11.5px;margin-bottom:6px">contas que acabam sozinhas — '+
+       '<div class="m" style="font-size:11.5px;margin-bottom:6px">subcategorias que acabam sozinhas — '+
        'a partir daí esse dinheiro pode ir para o plano</div>';
     d.folgas.forEach(function(f){
       h+='<div class="ln" style="grid-template-columns:1fr auto;grid-template-areas:none">'+
@@ -13224,7 +13224,7 @@ function renderCartao(){
       h+='<div class="tg"><div class="nm">'+ponto(familiaDe(x.categoria))+tx(x.categoria)+'</div>'+
          '<div class="tg-num"><span class="meta">'+
            (temMeta?'meta '+num(x.meta)+(x.fora>0?' · '+num(x.fora)+' pela conta':'')+
-                    (x.distribuido>0?' · '+num(x.distribuido)+' nas contas sem meta':'')
+                    (x.distribuido>0?' · '+num(x.distribuido)+' nas subcategorias sem meta':'')
                    :(x.daVerba>0?'sem meta · '+num(x.daVerba)+' pago pela verba livre':'sem meta'))+'</span>'+
          '<span class="'+cc+'" style="font-weight:600">'+(temMeta?num(x.sobra):'—')+'</span>'+
          '<span class="'+cc+'">'+(!temMeta?'—':x.sobra<0
@@ -13465,12 +13465,12 @@ function abrirEditar(id, linha){
     segEscolha('edNat', receita?'RECEITA':'DESPESA', ['DESPESA','RECEITA'], ROT_TIPO)+
     '<div class="lbl" style="margin-top:8px">Descrição</div><input id="edDesc" value="'+
       String(x.fornecedor||'').replace(/"/g,'&quot;')+'">'+
-    '<div class="lbl" style="margin-top:9px">Conta</div>'+
+    '<div class="lbl" style="margin-top:9px">Subcategoria</div>'+
     '<input type="hidden" id="edCat" value="'+String(x.categoria||'').replace(/"/g,'&quot;')+'">'+
     // a lista de contas segue o "É": receita mostra as contas de receita
     '<button class="bt-conta" id="btn_edCat" onclick="abrirPicker(\'edCat\',el(\'edNat\').value,\'\')">'+
       (x.categoria ? ponto(familiaDe(x.categoria))+x.categoria
-                   : '<span style="color:var(--dim)">escolher conta…</span>')+
+                   : '<span style="color:var(--dim)">escolher subcategoria…</span>')+
       '<span style="margin-left:auto;color:var(--dim)">&#9662;</span></button>'+
     '<div class="lbl" style="margin-top:8px">Valor</div>'+
       '<input id="edVal" inputmode="decimal" value="'+num(valor)+'" oninput="mascaraMoeda(this)">'+
@@ -13510,12 +13510,12 @@ function abrirDestino(id, linha){
     '<div class="lbl">'+(receita?'Entrou em':'Saiu de')+'</div>'+
     botaoEscolha('dsOnde', atual, 'cartão ou conta…', receita?'entrou em':'saiu de', ondeItens(), '',
                  '+ outro cartão') +
-    '<div class="lbl" style="margin-top:9px">Conta</div>'+
+    '<div class="lbl" style="margin-top:9px">Subcategoria</div>'+
     '<input type="hidden" id="dsCat" value="'+String(x.categoria||'').replace(/"/g,'&quot;')+'">'+
     '<button class="bt-conta" id="btn_dsCat" onclick="abrirPicker(\'dsCat\',\''+
       (receita?'RECEITA':'DESPESA')+'\',\'\')">'+
       (x.categoria ? ponto(familiaDe(x.categoria))+x.categoria
-                   : '<span style="color:var(--dim)">escolher conta…</span>')+
+                   : '<span style="color:var(--dim)">escolher subcategoria…</span>')+
       '<span style="margin-left:auto;color:var(--dim)">&#9662;</span></button>'+
     campoParcelas(x, receita)+
     /* Só esta compra é o padrão: o café na conveniência do posto vira
@@ -13617,7 +13617,7 @@ function salvarEditado(){
     conta: onde.slice(2)
   };
   if(!dados.valor){ toast('Informe o valor'); return; }
-  if(!dados.categoria){ toast('Escolha a conta'); return; }
+  if(!dados.categoria){ toast('Escolha a subcategoria'); return; }
   var vezes=(el('edParc') && ehCartao && dados.natureza==='DESPESA')?Number(el('edParc').value)||1:1;
   fecharEditar();
   toast('Salvando...');
@@ -13922,10 +13922,10 @@ function renderNovo(){
     '<div class="lbl">É</div>'+
     segEscolha('nTipo', 'DESPESA', ['DESPESA','RECEITA','TRANSFERENCIA'], ROT_TIPO)+
     '<div class="lbl" style="margin-top:12px">Descrição</div><input id="nd" placeholder="Ex: farmácia">'+
-    '<div id="ncBox"><div class="lbl" style="margin-top:12px">Conta</div>'+
+    '<div id="ncBox"><div class="lbl" style="margin-top:12px">Subcategoria</div>'+
     '<input type="hidden" id="nc" value="">'+
     '<button class="bt-conta" id="btn_nc" onclick="abrirPicker(\'nc\',el(\'nTipo\').value,\'mudouCatNovo()\')">'+
-      '<span style="color:var(--dim)">escolher conta…</span>'+
+      '<span style="color:var(--dim)">escolher subcategoria…</span>'+
       '<span style="margin-left:auto;color:var(--dim)">&#9662;</span></button></div>'+
     '<div class="lbl" style="margin-top:12px">Valor</div>'+
     '<input id="nv" type="text" inputmode="decimal" placeholder="0,00" '+
@@ -14048,7 +14048,7 @@ function novoTipoMudou(t){
     if(box) box.classList.remove('hide');
     if(c.value && (c.value===CAT_TRANSFER || !serveParaNatureza({ natureza: catNatureza(c.value) }, t))){
       c.value='';
-      if(b) b.innerHTML='<span style="color:var(--dim)">escolher conta…</span><span style="margin-left:auto;color:var(--dim)">&#9662;</span>';
+      if(b) b.innerHTML='<span style="color:var(--dim)">escolher subcategoria…</span><span style="margin-left:auto;color:var(--dim)">&#9662;</span>';
     }
   }
   mudouCatNovo();
@@ -14085,7 +14085,7 @@ function salvarNovo(){
   var v=parseFloat(bruto);
   if(!v || isNaN(v)){ toast('Informe o valor'); el('nv').focus(); return; }
   var cat=(el('nc')&&el('nc').value)||'';
-  if(!cat){ toast('Escolha a conta'); return; }
+  if(!cat){ toast('Escolha a subcategoria'); return; }
   var tipoN=(el('nTipo')&&el('nTipo').value)||'';
   var nat=(tipoN==='RECEITA'||tipoN==='DESPESA') ? tipoN : (catNatureza(cat)||'DESPESA');
 
@@ -14543,7 +14543,7 @@ function patForm(tipo, b){
       '<div id="pfResInfo" class="m" style="font-size:11.5px;margin:-2px 0 8px">preencha dois entre meta, prazo e valor por mês: o terceiro sai sozinho</div>'+
       '<div class="lbl" style="font-size:10px">Considerar no fluxo do mês?</div>'+
       segEscolha('pfFluxo', d.noFluxo===false?'NAO':'SIM', ['SIM','NAO'])+
-      '<div class="m" style="font-size:11px;margin-top:5px">Sim: cria a conta <b>RESERVA - '+tx((b.descricao||'…').toUpperCase())+'</b> '+
+      '<div class="m" style="font-size:11px;margin-top:5px">Sim: cria a subcategoria <b>RESERVA - '+tx((b.descricao||'…').toUpperCase())+'</b> '+
         '(investimento) com o valor por mês no previsto, até a data. Não: o plano só separa esse dinheiro da sobra.</div>';
   } else {
     h+=linha(campo('Descrição', inp('pfNome', b.descricao, 'ex.: Previdência PGBL'), 2), campo('Valor', dinheiro('pfVal', b.valor)));
@@ -14670,7 +14670,7 @@ function patGravar(tipo, antigo){
   toast('Salvando...');
   var fim=function(r){
     if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
-    toast(r.conta ? 'Salvo · conta '+r.conta+' no previsto' : 'Salvo');
+    toast(r.conta ? 'Salvo · subcategoria '+r.conta+' no previsto' : 'Salvo');
     ST.patEdit=null; ST.patNovo=null; ST.plano=null; ST.cacheMes={}; ST.extras=null; ST.ano=null; ST.projLonga=null;
     recarregarPatrimonio();
   };
@@ -15194,7 +15194,7 @@ function abasConfig(){
   function b(k,r){ return '<button style="flex:1" class="'+(m===k?'on':'')+'" '+
     'onclick="trocarConfig(\''+k+'\')">'+r+'</button>'; }
   return '<div class="seg sub-fixo" style="width:100%;margin-bottom:10px">'+
-    b('CONTAS','Contas')+b('BANCOS','Bancos')+b('AJUSTES','Ajustes')+b('CONTA','Minha conta')+'</div>';
+    b('CONTAS','Categorias')+b('BANCOS','Bancos')+b('AJUSTES','Ajustes')+b('CONTA','Minha conta')+'</div>';
 }
 function trocarConfig(m){ ST.modoCfg=m; ST.cfgEditando=null; renderConfig(); aoTopo(); }
 
@@ -15468,14 +15468,14 @@ function cfgContas(){
     return !busca || normaliza(x.nome+' '+x.grupo).indexOf(busca)>=0; });
 
   var h='<div class="card" style="padding:8px 10px"><div class="row" style="gap:6px">'+
-    '<input id="cfgBusca" placeholder="buscar conta" style="margin:0;flex:1;padding:7px 9px;font-size:13px" '+
+    '<input id="cfgBusca" placeholder="buscar subcategoria" style="margin:0;flex:1;padding:7px 9px;font-size:13px" '+
       'value="'+(ST.cfgBusca||'').replace(/"/g,'&quot;')+'" oninput="cfgBuscar(this.value)">'+
     '<button class="bt-no" style="padding:7px 11px;font-size:12.5px" '+
       'onclick="cfgNovaCategoria()">+&nbsp;categoria</button>'+
     '<button class="bt-no" style="padding:7px 11px;font-size:12.5px;background:var(--acc);color:#fff" '+
-      'onclick="cfgNovaConta()">+&nbsp;conta</button>'+
+      'onclick="cfgNovaConta()">+&nbsp;subcategoria</button>'+
     '</div><div class="m" style="font-size:11px;margin-top:6px"><span id="cfgQtd">'+lista.length+
-    ' contas</span> · o previsto mostrado é o de '+NOMES_MES[mes]+'</div></div>';
+    ' subcategorias</span> · o previsto mostrado é o de '+NOMES_MES[mes]+'</div></div>';
 
   // categoria nova: o nome e, em seguida, a primeira conta dela (categoria vive das contas)
   if(ST.cfgNovaCat) h+='<div class="card" style="border-color:var(--acc)">'+
@@ -15483,7 +15483,7 @@ function cfgContas(){
     '<input id="cfgCatNova" placeholder="ex.: VIAGENS, PETS, IGREJA" onkeydown="if(event.key===\'Enter\')cfgCriarCategoria()">'+
     '<div class="row" style="margin-top:10px;gap:8px">'+
       '<button class="bt-no" style="flex:1" onclick="ST.cfgNovaCat=false;renderConfig()">Cancelar</button>'+
-      '<button class="bt-ok" style="flex:2" onclick="cfgCriarCategoria()">Criar e pôr a primeira conta</button></div></div>';
+      '<button class="bt-ok" style="flex:2" onclick="cfgCriarCategoria()">Criar e pôr a primeira subcategoria</button></div></div>';
   if(ST.cfgCriando) h+=cfgFormNova();
 
   var fams={};
@@ -15495,7 +15495,7 @@ function cfgContas(){
       h+='<div class="card" style="margin:14px 0 6px;border-color:var(--acc)">'+
         '<div class="lbl" style="margin-bottom:6px">Renomear a categoria '+tx(g)+'</div>'+
         '<input id="cfgCatNome" value="'+tx(g)+'" onkeydown="if(event.key===\'Enter\')cfgSalvarCategoria('+gj+')">'+
-        '<div class="m" style="font-size:11px;margin-top:5px">As contas dela mudam junto ('+tx(g)+' - LUZ vira NOVO - LUZ).</div>'+
+        '<div class="m" style="font-size:11px;margin-top:5px">As subcategorias dela mudam junto ('+tx(g)+' - LUZ vira NOVO - LUZ).</div>'+
         '<div class="row" style="margin-top:9px;gap:8px">'+
           '<button class="bt-no" style="flex:1" onclick="ST.cfgRenomeandoCat=null;renderConfig()">Cancelar</button>'+
           '<button class="bt-ok" style="flex:2" onclick="cfgSalvarCategoria('+gj+')">Salvar</button></div></div>';
@@ -15504,7 +15504,7 @@ function cfgContas(){
         '<div class="lbl" style="margin:0">'+ponto(g)+g+'</div>'+
         '<span style="display:flex;gap:6px">'+
           (['RECEITA','EVENTO','INVESTIMENTO'].indexOf(g)<0?'<button class="bt-no" style="padding:3px 10px;font-size:11.5px" title="renomear a categoria" onclick="cfgRenomearCategoria('+gj+')">✎</button>':'')+
-          '<button class="bt-no" style="padding:3px 10px;font-size:11.5px" title="conta nova nesta categoria" onclick="cfgContaNaCategoria('+gj+')">+ conta</button>'+
+          '<button class="bt-no" style="padding:3px 10px;font-size:11.5px" title="subcategoria nova nesta categoria" onclick="cfgContaNaCategoria('+gj+')">+ subcategoria</button>'+
         '</span></div>';
     }
     fams[g].forEach(function(x){
@@ -15559,7 +15559,7 @@ function cfgFormEditar(x){
                        return { valor:String(i+1), rotulo:nm, grupo:'MES' }; }), '')+
       '</div>'+
     '</div>'+
-    '<div class="lbl" style="margin-top:10px">Até quando esta conta existe?</div>'+
+    '<div class="lbl" style="margin-top:10px">Até quando esta subcategoria existe?</div>'+
     '<input id="cfAte" inputmode="numeric" placeholder="AAAA-MM (vazio = não acaba)" '+
       'value="'+(x.ate||'')+'">'+
     '<div class="row" style="margin-top:10px;gap:8px">'+
@@ -15590,7 +15590,7 @@ var SEG_ROTULO={ TRANSFERENCIA:'Transferência', INVESTIMENTO:'Investimento', NA
 function escolherSeg(id, valor){
   el(id).value=valor;
   if(id==='dsTodos' && el('dsTodosNota')) el('dsTodosNota').textContent = valor==='TODAS'
-    ? 'muda todas as compras deste fornecedor e as próximas passam a cair nesta conta'
+    ? 'muda todas as compras deste fornecedor e as próximas passam a cair nesta subcategoria'
     : 'as outras compras e as próximas deste fornecedor continuam como estão';
   var box=el('seg_'+id);
   Array.prototype.forEach.call(box.querySelectorAll('button'), function(b){
@@ -15608,7 +15608,7 @@ function edNatMudou(nat){
   var c=el('edCat'), b=el('btn_edCat');
   if(c && c.value && !serveParaNatureza({ natureza: catNatureza(c.value) }, nat)){
     c.value='';
-    if(b) b.innerHTML='<span style="color:var(--dim)">escolher conta de '+(nat==='RECEITA'?'receita':'despesa')+'…</span><span style="margin-left:auto;color:var(--dim)">&#9662;</span>';
+    if(b) b.innerHTML='<span style="color:var(--dim)">escolher subcategoria de '+(nat==='RECEITA'?'receita':'despesa')+'…</span><span style="margin-left:auto;color:var(--dim)">&#9662;</span>';
   }
 }
 
@@ -15625,7 +15625,7 @@ function cfgSalvarConta(nome){
   google.script.run.withSuccessHandler(function(r){
     if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
     toast(r.renomeados ? 'Pronto — '+r.renomeados+' lançamentos acompanharam o nome novo'
-                       : 'Conta salva');
+                       : 'Subcategoria salva');
     ST.cfgEditando=null; recarregarConfig();
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
     .apiSalvarConta(nome, dados);
@@ -15668,7 +15668,7 @@ function cfgFormMeses(x){
     '<div class="seg" style="width:100%;margin-bottom:9px">'+abas+'</div>';
   if(!aberto){
     return h+'<div class="m" style="font-size:12px">O ano de '+ano+' ainda não existe na '+
-      'planilha. Ao abrir, ele já nasce com o que a projeção prevê para cada conta — '+
+      'planilha. Ao abrir, ele já nasce com o que a projeção prevê para cada subcategoria — '+
       'daí você ajusta o que quiser.</div>'+
       '<button class="bt-ok" style="width:100%;margin-top:9px" onclick="cfgAbrirAno('+ano+')">'+
       'Abrir '+ano+'</button></div>';
@@ -15694,7 +15694,7 @@ function cfgFormMeses(x){
       '<button class="bt-ok" style="flex:2" onclick="cfgAplicarMeses('+
         JSON.stringify(x.nome).replace(/"/g,'&quot;')+')">Aplicar</button></div>'+
     '<div class="m" style="font-size:11px;margin-top:6px">Os meses desmarcados ficam com '+
-    'previsto zero — é assim que uma conta deixa de aparecer num mês.</div></div>';
+    'previsto zero — é assim que uma subcategoria deixa de aparecer num mês.</div></div>';
   return h;
 }
 
@@ -15704,7 +15704,7 @@ function cfgAbrirAno(ano){
   toast('Abrindo '+ano+' na planilha...');
   google.script.run.withSuccessHandler(function(r){
     if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
-    toast(ano+' aberto com '+(r.contas||0)+' contas, já preenchido pela projeção');
+    toast(ano+' aberto com '+(r.contas||0)+' subcategorias, já preenchido pela projeção');
     ST.cfgAno=ano; recarregarConfig();
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
     .apiAbrirAnoNaFC(ano);
@@ -15734,9 +15734,9 @@ function cfgAplicarMeses(nome){
 }
 
 function cfgExcluir(nome){
-  if(!confirm('Excluir a conta "'+nome+'"?\n\nEla sai do cadastro e da FC.')) return;
+  if(!confirm('Excluir a subcategoria "'+nome+'"?\n\nEla sai do cadastro e da FC.')) return;
   google.script.run.withSuccessHandler(function(r){
-    if(r && r.ok){ toast('Conta excluída'); recarregarConfig(); return; }
+    if(r && r.ok){ toast('Subcategoria excluída'); recarregarConfig(); return; }
     if(r && r.precisaDestino){ cfgEscolherDestino(nome, r.lancamentos); return; }
     toast((r&&r.erro)||'Não consegui');
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
@@ -15751,17 +15751,17 @@ function cfgEscolherDestino(nome, quantos){
   var nat='DESPESA';
   ST.config.contas.forEach(function(x){ if(x.nome===nome) nat=x.natureza; });
   abrirPicker('rcAlvo', nat, 'cfgConfirmarDestino()');
-  toast(quantos+' lançamentos nessa conta — escolha para onde eles vão');
+  toast(quantos+' lançamentos nessa subcategoria — escolha para onde eles vão');
 }
 
 function cfgConfirmarDestino(){
   var a=ST.cfgApagando, destino=el('rcAlvo').value;
   if(!a || !destino) return;
-  if(destino===a.nome){ toast('Escolha outra conta'); return; }
+  if(destino===a.nome){ toast('Escolha outra subcategoria'); return; }
   if(!confirm('Mover os '+a.quantos+' lançamentos de "'+a.nome+'" para "'+destino+
-              '" e apagar a conta?')) return;
+              '" e apagar a subcategoria?')) return;
   google.script.run.withSuccessHandler(function(r){
-    toast(r&&r.ok ? (r.movidas||0)+' lançamentos movidos · conta apagada'
+    toast(r&&r.ok ? (r.movidas||0)+' lançamentos movidos · subcategoria apagada'
                   : ((r&&r.erro)||'Não consegui'));
     ST.cfgApagando=null; recarregarConfig();
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
@@ -15775,7 +15775,7 @@ function cfgFormNova(){
   var fams=ST.config.familias, fa=ST.cfgNovaFam||'';
   if(fa && fams.indexOf(fa)<0) fams=fams.concat([fa]);
   return '<div class="card" style="border-color:var(--acc)">'+
-    '<div class="lbl" style="margin-bottom:8px">Conta nova'+(fa?' em '+tx(fa):'')+'</div>'+
+    '<div class="lbl" style="margin-bottom:8px">Subcategoria nova'+(fa?' em '+tx(fa):'')+'</div>'+
     '<input id="cnNome" placeholder="ex.: CASA - SEGURO PORTÃO" value="'+(fa?tx(fa)+' - ':'')+'">'+
     '<div class="lbl" style="margin-top:9px">Categoria</div>'+
     botaoEscolha('cnFam', fa, 'escolher a categoria…', 'categoria', fams, '', '+ criar categoria nova')+
@@ -15812,7 +15812,7 @@ function cfgSalvarCategoria(g){
   toast('Salvando...');
   google.script.run.withSuccessHandler(function(r){
     if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
-    toast(r.contas?'Categoria renomeada · '+r.contas+(r.contas===1?' conta':' contas'):'Nada mudou');
+    toast(r.contas?'Categoria renomeada · '+r.contas+(r.contas===1?' subcategoria':' subcategorias'):'Nada mudou');
     ST.cfgRenomeandoCat=null; if(ST.familia===g) ST.familia='TUDO'; recarregarConfig();
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
     .apiRenomearCategoria(g, n);
@@ -15827,7 +15827,7 @@ function cfgCriarConta(){
   toast('Criando...');
   google.script.run.withSuccessHandler(function(r){
     if(!r||!r.ok){ toast('Não criei: '+((r&&r.erro)||'')); return; }
-    toast('Conta criada');
+    toast('Subcategoria criada');
     ST.cfgCriando=false; ST.cfgNovaFam=null; ST.cfgReplicando=nome.toUpperCase();
     recarregarConfig();
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
@@ -15867,9 +15867,9 @@ function cfgAjustes(){
       '</div>';
   });
   h+='<div class="card" style="margin-top:14px">'+
-    '<div class="lbl" style="margin-bottom:6px">Projeção conta a conta na planilha</div>'+
+    '<div class="lbl" style="margin-bottom:6px">Projeção subcategoria a subcategoria na planilha</div>'+
     '<div class="m" style="font-size:11.5px;margin-bottom:8px">Escreve a aba '+
-    '<b>Consolidado</b> com uma linha por conta e uma coluna por mês, até 2029. '+
+    '<b>Consolidado</b> com uma linha por subcategoria e uma coluna por mês, até 2029. '+
     'É a projeção que o Plano usa, para você conferir na planilha.</div>'+
     '<button class="bt-ac" style="width:100%" '+
       'onclick="exportarPlanilha(\'expConfig\')">Gerar e baixar em Excel</button>'+
@@ -15910,7 +15910,7 @@ function cfgAuditoria(){
                           : 'Tudo bateu')+'</div>'+
     '<div class="m" style="margin-top:4px">'+a.conferido.length+' conferências ok · '+
       a.avisos.length+' aviso(s) · '+a.pendentes+' a confirmar · '+
-      a.semCategoria+' sem conta</div></div>';
+      a.semCategoria+' sem subcategoria</div></div>';
 
   if(a.problemas.length){
     h+='<div class="lbl" style="margin:14px 0 6px">O que não bate</div>';
