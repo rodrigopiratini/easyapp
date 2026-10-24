@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.37.1 \u00b7 23/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.38.0 \u00b7 24/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6082,6 +6082,17 @@ window.pedirTexto = function (o, feito) {
     ' background:#161d2c;color:inherit;font:inherit;cursor:pointer}#iaGrupo .ia-gop button.rec{border-color:#3b82f6;box-shadow:0 0 0 1px #3b82f6}' +
     '#iaGrupo .ia-gop b{display:block;font-size:15px}#iaGrupo .ia-gop span{display:block;color:#8b99b5;font-size:12.5px;margin-top:2px}' +
     '#iaGrupo .ia-gdica{color:#8b99b5;font-size:12px;margin-top:10px}' +
+    // a lista de módulos em ícones, como a tela inicial do iPhone (24/10/2026)
+    '#iaGrupo .ia-ggrade{display:grid;grid-template-columns:repeat(4,1fr);gap:18px 8px;padding:10px 2px 6px}' +
+    '#iaGrupo .ia-ggrade button{display:flex;flex-direction:column;align-items:center;gap:7px;padding:0;border:0;background:none;' +
+    ' color:inherit;font:inherit;cursor:pointer;min-width:0;border-radius:0}' +
+    '#iaGrupo .ia-ggrade .ic{width:60px;height:60px;display:grid;place-items:center;border-radius:18px;font-size:28px;color:#fff;' +
+    ' background:linear-gradient(145deg,var(--acc,#3b82f6),var(--acc2,#8b5cf6));box-shadow:0 6px 16px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.18)}' +
+    '#iaGrupo .ia-ggrade .ic .ico{width:30px;height:30px}' +
+    '#iaGrupo .ia-ggrade .nm{font-size:12px;line-height:1.25;text-align:center;max-width:100%;overflow:hidden;' +
+    ' display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}' +
+    'body.v3 #iaGrupo .ia-gfolha{background:rgba(18,24,40,.9);-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);' +
+    ' border:0;border-radius:28px 28px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.4)}' +
     '#iaPrevBar{position:fixed;left:10px;right:76px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:940;' +
     ' background:#1e293b;border:1px solid #3b82f6;border-radius:12px;padding:8px 10px;display:flex;' +
     ' align-items:center;gap:8px;box-shadow:0 6px 18px #0009;font:13px -apple-system,system-ui,sans-serif;color:#e8edf7}' +
@@ -6345,9 +6356,9 @@ window.pedirTexto = function (o, feito) {
     fecharGrupo();
     var f = document.createElement('div'); f.id = 'iaGrupo';
     f.innerHTML = '<div class="ia-gfundo"></div><div class="ia-gfolha"><div class="ia-gtopo"><b>Módulos</b>' +
-      '<button class="ia-x" aria-label="fechar">×</button></div><div class="ia-glista">' +
+      '<button class="ia-x" aria-label="fechar">×</button></div><div class="ia-ggrade">' +
       lista.map(function (m, i) {
-        return '<button data-i="' + i + '"><span class="ic">' + iconeMenu(m.icone) + '</span><span class="nm">' + esc(m.nome) + '</span><span class="sx">›</span></button>';
+        return '<button data-i="' + i + '" aria-label="' + esc(m.nome) + '"><span class="ic">' + iconeMenu(m.icone) + '</span><span class="nm">' + esc(m.nome) + '</span></button>';
       }).join('') + '</div><div class="ia-gdica">Para pôr um no menu de baixo: Assistente → Módulos → <b>Pôr no menu</b>.</div></div>';
     document.body.appendChild(f);
     f.querySelector('.ia-gfundo').onclick = fecharGrupo;
