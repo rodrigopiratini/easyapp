@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.46.1 \u00b7 24/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.47.0 \u00b7 24/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -9711,6 +9711,9 @@ window.pedirTexto = function (o, feito) {
   .li{display:grid;grid-template-columns:34px 1fr auto 20px 16px;gap:6px;align-items:center;
       padding:7px 0;border-bottom:1px solid #22304a;font-size:12.5px}
   .li:last-child{border-bottom:0}
+  /* extrato: a linha inteira abre a edição (o lápis saiu) */
+  .li.li-tq{grid-template-columns:34px 1fr auto 16px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .li.li-tq:active{background:rgba(255,255,255,.05)}
   .li .d1{font-size:10.5px;color:var(--dim);font-variant-numeric:tabular-nums}
   .li .d2{min-width:0;overflow:hidden;line-height:1.28}
   .li .d2 i{display:block;font-size:10px;color:var(--dim);font-style:normal;
@@ -10182,6 +10185,7 @@ window.pedirTexto = function (o, feito) {
   .sub-ed{margin:2px 0 8px;padding:10px;border-radius:14px;background:rgba(255,255,255,.04)}
   .fm{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .fm-full{grid-column:1/-1}
+  .fm{grid-template-columns:repeat(6,1fr)!important}.fm-c{grid-column:span 3}.fm-c.fm-full{grid-column:1/-1}.fm-c.fm-3{grid-column:span 2}
   .fm-c{min-width:0}
   .fm-c>span{display:block;font-size:11px;font-weight:600;color:var(--dim);margin:0 0 3px 4px}
   .fm input,.fm .bt-conta{height:40px!important;min-height:0!important;margin:0!important;padding:0 12px!important;font-size:14px!important;width:100%;box-sizing:border-box}
@@ -13951,7 +13955,7 @@ function extratoConta(e){
   h+='<div class="card" style="padding:10px"><div class="tabela">';
   e.itens.forEach(function(x){
     var v=x.credito||x.debito;
-    h+='<div class="li">'+
+    h+='<div class="li li-tq" onclick="'+acaoEditar(x)+'">'+
        '<span class="d1">'+String(x.data).substring(0,5)+'</span>'+
        '<span class="d2">'+tx(x.fornecedor)+
          (x.status==='PENDENTE'?'<b class="pend">a confirmar</b>':'')+
@@ -13959,8 +13963,7 @@ function extratoConta(e){
          '<i>'+(comp?(x.noCartao?IC_MEIO_CARTAO:IC_MEIO_CONTA):'')+origemIc(x)+tx(x.categoria||'sem categoria')+' · '+tx(x.cartao||x.conta)+'</i></span>'+
        '<span class="d3 '+(x.credito?'pos':'neg')+'">'+(x.credito?'+':'-')+moeda(v)+
          '<i>'+(x.noCartao?(x.parcela?'parcela '+x.parcela:'no cartão'):x.semConta?'sem conta':x.foraDoSaldo&&x.status!=='IGNORADO'?'fora do saldo':moeda(x.saldo))+'</i></span>'+
-       botaoTrocarConta(x, x.credito?'RECEITA':'DESPESA')+
-       '<button class="bt-x" title="excluir" onclick="excluirLanc('+x.linha+',this,\''+(x.id||'')+'\')">&times;</button>'+
+       '<button class="bt-x" title="excluir" onclick="event.stopPropagation();excluirLanc('+x.linha+',this,\''+(x.id||'')+'\')">&times;</button>'+
        '</div>';
   });
   if(!e.itens.length) h+='<div class="vazio" style="padding:24px">Nenhum movimento '+(comp?'':'em conta ')+'neste mês.</div>';
@@ -13970,16 +13973,13 @@ function extratoConta(e){
 /* Lapis ao lado do x: troca a conta do lancamento. Antes so dava para corrigir
    uma classificacao errada pela aba Classificar - e la so aparece o que ainda
    nao tem conta nenhuma. O que entrou na conta errada ficava sem conserto. */
-function botaoTrocarConta(x, natureza){
-  // No que VOCE lancou a mao, o lapis abre a ficha inteira - valor, data,
-  // descricao, conta. No que veio do banco, ele so troca a conta: o resto
-  // tem que continuar igual ao extrato de verdade.
-  if(String(x.origem||'')==='MANUAL'){
-    return '<button class="bt-x" title="editar" style="color:#86efac" '+
-      'onclick="abrirEditar(\''+(x.id||'')+'\','+x.linha+')">&#9998;</button>';
-  }
-  return '<button class="bt-x" title="corrigir o destino" style="color:#9fb4d8" '+
-    'onclick="abrirDestino(\''+(x.id||'')+'\','+x.linha+')">&#9998;</button>';
+function acaoEditar(x){
+  // No que VOCE lancou a mao, abre a ficha inteira - valor, data, descricao,
+  // conta. No que veio do banco, so troca a conta: o resto tem que continuar
+  // igual ao extrato de verdade. (24/10: sem o lapis; toca-se na linha.)
+  return String(x.origem||'')==='MANUAL'
+    ? "abrirEditar('"+(x.id||'')+"',"+x.linha+")"
+    : "abrirDestino('"+(x.id||'')+"',"+x.linha+")";
 }
 
 /* Refaz os numeros das OUTRAS telas em segundo plano. Nao toca no extrato nem
@@ -14092,7 +14092,7 @@ function extratoCartao(e){
 
   h+='<div class="card" style="padding:10px"><div class="tabela">';
   e.itens.forEach(function(x){
-    h+='<div class="li">'+
+    h+='<div class="li li-tq" onclick="'+acaoEditar(x)+'">'+
        '<span class="d1">'+String(x.data).substring(0,5)+'</span>'+
        '<span class="d2">'+tx(x.fornecedor)+
          // a parcela vinha no fim da linha de baixo, que e cortada com "..."
@@ -14105,8 +14105,7 @@ function extratoCartao(e){
          '<i>'+origemIc(x)+tx(x.categoria||'sem categoria')+' · '+tx(x.cartao.replace('CARTAO ',''))+
          '</i></span>'+
        '<span class="d3">'+moeda(x.valor)+'<i>'+moeda(x.acumulado)+'</i></span>'+
-       botaoTrocarConta(x, 'DESPESA')+
-       '<button class="bt-x" title="excluir" onclick="excluirLanc('+x.linha+',this,\''+(x.id||'')+'\')">&times;</button>'+
+       '<button class="bt-x" title="excluir" onclick="event.stopPropagation();excluirLanc('+x.linha+',this,\''+(x.id||'')+'\')">&times;</button>'+
        '</div>';
   });
   if(!e.itens.length) h+='<div class="vazio" style="padding:24px">Nenhuma compra nesta fatura.</div>';
@@ -15858,17 +15857,20 @@ function cfgFormEditar(x){
     '<div class="fm-c fm-full"><span>Nome</span><input id="cfNome" value="'+tx(x.nome)+'"></div>'+
     '<div class="fm-c"><span>Categoria</span>'+
       botaoEscolha('cfFam', x.grupo, 'escolher…', 'categoria', fams, '', '+ criar categoria nova')+'</div>'+
-    '<div class="fm-c"><span>Termina em</span><input id="cfAte" inputmode="numeric" placeholder="AAAA-MM" '+
-      'value="'+(x.ate||'')+'"></div>'+
+    // o valor do mês: vale deste mês até dezembro (mês a mês fino: o 📅 embaixo)
+    '<div class="fm-c"><span>Previsto por mês</span><input id="cfPrev" inputmode="decimal" placeholder="0,00" '+
+      'oninput="mascaraMoeda(this)" data-antes="'+cfgPrevAtual(x)+'" value="'+(cfgPrevAtual(x)?num(cfgPrevAtual(x)):'')+'"></div>'+
     '<div class="fm-c fm-full"><span>Tipo</span>'+
       segEscolha('cfNat', x.natureza, ['DESPESA','RECEITA','TRANSFERENCIA','INVESTIMENTO'],
                  { TRANSFERENCIA:'Transf.', INVESTIMENTO:'Invest.' })+'</div>'+
-    '<div class="fm-c"><span>Reajuste anual (%)</span><input id="cfReaj" inputmode="decimal" placeholder="0 = não tem" '+
+    '<div class="fm-c fm-3"><span>Reajuste (%)</span><input id="cfReaj" inputmode="decimal" placeholder="0" '+
       'value="'+(x.reajuste?num(x.reajuste*100):'')+'"></div>'+
-    '<div class="fm-c"><span>Mês do reajuste</span>'+
-      botaoEscolha('cfReajMes', String(x.mesReajuste||''), 'janeiro', 'mês',
+    '<div class="fm-c fm-3"><span>Reajusta em</span>'+
+      botaoEscolha('cfReajMes', String(x.mesReajuste||''), 'jan', 'mês',
                    NOMES_MES.slice(1).map(function(nm,i){
-                     return { valor:String(i+1), rotulo:nm, grupo:'MES' }; }), '')+'</div>'+
+                     return { valor:String(i+1), rotulo:nm.substring(0,3).toLowerCase(), grupo:'MES' }; }), '')+'</div>'+
+    '<div class="fm-c fm-3"><span>Termina em</span><input id="cfAte" inputmode="numeric" placeholder="ex. 2027-12" '+
+      'value="'+(x.ate||'')+'"></div>'+
   '</div>'+
   '<div class="fm-acoes">'+
     '<button class="bt-no fm-ic" title="Excluir" aria-label="Excluir" onclick="cfgExcluir('+nj+')">'+
@@ -15923,6 +15925,23 @@ function edNatMudou(nat){
   }
 }
 
+/* Previsto da subcategoria no mês de hoje (no ano do Config); fora dele, o primeiro mês com valor */
+function cfgPrevAtual(x){
+  var a=x.previsto||[], hoje=mesDeHoje(), mi=(String(ST.config.ano)===hoje.slice(0,4))?Number(hoje.slice(5,7)):1;
+  return Number(a[mi-1]) || Number(a.filter(function(v){ return v>0; })[0]) || 0;
+}
+function cfgSalvarPrevisto(nome, pronto){
+  var e=el('cfPrev'); if(!e){ pronto(); return; }
+  var v=parseFloat(String(e.value||'0').replace(/\./g,'').replace(',','.'))||0;
+  if(Math.abs(v-(Number(e.getAttribute('data-antes'))||0))<0.005){ pronto(); return; }
+  var ano=Number(ST.config.ano), hoje=mesDeHoje(), mi=(String(ano)===hoje.slice(0,4))?Number(hoje.slice(5,7)):1, linhas=[];
+  for(var m=mi;m<=12;m++) linhas.push({ mes:ano+'-'+('0'+m).slice(-2), categoria:nome, valor:v });
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok) toast('O previsto não foi gravado: '+((r&&r.erro)||'erro')); else toast('Salvo — '+moeda(v)+' por mês até dezembro');
+    pronto();
+  }).withFailureHandler(function(er){ toast('Previsto falhou: '+((er&&er.message)||er)); pronto(); })
+    .apiSalvarPrevistoEmVarios(linhas);
+}
 function cfgSalvarConta(nome){
   var fam=(el('cfFam').value||'').trim();
   if(!fam){ toast('Escolha a categoria'); return; }
@@ -15937,7 +15956,8 @@ function cfgSalvarConta(nome){
     if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
     toast(r.renomeados ? 'Pronto — '+r.renomeados+' lançamentos acompanharam o nome novo'
                        : 'Subcategoria salva');
-    ST.cfgEditando=null; recarregarConfig();
+    // o previsto vai depois, já com o nome novo (se mudou)
+    cfgSalvarPrevisto(dados.nome || nome, function(){ ST.cfgEditando=null; recarregarConfig(); });
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
     .apiSalvarConta(nome, dados);
 }
