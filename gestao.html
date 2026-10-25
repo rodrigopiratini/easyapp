@@ -175,7 +175,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.12.0 · 21/10/2026';
+var VERSAO_PAINEL = '1.13.0 · 25/10/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -793,6 +793,26 @@ function blocoApi(a) {
   }).join(' &nbsp; ') + '</div>';
   return h;
 }
+// o preço do assistente: o cliente paga o custo na Anthropic × o multiplicador
+// (a função assistente lê no começo de cada pedido; 058)
+function blocoMultiplicador() {
+  var m = DADOS.ia_multiplicador || { valor: 4, padrao: true, sem_tabela: true };
+  var ex = function (usd) { return brl(usd * 5.5 * m.valor); };   // a função assistente usa US$ 1 = R$ 5,50
+  return '<h2>Preço do assistente</h2><div class="heroi"><div>' +
+    '<div class="rot">O cliente paga</div><div class="num v">' + String(m.valor).replace('.', ',') + '× o custo</div>' +
+    '<div class="sub2">um pedido simples (US$ 0,01) sai por ' + ex(0.01) + ' · um módulo grande (US$ 0,10) por ' + ex(0.1) + '</div>' +
+    '<div class="sub2">' + (m.sem_tabela ? '⚠️ falta rodar a migração 058: até lá o assistente cobra 4×'
+      : m.padrao ? 'valor padrão (nunca foi mudado)' : 'mudado em ' + dt(m.desde)) + '</div>' +
+    '</div><div class="acoes"><form onsubmit="mudarMultiplicador();return false"><label class="sub2">Novo multiplicador (de 1 a 50)</label>' +
+    '<input id="iaMult" inputmode="decimal" value="' + String(m.valor).replace('.', ',') + '"><button>Salvar</button></form>' +
+    '<div class="sub2">Vale para os próximos pedidos. O custo do dólar e o saldo de cada cliente não mudam.</div></div></div>';
+}
+function mudarMultiplicador() {
+  var v = Number(String(document.getElementById('iaMult').value || '').replace(',', '.'));
+  if (!(v >= 1 && v <= 50)) { alert('O multiplicador vai de 1 a 50'); return; }
+  if (!confirm('Cobrar ' + String(v).replace('.', ',') + '× o custo da IA nos próximos pedidos?')) return;
+  acao({ acao: 'ia_multiplicador', valor: v });
+}
 function informarSaldo() {
   var v = Number(String(document.getElementById('apiSaldo').value || '').replace(/\./g, '').replace(',', '.'));
   if (!(v >= 0) || document.getElementById('apiSaldo').value.trim() === '') { alert('Digite o saldo em US$'); return; }
@@ -935,7 +955,7 @@ function desenhar() {
       k('Custo da IA', usdTxt(r.ia_custo_mes_usd), brl(r.ia_custo_mes_brl) + (d.motores && d.motores.fonte === 'anthropic' ? ' · real da Anthropic' : ' · anotado pelo app')) +
       k('IA cobrada dos clientes', brl(r.ia_cobrado_mes), 'margem ' + brl(r.ia_margem_mes) + ' (já sem taxa MP)', r.ia_margem_mes < 0 ? 'r' : '') +
       k('Resultado', brl(r.resultado_mes), 'receita líquida − custo da IA', r.resultado_mes < 0 ? 'r' : 'v') +
-      '</div>' + blocoMeses();
+      '</div>' + blocoMultiplicador() + blocoMeses();
   }
   h += rodape();
   cx.innerHTML = h;
