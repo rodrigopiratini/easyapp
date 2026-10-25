@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.54.0 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.55.0 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -795,7 +795,7 @@ window.pedirTexto = function (o, feito) {
       lerTudo('/rest/v1/' + rm + '?select=categoria,grupo,previsto,realizado,sai_por'
            + '&mes_ref=eq.' + mes + '&sai_por=eq.CARTAO&order=categoria'),
       c0,
-      lerTudo('/rest/v1/lancamentos?select=data,valor,categorias(nome)'
+      lerTudo('/rest/v1/lancamentos?select=data,valor,categorias(nome,grupo),contas(nome)'
               + (comp ? dataEntre(mes) : '&mes_ref=eq.' + mes)
               + '&meio=eq.CARTAO_CREDITO&natureza=eq.DESPESA&status=neq.IGNORADO'),
       lerTudo('/rest/v1/' + rm + '?select=categoria,previsto&mes_ref=eq.' + mes)
@@ -857,7 +857,19 @@ window.pedirTexto = function (o, feito) {
         verba.sobra = n(verba.meta - verba.gasto - cobriu);
         verba.porDia = verba.sobra > 0 ? n(verba.sobra / Math.max(1, dias - dia)) : 0;
       }
+      // por cartão e por categoria, das mesmas compras (resumo e pizza da aba Cartão)
+      var pc = {}, pg = {};
+      r[3].forEach(function (l) {
+        var v = Number(l.valor) || 0, cn = (l.contas || {}).nome || 'NAO IDENTIFICADA', gn = (l.categorias || {}).grupo || 'SEM CATEGORIA';
+        var x = pc[cn] = pc[cn] || { cartao: cn, total: 0, compras: 0 }; x.total += v; x.compras++;
+        pg[gn] = (pg[gn] || 0) + v;
+      });
+      var porCartao = Object.keys(pc).map(function (k) { pc[k].total = n(pc[k].total); return pc[k]; })
+        .sort(function (a, b) { return b.total - a.total; });
+      var porGrupo = Object.keys(pg).map(function (k) { return { grupo: k, total: n(pg[k]) }; })
+        .filter(function (x) { return x.total > 0.005; }).sort(function (a, b) { return b.total - a.total; });
       return {
+        porCartao: porCartao, porGrupo: porGrupo,
         total: n(t.total), meta: meta, dias: dias, hoje: dia,
         diasRestantes: Math.max(0, dias - dia),
         metaAteHoje: n(meta * dia / dias), desvio: n(t.total - meta * dia / dias),
@@ -1018,8 +1030,13 @@ window.pedirTexto = function (o, feito) {
           + '&natureza=eq.DESPESA&order=data.desc,id.desc';
     return lerTudo(q).then(function (linhas) {
       var itens = linhas.map(function (l) { return paraItem(l); });
+      // os cartões da lista saem de TODAS as compras: filtrando, os outros
+      // continuam lá (apagados) para entrar no filtro também
+      var porCartao = {};
+      itens.forEach(function (x) { var c = x.cartao || 'NAO IDENTIFICADA'; porCartao[c] = (porCartao[c] || 0) + (x.valor || 0); });
+      var sel = (cartaoSel && cartaoSel !== 'TUDO') ? String(cartaoSel).split('|') : null;
       itens = itens.filter(function (x) {
-        if (cartaoSel && cartaoSel !== 'TUDO' && x.cartao !== cartaoSel) return false;
+        if (sel && sel.indexOf(x.cartao || 'NAO IDENTIFICADA') < 0) return false;
         return bateBusca(x, busca);
       });
       // Toda compra parcelada vai para o FIM, com o selo X/N: em cima ficam
@@ -1033,11 +1050,7 @@ window.pedirTexto = function (o, feito) {
         var pa = prestacao(a) ? 1 : 0, pb = prestacao(b) ? 1 : 0;
         return (pa - pb) || maisNovoPrimeiro(a, b);
       });
-      var porCartao = {}, acum = 0;
-      itens.forEach(function (x) {
-        var c = x.cartao || 'NAO IDENTIFICADA';
-        porCartao[c] = (porCartao[c] || 0) + (x.valor || 0);
-      });
+      var acum = 0;
       for (var j = itens.length - 1; j >= 0; j--) { acum += itens[j].valor || 0; itens[j].acumulado = n(acum); }
       return { mes: mes, itens: itens, quantos: itens.length,
                total: n(itens.reduce(function (a, x) { return a + (x.valor || 0); }, 0)),
@@ -10375,18 +10388,28 @@ window.pedirTexto = function (o, feito) {
   .bk-lg{position:relative;display:inline-grid;place-items:center;flex:none;border-radius:28%;font-style:normal;font-weight:800;overflow:hidden;vertical-align:middle;margin-right:6px}
   .bk-lg img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff;padding:2px;box-sizing:border-box}
   .bnd{width:30px;height:19px;flex:none;display:inline-block;vertical-align:middle;margin-right:6px;border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
-  /* aba Cartão: os cartões */
-  .cc-lista{padding:12px 14px 6px}
-  .cc-add{width:28px;height:28px;border-radius:50%!important;border:0;background:rgba(255,255,255,.08)!important;color:var(--txt);font-size:17px;padding:0!important;cursor:pointer}
-  .cc-it{padding:9px 0;border-top:1px solid rgba(255,255,255,.06);cursor:pointer}
-  .cc-l1{display:flex;align-items:center;gap:8px}
-  .cc-nm{flex:1;min-width:0;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .cc-nm small{font-weight:400;color:var(--dim)}
-  .cc-v{font-size:14.5px;white-space:nowrap}
-  .cc-ed{background:none!important;border:0!important;color:var(--dim);font-size:15px;padding:0 0 0 6px!important;cursor:pointer}
-  .cc-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.08);margin:7px 0 0;overflow:hidden}.cc-bar i{display:block;height:100%;border-radius:2px}
-  .cc-l2{font-size:11.5px;color:var(--dim);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .cc-vazio{cursor:pointer;text-align:center;padding:16px}.cc-vazio b{display:block;font-size:14.5px}.cc-vazio span{font-size:12px;color:var(--dim)}
+  /* aba Cartão: "Onde estou" tocável, resumo por cartão e pizza */
+  .cc-toque{cursor:pointer}.cc-seta{color:var(--dim);font-size:15px;margin-left:2px}
+  .rc-lista{padding:12px 14px 8px}
+  .rc-it{display:grid;grid-template-columns:48px minmax(0,1fr) 54px auto 12px;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);cursor:pointer;font-size:13px}
+  .rc-it .ic-ct .bk-lg{margin-right:2px}
+  .rc-nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rc-nm small{color:var(--dim)}
+  .rc-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden}.rc-bar i{display:block;height:100%;background:var(--acc);border-radius:2px}
+  .rc-it b{white-space:nowrap;font-size:13px}.rc-sv{color:var(--dim)}
+  .pz{padding:12px 14px}.pz-in{display:flex;align-items:center;gap:14px}
+  .pz-g{width:118px;height:118px;flex:none}
+  .pz-t1{font-size:8px;fill:#8b99b5}.pz-t2{font-size:11px;font-weight:800;fill:#e8edf7}
+  .pz-leg{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+  .pz-it{display:grid;grid-template-columns:10px minmax(0,1fr) auto;align-items:center;gap:7px;font-size:12.5px;cursor:pointer;border-radius:8px;padding:2px 4px}
+  .pz-it i{width:10px;height:10px;border-radius:3px}.pz-it span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pz-it.on{background:rgba(255,255,255,.08)}
+  /* Extrato → Cartão: filtro de vários; os de fora ficam cinza */
+  .cf-lista{padding:9px 12px;margin-bottom:10px}
+  .cf-it{display:grid;grid-template-columns:48px minmax(0,1fr) auto 16px;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer;transition:opacity .15s}
+  .cf-nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cf-it.on .cf-nm,.cf-it.on .num{color:var(--acc);font-weight:600}
+  .cf-it.off{opacity:.35;filter:grayscale(1)}
+  .cf-ck{color:var(--acc);font-weight:800;text-align:center}
   .ic-ct{display:inline-flex;align-items:center;vertical-align:middle;margin-right:2px;position:relative;top:-1px}
   .cc-l2 .ic-ct .bk-lg,.li .d2 i .ic-ct .bk-lg,.pd-tx small .ic-ct .bk-lg,.mv-tx small .ic-ct .bk-lg{width:12px!important;height:12px!important;font-size:5px!important;margin-right:3px;border-radius:3px}
   .cc-l2 .ic-ct .bnd-p,.li .d2 i .ic-ct .bnd-p,.pd-tx small .ic-ct .bnd-p,.mv-tx small .ic-ct .bnd-p{width:18px;height:11px;margin-right:3px;border-radius:2px}
@@ -13938,39 +13961,54 @@ function diagnostico(a, mediaDesp, mediaRec, mediaCart){
 }
 
 /* ---------- 4. CARTÃO ---------- */
-/* Os cartões na aba Cartão (25/10): todos os do cadastro, com a fatura que
-   está aberta, o limite usado, o dia em que fecha e a conta que paga. Tocar
-   abre as compras dele no Extrato; o lápis edita. */
-function seusCartoes(){
-  var info=ST.contasInfo||{}, nomes=Object.keys(info).filter(function(n){ return info[n].tipo==='CARTAO'; });
-  ((ST.saldos&&ST.saldos.cadastroCartoes)||[]).forEach(function(n){ if(nomes.indexOf(n)<0) nomes.push(n); });
-  if(!nomes.length) return '<div class="card cc-vazio" onclick="novoCartao()"><b>💳 Cadastre o seu cartão</b><span>Banco, final, fechamento e a conta que paga a fatura.</span></div>';
-  var fat={}; ((ST.saldos&&ST.saldos.cartoes&&ST.saldos.cartoes.cartoes)||[]).forEach(function(f){ fat[f.cartao]=f.total; });
-  nomes.sort(function(a,b){ return (fat[b]||0)-(fat[a]||0) || a.localeCompare(b,'pt-BR'); });
-  var porId={}; Object.keys(info).forEach(function(n){ if(info[n].id) porId[info[n].id]=info[n]; });
-  return '<div class="card cc-lista"><div class="row" style="margin-bottom:4px"><div class="lbl">Seus cartões</div>'+
-    '<button class="cc-add" onclick="novoCartao()" aria-label="cadastrar cartão">+</button></div>'+
-    nomes.map(function(n){
-      var c=info[n]||{ nome:n }, t=fat[n]||0, pg=c.conta_pagamento&&porId[c.conta_pagamento];
-      var nj=JSON.stringify(n).replace(/"/g,'&quot;');
-      var pct=c.limite>0?Math.min(100,Math.round(t/c.limite*100)):null;
-      return '<div class="cc-it" onclick="verComprasDoCartao('+nj+')">'+
-        '<div class="cc-l1">'+icConta(n, 26)+'<span class="cc-nm">'+tx(nomeBonito(n.replace(/\s*CARTAO\s*/,' ').replace(c.final?new RegExp('\\s*'+c.final+'$'):/$^/,'').trim()))+(c.final?' <small>·'+tx(c.final)+'</small>':'')+'</span>'+
-          '<b class="cc-v">'+moeda(t)+'</b>'+
-          (c.id?'<button class="cc-ed" title="editar" onclick="event.stopPropagation();editarCartao(\''+c.id+'\')">&#9998;</button>':'')+'</div>'+
-        (pct!==null?'<div class="cc-bar"><i style="width:'+pct+'%;background:'+(pct>=90?'var(--bad)':pct>=70?'var(--warn)':'var(--acc)')+'"></i></div>':'')+
-        '<div class="cc-l2">'+(c.fechamento?'fecha dia '+c.fechamento:'fatura aberta')+
-          (c.limite?' · '+moeda(Math.max(0,c.limite-t))+' livre':'')+
-          (pg?' · paga pela '+icConta(pg.nome)+tx(nomeBonito(pg.nome)):'')+'</div>'+
-      '</div>';
+function filtrarCartao(nome){
+  var l=(ST.cartaoSel && ST.cartaoSel!=='TUDO') ? String(ST.cartaoSel).split('|') : [];
+  if(!nome) l=[];
+  else { var k=l.indexOf(nome); if(k>=0) l.splice(k,1); else l.push(nome); }
+  ST.cartaoSel = l.length ? l.join('|') : 'TUDO'; ST.extrato=null; renderExtrato();
+}
+/* Resumo compacto por cartão (aba Cartão, entre o Ritmo e o Por tipo de
+   gasto): tocar abre as compras daquele cartão no Extrato. */
+function resumoPorCartao(k){
+  var l=(k.porCartao||[]).filter(function(x){ return x.total>0.005; });
+  if(!l.length) return '';
+  var mx=l[0].total||1;
+  return '<div class="card rc-lista"><div class="lbl" style="margin-bottom:4px">Por cartão</div>'+
+    l.map(function(x){
+      var nj=JSON.stringify(x.cartao).replace(/"/g,'&quot;');
+      return '<div class="rc-it" onclick="verComprasDoCartao('+nj+')">'+icConta(x.cartao, 18)+
+        '<span class="rc-nm">'+tx(nomeBonito(x.cartao.replace(/\s*CARTAO\s*/,' ').trim()))+' <small>'+x.compras+'</small></span>'+
+        '<span class="rc-bar"><i style="width:'+Math.max(4,Math.round(x.total/mx*100))+'%"></i></span>'+
+        '<b>'+moeda(x.total)+'</b><span class="rc-sv">&#8250;</span></div>';
     }).join('')+'</div>';
 }
-function verComprasDoCartao(nome){
-  ST.modoEx='CARTAO'; ST.cartaoSel=nome; ST.extrato=null; irParaTela('extrato');
+/* Pizza (rosca) das compras do cartão por categoria; tocar na legenda filtra
+   a categoria (o mesmo filtro do Por tipo de gasto). */
+function pizzaCategorias(k){
+  var l=(k.porGrupo||[]).slice(); if(!l.length) return '';
+  var nCat=l.length;
+  var tot=l.reduce(function(a,x){ return a+x.total; },0); if(tot<=0) return '';
+  if(l.length>6){ var resto=l.slice(5).reduce(function(a,x){ return a+x.total; },0); l=l.slice(0,5).concat([{ grupo:'OUTROS', total:resto, outros:true }]); }
+  var R=42, C=2*Math.PI*R, ac=0;
+  var fat=l.map(function(x){
+    var f=x.total/tot, d=f*C, cr=x.outros?'#64748b':cor(x.grupo);
+    var arco='<circle r="'+R+'" cx="60" cy="60" fill="none" stroke="'+cr+'" stroke-width="18" '+
+      'stroke-dasharray="'+d.toFixed(2)+' '+(C-d).toFixed(2)+'" stroke-dashoffset="'+(-ac).toFixed(2)+'"/>';
+    ac+=d; return arco;
+  }).join('');
+  return '<div class="card pz"><div class="lbl" style="margin-bottom:6px">Por categoria</div><div class="pz-in">'+
+    '<svg viewBox="0 0 120 120" class="pz-g"><g transform="rotate(-90 60 60)">'+fat+'</g>'+
+      '<text x="60" y="56" text-anchor="middle" class="pz-t1">'+nCat+(nCat===1?' categoria':' categorias')+'</text>'+
+      '<text x="60" y="72" text-anchor="middle" class="pz-t2">'+moeda(tot).replace(/,\d\d$/,'')+'</text></svg>'+
+    '<div class="pz-leg">'+l.map(function(x){
+      var on=ST.familia===x.grupo, gj=JSON.stringify(x.grupo).replace(/"/g,'&quot;');
+      return '<div class="pz-it'+(on?' on':'')+'"'+(x.outros?'':' onclick="mudarFamilia('+gj+')"')+'>'+
+        '<i style="background:'+(x.outros?'#64748b':cor(x.grupo))+'"></i><span>'+tx(nomeBonito(x.grupo))+'</span>'+
+        '<b>'+Math.round(x.total/tot*100)+'%</b></div>';
+    }).join('')+'</div></div></div>';
 }
-function editarCartao(id){
-  ST.modoCfg='BANCOS'; ST.cartaoEd=id; ST.bancoAberto=id; ST.cartaoNovo=false; ST.bancoNovo=false;
-  irParaTela('config');
+function verComprasDoCartao(nome){
+  ST.modoEx='CARTAO'; ST.cartaoSel=nome||'TUDO'; ST.extrato=null; irParaTela('extrato');
 }
 function renderCartao(){
   var k=ST.cartao, c=el('tela-cartao');
@@ -13978,10 +14016,10 @@ function renderCartao(){
   var acima = k.total - k.metaAteHoje;      // >0 = gastando mais rapido que o permitido
   var h='';
   garantirContasInfo();
-  h+=seusCartoes();
 
-  h+='<div class="card">'+
-    '<div class="row"><div><div class="lbl">Onde estou</div>'+
+  // tocar no quadro abre as compras que fazem este número (Extrato → Cartão)
+  h+='<div class="card cc-toque" onclick="if(!event.target.closest(\'.ajuda\'))verComprasDoCartao()">'+
+    '<div class="row"><div><div class="lbl">Onde estou <span class="cc-seta">&#8250;</span></div>'+
       '<div class="big '+(acima>0?'neg':'pos')+'">'+moeda(k.total)+'</div></div>'+
     '<div style="text-align:right"><div class="lbl">Onde deveria estar'+
       dica(k.regime==='COMPETENCIA'
@@ -14010,6 +14048,7 @@ function renderCartao(){
 
   h+='<div class="card"><div class="lbl" style="margin-bottom:8px">Ritmo: meta x real</div>'+
      grafico(k)+'</div>';
+  h+=resumoPorCartao(k)+pizzaCategorias(k);
 
   var cats=(k.porCategoria||[]).filter(function(x){return x.gasto>0||x.meta>0;});
   // o filtro de família do cabeçalho também vale aqui: antes ele mudava a
@@ -14576,10 +14615,12 @@ function extratoCartao(e){
   /* Previsto (a meta do cartão), realizado, saldo e compras - como na conta
      corrente. Filtrando um cartão, o previsto é a meta dividida pelos
      cartões da fatura. O mês já está no filtro de cima. */
-  var filtrado = ST.cartaoSel && ST.cartaoSel!=='TUDO';
-  if(!filtrado) ST.nCartoesFatura = Math.max(1, e.porCartao.length);
+  // vários cartões no filtro (25/10): "A|B"; os de fora ficam apagados na lista
+  var selL = (ST.cartaoSel && ST.cartaoSel!=='TUDO') ? String(ST.cartaoSel).split('|') : [];
+  var filtrado = selL.length>0;
+  ST.nCartoesFatura = Math.max(1, e.porCartao.length);
   var metaC = (ST.cartao && ST.cartao.meta) || 0;
-  var prevC = filtrado ? metaC/(ST.nCartoesFatura||1) : metaC;
+  var prevC = filtrado ? metaC*Math.min(1, selL.length/ST.nCartoesFatura) : metaC;
   var saldoC = prevC - e.total;
   var h='<div class="mini resumo4">'+
     miniCard('previsto', num(prevC))+
@@ -14587,25 +14628,16 @@ function extratoCartao(e){
     miniCard('saldo', num(saldoC), saldoC>=0?'pos':'neg')+
     miniCard('compras', String(e.quantos))+
     '</div>';
-  /* Um cartão por linha, em letra pequena - e tocar nele filtra. Antes havia
-     a fileira de botões E a lista, os dois com os mesmos nomes. */
-  if(e.porCartao.length>1 || ST.cartaoSel){
-    var sel=ST.cartaoSel&&ST.cartaoSel!=='TUDO'?ST.cartaoSel:'';
-    // uma linha por cartão (como era) e um botãozinho para filtrar
-    var linha=function(nome, valor, chave){
-      var on=(chave===sel);
-      return '<div class="row" style="font-size:13px;padding:2px 0;gap:8px">'+
-        (chave?icConta(chave, 18):'')+
-        '<span style="flex:1;'+(on?'color:var(--acc);font-weight:600':'color:var(--dim)')+'">'+nome+'</span>'+
-        '<span class="num" style="'+(on?'color:var(--acc);font-weight:600':'')+'">'+num(valor)+'</span>'+
-        '<button class="flt'+(on?' on':'')+'" onclick="ST.cartaoSel=\''+((on||!chave)?'TUDO':chave)+'\';ST.extrato=null;renderExtrato()">'+
-          (on?'✓ só este':(chave?'filtrar':'ver todos'))+'</button></div>';
-    };
-    h+='<div class="card" style="padding:7px 12px;margin-bottom:10px">'+
+  if(e.porCartao.length>1 || filtrado){
+    h+='<div class="card cf-lista">'+
+      '<div class="row" style="margin-bottom:2px"><span class="lbl">Cartões</span>'+
+        (filtrado?'<button class="flt" onclick="filtrarCartao(\'\')">ver todos</button>':'<span class="m" style="font-size:11px">toque para filtrar</span>')+'</div>'+
       e.porCartao.map(function(x){
-        return linha(x.cartao.replace('CARTAO ',''), x.valor, x.cartao);
-      }).join('')+
-      (sel?linha('todos os cartões', e.total, ''):'')+'</div>';
+        var on=selL.indexOf(x.cartao)>=0, apagado=filtrado&&!on, nj=JSON.stringify(x.cartao).replace(/"/g,'&quot;');
+        return '<div class="cf-it'+(on?' on':'')+(apagado?' off':'')+'" onclick="filtrarCartao('+nj+')">'+
+          icConta(x.cartao, 18)+'<span class="cf-nm">'+tx(nomeBonito(x.cartao.replace(/\s*CARTAO\s*/,' ').trim()))+'</span>'+
+          '<span class="num">'+num(x.valor)+'</span><span class="cf-ck">'+(on?'✓':'')+'</span></div>';
+      }).join('')+'</div>';
   }
 
   h+='<div class="card" style="padding:10px"><div class="tabela">';
