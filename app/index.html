@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.58.3 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.58.4 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -12798,10 +12798,10 @@ function linhaCompacta(d, i, nat){
      o que já foi, em verde; passou: cheia e vermelha */
   var corBar=passou?'var(--bad)':(uso>=98?'rgba(255,255,255,.22)':'var(--ok)');
   if(passou || uso>=98) pct=100;
+  // só número ou símbolo (25/10): sobra em verde, passou em vermelho com "−", cumprido "✓"
   var dif;
-  if(prev<=0.005 && Math.abs(real)>0.005) dif='<span class="lc-dif neg">sem previsto</span>';
-  else if(rec) dif=faltaEntrar?'<span class="lc-dif">falta '+num(prev-real)+'</span>':'<span class="lc-dif pos">'+(real-prev>0.005?'+'+num(real-prev):'ok')+'</span>';
-  else dif=passou?'<span class="lc-dif neg">−'+num(real-prev)+'</span>':(prev-real>0.005?'<span class="lc-dif pos">sobra '+num(prev-real)+'</span>':'<span class="lc-dif">ok</span>');
+  if(rec) dif=faltaEntrar?'<span class="lc-dif">−'+num(prev-real)+'</span>':(real-prev>0.005?'<span class="lc-dif pos">+'+num(real-prev)+'</span>':'<span class="lc-dif">&#10003;</span>');
+  else dif=passou?'<span class="lc-dif neg">−'+num(real-prev)+'</span>':(prev-real>0.005?'<span class="lc-dif pos">'+num(prev-real)+'</span>':'<span class="lc-dif">&#10003;</span>');
   var podeReprog=!rec && d.saldo>0.005 && !d.daVerba && d.categoria!=='CARTAO - A CLASSIFICAR';
   var x=botaoLinhaMes(d), temX=/<button/.test(x);
   var nAc=(podeReprog?1:0)+(temX?1:0);
