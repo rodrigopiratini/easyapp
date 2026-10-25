@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.52.0 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.53.0 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10365,6 +10365,12 @@ window.pedirTexto = function (o, feito) {
   .fm-acoes{display:flex;gap:8px;margin-top:10px}
   .fm-acoes button{height:40px;padding:0 10px!important;font-size:14px;margin:0}
   .fm-ic{width:40px;flex:none;display:grid;place-items:center;padding:0!important}
+  /* logo do banco e bandeira do cartão */
+  .bk-lg{position:relative;display:inline-grid;place-items:center;flex:none;border-radius:28%;font-style:normal;font-weight:800;overflow:hidden;vertical-align:middle;margin-right:6px}
+  .bk-lg img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff;padding:2px;box-sizing:border-box}
+  .bnd{width:30px;height:19px;flex:none;display:inline-block;vertical-align:middle;margin-right:6px;border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+  .bk-tipo{width:32px;flex:none;display:inline-grid;place-items:center;font-size:15px}
+  .bk-tipo .bnd{margin-right:0}
   .fm-acoes .fm-del{color:#f87171!important;background:rgba(248,113,113,.14)!important}
   /* conta ou cartão, na linha do extrato em competência */
   .ic-meio{width:12px;height:12px;vertical-align:-1.5px;margin-right:4px;opacity:.85}
@@ -12277,7 +12283,7 @@ function htmlSaldos(s){
     var dq = x.desdeMs ? new Date(x.desdeMs) : null;
     var quando = dq ? ('0'+dq.getDate()).slice(-2)+'/'+('0'+(dq.getMonth()+1)).slice(-2) : '';
     h+='<div class="ln" style="grid-template-columns:1fr auto">'+
-       '<div class="nm">'+ponto(x.titular==='PJ'?'IMPOSTOS':'CASA')+
+       '<div class="nm">'+logoDaConta(x.conta, 20)+
        '<span>'+tx(x.conta)+
          '<br><span style="font-size:10.5px;color:var(--dim)">'+
          moeda(x.inicial)+(quando?' em '+quando:'')+
@@ -14074,6 +14080,7 @@ function grafico(k){
 
 /* ---------- EXTRATO: tudo que entrou e saiu, com ajuste na linha ---------- */
 function renderExtrato(){
+  if(!ST.contasInfo) infoContas(function(){ if(ST.telaAtual==='extrato'||ST.telaAtual==='mes'){ renderExtrato(); renderMes(); } });
   var c=el('tela-extrato');
   if(!ST.mes) return;
   ST.modoEx = ST.modoEx || 'CONTA';
@@ -14527,6 +14534,7 @@ function extratoCartao(e){
     var linha=function(nome, valor, chave){
       var on=(chave===sel);
       return '<div class="row" style="font-size:13px;padding:2px 0;gap:8px">'+
+        (chave?logoDaConta(chave, 18)+bandeiraHtml(((ST.contasInfo||{})[chave]||{}).bandeira):'')+
         '<span style="flex:1;'+(on?'color:var(--acc);font-weight:600':'color:var(--dim)')+'">'+nome+'</span>'+
         '<span class="num" style="'+(on?'color:var(--acc);font-weight:600':'')+'">'+num(valor)+'</span>'+
         '<button class="flt'+(on?' on':'')+'" onclick="ST.cartaoSel=\''+((on||!chave)?'TUDO':chave)+'\';ST.extrato=null;renderExtrato()">'+
@@ -15981,7 +15989,51 @@ function renderConfig(){
    Finance, a pessoa diz qual das manuais ele é e a manual sai - senão o
    saldo contaria duas vezes. */
 var BANCOS_LISTA=['Banco do Brasil','Banrisul','Bradesco','BTG','C6','Caixa','Cora','Inter','Itaú','Mercado Pago',
-  'Neon','Nubank','PagBank','PicPay','Safra','Santander','Sicoob','Sicredi','Stone','XP'];
+  'Neon','Nubank','PagBank','PicPay','Porto','Safra','Santander','Sicoob','Sicredi','Stone','XP'];
+/* Logo do banco e bandeira do cartão (25/10). Os logos são os do site
+   (img/bancos/); sem internet, fica a sigla na cor do banco. */
+var LOGO_BANCOS='https://easyappfinancial.com.br/img/bancos/';
+var BANCO_VIS={ 'BANCO DO BRASIL':['bb','BB','#f8d117','#14284b'], 'CAIXA':['caixa','CX','#0070af'], 'ITAU':['itau','IT','#ec7000'],
+  'BRADESCO':['bradesco','BR','#cc092f'], 'SANTANDER':['santander','SA','#ec0000'], 'BANRISUL':['banrisul','BS','#0059a7'],
+  'SICREDI':['sicredi','SI','#3fa110'], 'SICOOB':['sicoob','SC','#00a091'], 'BTG':['btg','BT','#1b2c4e'], 'SAFRA':['safra','SF','#1c2f5a'],
+  'NUBANK':['nubank','NU','#820ad1'], 'INTER':['inter','IN','#ff7a00'], 'C6':['c6','C6','#2b2b2b'], 'MERCADO PAGO':['mercadopago','MP','#00b1ea'],
+  'PICPAY':['picpay','PP','#21c25e'], 'PAGBANK':['pagbank','PB','#1bb99a'], 'XP':['xp','XP','#3a3a3a'], 'NEON':['neon','NE','#00c2e0'],
+  'CORA':['cora','CO','#fe3e6d'], 'PORTO':[null,'PO','#0046c0'], 'STONE':[null,'ST','#00a868'] };
+function logoBanco(banco, px){
+  px=px||28;
+  var k=normaliza(banco||'').toUpperCase(), v=BANCO_VIS[k]||[null,(k.replace(/[^A-Z0-9]/g,'').slice(0,2)||'?'),'#475569'];
+  return '<i class="bk-lg" style="width:'+px+'px;height:'+px+'px;font-size:'+Math.round(px*0.36)+'px;background:'+v[2]+';color:'+(v[3]||'#fff')+'">'+tx(v[1])+
+    (v[0]?'<img src="'+LOGO_BANCOS+v[0]+'.svg" alt="" loading="lazy" onerror="this.remove()">':'')+'</i>';
+}
+function bandeiraHtml(b){
+  b=String(b||'').toUpperCase().replace(/[^A-Z]/g,'');
+  if(!b) return '';
+  var t=function(bg, txt, cor, extra){ return '<svg class="bnd" viewBox="0 0 32 20" aria-label="'+tx(b)+'"><rect width="32" height="20" rx="4" fill="'+bg+'"/>'+
+    (extra||'<text x="16" y="13.6" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="8.6" font-weight="800" font-style="italic" fill="'+(cor||'#fff')+'">'+txt+'</text>')+'</svg>'; };
+  if(/MASTER/.test(b)) return t('#111','', '', '<circle cx="13" cy="10" r="5.6" fill="#eb001b"/><circle cx="19" cy="10" r="5.6" fill="#f79e1b" fill-opacity=".92"/>');
+  if(/VISA/.test(b)) return t('#1a1f71','VISA');
+  if(/ELO/.test(b)) return t('#000','elo','#ffcb05');
+  if(/AMEX|AMERICAN/.test(b)) return t('#2e77bc','AMEX');
+  if(/HIPER/.test(b)) return t('#b3131b','Hiper');
+  return t('#475569', b.slice(0,4));
+}
+/* bandeira e banco de cada conta, para as telas fora do Config (lido uma vez) */
+function infoContas(pronto){
+  if(ST.contasInfo){ if(pronto) pronto(ST.contasInfo); return; }
+  if(ST._lendoContas) return; ST._lendoContas=true;
+  ponteRest('/rest/v1/contas?select=nome,tipo,instituicao,bandeira&ativa=eq.true').then(function(l){
+    ST.contasInfo={}; (l||[]).forEach(function(c){ ST.contasInfo[c.nome]=c; }); ST._lendoContas=false; if(pronto) pronto(ST.contasInfo);
+  }).catch(function(){
+    // banco sem a 059 (sem bandeira): só o banco
+    ponteRest('/rest/v1/contas?select=nome,tipo,instituicao&ativa=eq.true').then(function(l){
+      ST.contasInfo={}; (l||[]).forEach(function(c){ ST.contasInfo[c.nome]=c; }); ST._lendoContas=false; if(pronto) pronto(ST.contasInfo);
+    }).catch(function(){ ST._lendoContas=false; });
+  });
+}
+function logoDaConta(nome, px){
+  var c=(ST.contasInfo||{})[nome]||{ nome:nome };
+  return logoBanco(bancoDe(c), px);
+}
 function ponteRest(c,o){ return window.EASYAPP_PONTE.rest(c,o); }
 function ponteFn(nome, corpo){
   return window.EASYAPP_PONTE.chamar(nome, corpo).then(function(r){ return r.json(); }).then(function(d){ if(d&&d.erro) throw new Error(d.erro); return d; });
@@ -16000,7 +16052,7 @@ function bancosCarregar(){
   var box=el('cfgBancos'); if(!box) return;
   if(ST.bancos){ box.innerHTML=bancosHtml(); return; }
   Promise.all([
-    ponteRest('/rest/v1/contas?select=id,nome,tipo,titular,instituicao,final,saldo_inicial,saldo_desde,saldo_banco,saldo_banco_em,pluggy_account_id,criado_em&ativa=eq.true&order=nome'),
+    ponteRest('/rest/v1/contas?select=*&ativa=eq.true&order=nome'),
     ponteRest('/rest/v1/saldos_contas?select=conta_id,saldo'),
     ponteRest('/rest/v1/config?select=valor&chave=eq.CARTOES_MULTIPLOS')
   ]).then(function(r){
@@ -16080,14 +16132,14 @@ function bancosHtml(){
     var lst=porBanco[bk].sort(function(a,b){ return (a.tipo==='CARTAO')-(b.tipo==='CARTAO') || String(a.titular).localeCompare(String(b.titular)) || a.nome.localeCompare(b.nome,'pt-BR'); });
     var tot=lst.reduce(function(t,c){ return t+(c.tipo==='CARTAO'?0:(c.saldo||0)); },0);
     h+='<div class="card" style="padding:4px 11px">'+
-      '<div class="row" style="padding:6px 0 4px"><span class="lbl" style="margin:0">'+tx(bk)+'</span>'+
+      '<div class="row" style="padding:8px 0 6px;justify-content:flex-start;gap:10px">'+logoBanco(bk, 30)+'<span style="flex:1;font-weight:700;font-size:14px">'+tx(nomeBonito(bk))+'</span>'+
         '<span class="num" style="font-size:12px;color:var(--dim)">'+moeda(tot)+'</span></div>';
     lst.forEach(function(c){
       var aberto=ST.bancoAberto===c.id, ed=ST.bancoEd===c.id, ligando=ST.bancoLigar===c.id;
       var rot=(c.tipo==='CARTAO'?'Cartão':(c.titular==='INV'?'Investimento':'Conta'))+(c.titular&&c.titular!=='INV'?' '+c.titular:'')+(c.final?' ·'+c.final:'');
       h+='<div style="border-top:1px solid var(--line)">'+
         '<div class="row" style="padding:7px 0;cursor:pointer;gap:8px" onclick="ST.bancoAberto=ST.bancoAberto===\''+c.id+'\'?null:\''+c.id+'\';ST.bancoEd=null;ST.bancoLigar=null;bancosCarregar()">'+
-          '<span style="width:18px">'+(c.tipo==='CARTAO'?'💳':'🏦')+'</span>'+
+          '<span class="bk-tipo">'+(c.tipo==='CARTAO'?(bandeiraHtml(c.bandeira)||'💳'):'🏦')+'</span>'+
           '<div style="flex:1;min-width:0"><div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+rot+'</div>'+
             '<div class="m" style="font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(c.of?'🔗 ':'✍️ ')+tx(c.nome)+'</div></div>'+
           (c.tipo==='CARTAO'?'':'<span class="num '+((c.saldo||0)<0?'neg':'')+'" style="font-size:13.5px">'+moeda(c.saldo||0)+'</span>')+
@@ -16152,6 +16204,8 @@ function cartaoForm(){
       '<div class="fm-c"><span>Final do cartão</span><input id="ckFinal" inputmode="numeric" maxlength="4" placeholder="1234"></div>'+
       '<div class="fm-c"><span>Fatura fecha dia</span><input id="ckFecha" inputmode="numeric" maxlength="2" placeholder="o do Ajustes"></div>'+
       '<div class="fm-c"><span>Limite</span><input id="ckLimite" inputmode="decimal" placeholder="0,00" oninput="mascaraMoeda(this)"></div>'+
+      '<div class="fm-c fm-full"><span>Bandeira</span>'+segEscolha('ckBand','',['VISA','MASTERCARD','ELO','AMEX','HIPERCARD'],
+        {VISA:'Visa',MASTERCARD:'Master',ELO:'Elo',AMEX:'Amex',HIPERCARD:'Hiper'})+'</div>'+
       '<div class="fm-c fm-full"><span>É de</span>'+segEscolha('ckTit','PF',['PF','PJ'],{PF:'Pessoa física',PJ:'Empresa'})+'</div>'+
     '</div>'+
     '<div class="fm-acoes">'+
@@ -16170,9 +16224,9 @@ function cartaoSalvar(){
   while(usados.indexOf(nome)>=0) nome=base+' '+(k++);
   ponteRest('/rest/v1/contas', { metodo:'POST', prefer:'return=minimal', corpo:{
     user_id:window.EASYAPP_PONTE.sessao().user_id, nome:nome, tipo:'CARTAO', instituicao:banco, titular:tit,
-    final:fim||null, fechamento:fecha, limite:lim, saldo_inicial:0 } })
+    final:fim||null, fechamento:fecha, limite:lim, saldo_inicial:0, bandeira:(el('ckBand').value||null) } })
   .then(function(){
-    toast('Cartão criado'); ST.cartaoNovo=false; ST.bancos=null; ST.cacheMes={}; ST.extras=null; ST.saldos=null;
+    toast('Cartão criado'); ST.cartaoNovo=false; ST.contasInfo=null; ST.bancos=null; ST.cacheMes={}; ST.extras=null; ST.saldos=null;
     bancosCarregar();
     // o "Saiu de" do lançar e as telas do cartão leem os cartões de novo
     google.script.run.withSuccessHandler(function(){ carregar(ST.mes, true); }).withFailureHandler(function(){}).apiLimparCache();
