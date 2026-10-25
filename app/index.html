@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.53.2 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.54.0 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1593,7 +1593,9 @@ window.pedirTexto = function (o, feito) {
            + '&titular=eq.PF&order=criado_em,nome'),
       // a conta que pagou a última fatura (o débito automático do banco)
       rest('/rest/v1/lancamentos?select=contas(nome,ativa)&meio=eq.PAGAMENTO_FATURA&status=neq.IGNORADO'
-           + '&conta_id=not.is.null&order=data.desc&limit=1')
+           + '&conta_id=not.is.null&order=data.desc&limit=1'),
+      // a conta padrão dos cartões (060); sem a coluna, segue sem ela
+      rest('/rest/v1/contas?select=id,nome,tipo,conta_pagamento&ativa=is.true').catch(function () { return []; })
     ]).then(function (R) {
       var c = R[0], fatura = 0, jaPago = 0;
       R[1].forEach(function (l) {
@@ -1609,7 +1611,11 @@ window.pedirTexto = function (o, feito) {
       // de onde a fatura é debitada: a do Config, a que pagou a última fatura,
       // ou a primeira conta PF (antes ia direto para a primeira PF cadastrada)
       var ultima = ((R[3] || [])[0] || {}).contas || {};
-      conta = conta || String(c.CONTA_DA_FATURA || '').trim() || (ultima.ativa ? ultima.nome : '') || ((R[2][0] || {}).nome || '');
+      // a conta padrão do cartão vem primeiro (a escolhida no cadastro do cartão)
+      var porId = {}, padrao = '';
+      (R[4] || []).forEach(function (x) { porId[x.id] = x.nome; });
+      (R[4] || []).forEach(function (x) { if (!padrao && x.tipo === 'CARTAO' && porId[x.conta_pagamento]) padrao = porId[x.conta_pagamento]; });
+      conta = conta || padrao || String(c.CONTA_DA_FATURA || '').trim() || (ultima.ativa ? ultima.nome : '') || ((R[2][0] || {}).nome || '');
       if (!conta) return { ok: false, erro: 'não sei de qual conta a fatura é debitada' };
 
       var dia = Math.min(28, Math.max(1, cfgNum(c, 'DIA_VENCIMENTO_FATURA', 5)));
@@ -10369,9 +10375,21 @@ window.pedirTexto = function (o, feito) {
   .bk-lg{position:relative;display:inline-grid;place-items:center;flex:none;border-radius:28%;font-style:normal;font-weight:800;overflow:hidden;vertical-align:middle;margin-right:6px}
   .bk-lg img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff;padding:2px;box-sizing:border-box}
   .bnd{width:30px;height:19px;flex:none;display:inline-block;vertical-align:middle;margin-right:6px;border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+  /* aba Cartão: os cartões */
+  .cc-lista{padding:12px 14px 6px}
+  .cc-add{width:28px;height:28px;border-radius:50%!important;border:0;background:rgba(255,255,255,.08)!important;color:var(--txt);font-size:17px;padding:0!important;cursor:pointer}
+  .cc-it{padding:9px 0;border-top:1px solid rgba(255,255,255,.06);cursor:pointer}
+  .cc-l1{display:flex;align-items:center;gap:8px}
+  .cc-nm{flex:1;min-width:0;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cc-nm small{font-weight:400;color:var(--dim)}
+  .cc-v{font-size:14.5px;white-space:nowrap}
+  .cc-ed{background:none!important;border:0!important;color:var(--dim);font-size:15px;padding:0 0 0 6px!important;cursor:pointer}
+  .cc-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.08);margin:7px 0 0;overflow:hidden}.cc-bar i{display:block;height:100%;border-radius:2px}
+  .cc-l2{font-size:11.5px;color:var(--dim);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cc-vazio{cursor:pointer;text-align:center;padding:16px}.cc-vazio b{display:block;font-size:14.5px}.cc-vazio span{font-size:12px;color:var(--dim)}
   .ic-ct{display:inline-flex;align-items:center;vertical-align:middle;margin-right:2px;position:relative;top:-1px}
-  .li .d2 i .ic-ct .bk-lg,.pd-tx small .ic-ct .bk-lg,.mv-tx small .ic-ct .bk-lg{width:12px!important;height:12px!important;font-size:5px!important;margin-right:3px;border-radius:3px}
-  .li .d2 i .ic-ct .bnd-p,.pd-tx small .ic-ct .bnd-p,.mv-tx small .ic-ct .bnd-p{width:18px;height:11px;margin-right:3px;border-radius:2px}
+  .cc-l2 .ic-ct .bk-lg,.li .d2 i .ic-ct .bk-lg,.pd-tx small .ic-ct .bk-lg,.mv-tx small .ic-ct .bk-lg{width:12px!important;height:12px!important;font-size:5px!important;margin-right:3px;border-radius:3px}
+  .cc-l2 .ic-ct .bnd-p,.li .d2 i .ic-ct .bnd-p,.pd-tx small .ic-ct .bnd-p,.mv-tx small .ic-ct .bnd-p{width:18px;height:11px;margin-right:3px;border-radius:2px}
   .ic-ct .bk-lg{margin-right:4px;border-radius:5px}
   .bnd.bnd-p{width:22px;height:14px;margin-right:4px;border-radius:3px}
   .bk-tipo{width:32px;flex:none;display:inline-grid;place-items:center;font-size:15px}
@@ -13920,11 +13938,47 @@ function diagnostico(a, mediaDesp, mediaRec, mediaCart){
 }
 
 /* ---------- 4. CARTÃO ---------- */
+/* Os cartões na aba Cartão (25/10): todos os do cadastro, com a fatura que
+   está aberta, o limite usado, o dia em que fecha e a conta que paga. Tocar
+   abre as compras dele no Extrato; o lápis edita. */
+function seusCartoes(){
+  var info=ST.contasInfo||{}, nomes=Object.keys(info).filter(function(n){ return info[n].tipo==='CARTAO'; });
+  ((ST.saldos&&ST.saldos.cadastroCartoes)||[]).forEach(function(n){ if(nomes.indexOf(n)<0) nomes.push(n); });
+  if(!nomes.length) return '<div class="card cc-vazio" onclick="novoCartao()"><b>💳 Cadastre o seu cartão</b><span>Banco, final, fechamento e a conta que paga a fatura.</span></div>';
+  var fat={}; ((ST.saldos&&ST.saldos.cartoes&&ST.saldos.cartoes.cartoes)||[]).forEach(function(f){ fat[f.cartao]=f.total; });
+  nomes.sort(function(a,b){ return (fat[b]||0)-(fat[a]||0) || a.localeCompare(b,'pt-BR'); });
+  var porId={}; Object.keys(info).forEach(function(n){ if(info[n].id) porId[info[n].id]=info[n]; });
+  return '<div class="card cc-lista"><div class="row" style="margin-bottom:4px"><div class="lbl">Seus cartões</div>'+
+    '<button class="cc-add" onclick="novoCartao()" aria-label="cadastrar cartão">+</button></div>'+
+    nomes.map(function(n){
+      var c=info[n]||{ nome:n }, t=fat[n]||0, pg=c.conta_pagamento&&porId[c.conta_pagamento];
+      var nj=JSON.stringify(n).replace(/"/g,'&quot;');
+      var pct=c.limite>0?Math.min(100,Math.round(t/c.limite*100)):null;
+      return '<div class="cc-it" onclick="verComprasDoCartao('+nj+')">'+
+        '<div class="cc-l1">'+icConta(n, 26)+'<span class="cc-nm">'+tx(nomeBonito(n.replace(/\s*CARTAO\s*/,' ').replace(c.final?new RegExp('\\s*'+c.final+'$'):/$^/,'').trim()))+(c.final?' <small>·'+tx(c.final)+'</small>':'')+'</span>'+
+          '<b class="cc-v">'+moeda(t)+'</b>'+
+          (c.id?'<button class="cc-ed" title="editar" onclick="event.stopPropagation();editarCartao(\''+c.id+'\')">&#9998;</button>':'')+'</div>'+
+        (pct!==null?'<div class="cc-bar"><i style="width:'+pct+'%;background:'+(pct>=90?'var(--bad)':pct>=70?'var(--warn)':'var(--acc)')+'"></i></div>':'')+
+        '<div class="cc-l2">'+(c.fechamento?'fecha dia '+c.fechamento:'fatura aberta')+
+          (c.limite?' · '+moeda(Math.max(0,c.limite-t))+' livre':'')+
+          (pg?' · paga pela '+icConta(pg.nome)+tx(nomeBonito(pg.nome)):'')+'</div>'+
+      '</div>';
+    }).join('')+'</div>';
+}
+function verComprasDoCartao(nome){
+  ST.modoEx='CARTAO'; ST.cartaoSel=nome; ST.extrato=null; irParaTela('extrato');
+}
+function editarCartao(id){
+  ST.modoCfg='BANCOS'; ST.cartaoEd=id; ST.bancoAberto=id; ST.cartaoNovo=false; ST.bancoNovo=false;
+  irParaTela('config');
+}
 function renderCartao(){
   var k=ST.cartao, c=el('tela-cartao');
   if(!k){ c.innerHTML=''; return; }
   var acima = k.total - k.metaAteHoje;      // >0 = gastando mais rapido que o permitido
   var h='';
+  garantirContasInfo();
+  h+=seusCartoes();
 
   h+='<div class="card">'+
     '<div class="row"><div><div class="lbl">Onde estou</div>'+
@@ -16028,7 +16082,7 @@ function bandeiraHtml(b){
 function infoContas(pronto){
   if(ST.contasInfo){ if(pronto) pronto(ST.contasInfo); return; }
   if(ST._lendoContas) return; ST._lendoContas=true;
-  ponteRest('/rest/v1/contas?select=nome,tipo,instituicao,bandeira&ativa=eq.true').then(function(l){
+  ponteRest('/rest/v1/contas?select=*&ativa=eq.true').then(function(l){
     ST.contasInfo={}; (l||[]).forEach(function(c){ ST.contasInfo[c.nome]=c; }); ST._lendoContas=false; if(pronto) pronto(ST.contasInfo);
   }).catch(function(){
     // banco sem a 059 (sem bandeira): só o banco
@@ -16048,7 +16102,7 @@ function icConta(nome, px){
 }
 function garantirContasInfo(){
   if(ST.contasInfo || ST._lendoContas) return;
-  infoContas(function(){ try{ renderMes(); renderExtrato(); renderPendentes(); }catch(e){} });
+  infoContas(function(){ try{ renderMes(); renderExtrato(); renderPendentes(); renderCartao(); }catch(e){} });
 }
 function logoDaConta(nome, px){
   var c=(ST.contasInfo||{})[nome]||{ nome:nome };
@@ -16164,7 +16218,21 @@ function bancosHtml(){
             '<div class="m" style="font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(c.of?'🔗 ':'✍️ ')+tx(c.nome)+'</div></div>'+
           (c.tipo==='CARTAO'?'':'<span class="num '+((c.saldo||0)<0?'neg':'')+'" style="font-size:13.5px">'+moeda(c.saldo||0)+'</span>')+
           '<span class="seta'+(aberto?' aberta':'')+'" style="margin-left:4px">&#9656;</span></div>';
-      if(aberto){
+      if(aberto && c.tipo==='CARTAO'){
+        // cartão: o que ele tem (fecha, limite, conta que paga) e editar
+        var pg=(ST.bancos||[]).filter(function(o){ return o.id===c.conta_pagamento; })[0];
+        h+='<div style="padding:0 0 9px 40px">'+
+          (ST.cartaoEd===c.id ? cartaoForm(c) :
+            '<div class="m" style="font-size:11.5px;margin-bottom:7px">'+
+              (c.fechamento?'fecha dia '+c.fechamento:'fecha no dia do Ajustes')+
+              (c.limite?' · limite '+moeda(c.limite):'')+
+              ' · '+(pg?'paga pela '+icConta(pg.nome)+tx(pg.nome):'<b style="color:var(--warn)">sem conta padrão</b>')+'</div>'+
+            '<div class="row" style="gap:6px">'+
+              '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" onclick="ST.cartaoEd=\''+c.id+'\';bancosCarregar()">Editar cartão</button>'+
+              (c.of?'':'<button class="bt-no" style="padding:6px 10px;font-size:12px;color:var(--bad)" onclick="bancoExcluir(\''+c.id+'\')">Excluir</button>')+
+            '</div>')+'</div>';
+      }
+      if(aberto && c.tipo!=='CARTAO'){
         var temOf=(ST.bancos||[]).some(function(o){ return o.of && (o.tipo==='CARTAO')===(c.tipo==='CARTAO'); });
         h+='<div style="padding:0 0 9px 26px">'+
           (!c.of && c.saldo_desde?'<div class="m" style="font-size:11px;margin-bottom:6px">saldo de '+moeda(c.saldo_inicial)+' em '+c.saldo_desde.split('-').reverse().join('/')+'</div>':'')+
@@ -16216,41 +16284,60 @@ function bancoForm(c){
 /* Cartão de crédito cadastrado à mão: banco, final, de quem é, dia em que a
    fatura fecha e o limite. Vira uma conta do tipo CARTAO, como as que vêm do
    Open Finance, e aparece no "Saiu de" do lançar. */
-function cartaoForm(){
-  return '<div class="lbl" style="margin-bottom:8px">Cartão de crédito novo</div>'+
+function contasCorrentesItens(){
+  var l=(ST.bancos||[]).length ? ST.bancos : Object.keys(ST.contasInfo||{}).map(function(k){ return ST.contasInfo[k]; });
+  return l.filter(function(c){ return c.tipo==='CORRENTE' && c.titular!=='INV' && c.id; })
+    .map(function(c){ return { valor:c.id, rotulo:c.nome, conta:c.nome }; });
+}
+/* Criar e editar cartão (25/10): banco, final, fechamento, limite, bandeira,
+   de quem é e a conta padrão (de onde sai o pagamento da fatura). No cartão
+   do Open Finance o banco e o final vêm do banco e não mudam aqui. */
+function cartaoForm(c){
+  c=c||{}; var ed=!!c.id, of=!!c.pluggy_account_id;
+  return '<div class="lbl" style="margin-bottom:8px">'+(ed?'Editar cartão':'Cartão de crédito novo')+'</div>'+
     '<div class="fm">'+
-      '<div class="fm-c"><span>Banco</span><input id="ckBanco" list="bkLista" placeholder="ex.: Nubank">'+
+      '<div class="fm-c"><span>Banco</span><input id="ckBanco" list="bkLista" placeholder="ex.: Nubank" value="'+tx(c.instituicao||(ed?bancoDe(c):''))+'"'+(of?' disabled':'')+'>'+
         '<datalist id="bkLista">'+BANCOS_LISTA.map(function(b){ return '<option value="'+b+'">'; }).join('')+'</datalist></div>'+
-      '<div class="fm-c"><span>Final do cartão</span><input id="ckFinal" inputmode="numeric" maxlength="4" placeholder="1234"></div>'+
-      '<div class="fm-c"><span>Fatura fecha dia</span><input id="ckFecha" inputmode="numeric" maxlength="2" placeholder="o do Ajustes"></div>'+
-      '<div class="fm-c"><span>Limite</span><input id="ckLimite" inputmode="decimal" placeholder="0,00" oninput="mascaraMoeda(this)"></div>'+
-      '<div class="fm-c fm-full"><span>Bandeira</span>'+segEscolha('ckBand','',['VISA','MASTERCARD','ELO','AMEX','HIPERCARD'],
+      '<div class="fm-c"><span>Final do cartão</span><input id="ckFinal" inputmode="numeric" maxlength="4" placeholder="1234" value="'+tx(c.final||'')+'"'+(of?' disabled':'')+'></div>'+
+      '<div class="fm-c"><span>Fatura fecha dia</span><input id="ckFecha" inputmode="numeric" maxlength="2" placeholder="o do Ajustes" value="'+(c.fechamento||'')+'"></div>'+
+      '<div class="fm-c"><span>Limite</span><input id="ckLimite" inputmode="decimal" placeholder="0,00" oninput="mascaraMoeda(this)" value="'+(c.limite?num(c.limite):'')+'"></div>'+
+      '<div class="fm-c fm-full"><span>Paga pela conta</span>'+
+        botaoEscolha('ckConta', c.conta_pagamento||'', 'escolher a conta corrente…', 'conta', contasCorrentesItens(), '')+'</div>'+
+      '<div class="fm-c fm-full"><span>Bandeira</span>'+segEscolha('ckBand',String(c.bandeira||'').toUpperCase(),['VISA','MASTERCARD','ELO','AMEX','HIPERCARD'],
         {VISA:'Visa',MASTERCARD:'Master',ELO:'Elo',AMEX:'Amex',HIPERCARD:'Hiper'})+'</div>'+
-      '<div class="fm-c fm-full"><span>É de</span>'+segEscolha('ckTit','PF',['PF','PJ'],{PF:'Pessoa física',PJ:'Empresa'})+'</div>'+
+      '<div class="fm-c fm-full"><span>É de</span>'+segEscolha('ckTit',c.titular==='PJ'?'PJ':'PF',['PF','PJ'],{PF:'Pessoa física',PJ:'Empresa'})+'</div>'+
     '</div>'+
     '<div class="fm-acoes">'+
-      '<button class="bt-no" style="flex:1" onclick="ST.cartaoNovo=false;bancosCarregar()">Cancelar</button>'+
-      '<button class="bt-ok" style="flex:1.4" onclick="cartaoSalvar()">Criar cartão</button></div>';
+      '<button class="bt-no" style="flex:1" onclick="ST.cartaoNovo=false;ST.cartaoEd=null;bancosCarregar()">Cancelar</button>'+
+      '<button class="bt-ok" style="flex:1.4" onclick="cartaoSalvar('+(ed?'\''+c.id+'\'':'')+')">'+(ed?'Salvar':'Criar cartão')+'</button></div>';
 }
-function cartaoSalvar(){
+function cartaoSalvar(id){
   var banco=(el('ckBanco').value||'').trim(), fim=(el('ckFinal').value||'').replace(/\D/g,'').slice(-4);
   var fecha=parseInt(String(el('ckFecha').value||'').replace(/\D/g,''),10)||null;
   var lim=parseFloat(String(el('ckLimite').value||'').replace(/\./g,'').replace(',','.'))||null;
-  var tit=el('ckTit').value||'PF';
+  var tit=el('ckTit').value||'PF', conta=el('ckConta').value||null, band=el('ckBand').value||null;
   if(!banco){ toast('Diga o banco do cartão'); el('ckBanco').focus(); return; }
   if(fecha!==null && (fecha<1||fecha>31)){ toast('O dia do fechamento vai de 1 a 31'); return; }
-  var base=(normaliza(banco).toUpperCase()+' CARTAO '+(fim||tit)).slice(0,56), nome=base, k=2;
-  var usados=(ST.bancos||[]).map(function(c){ return c.nome; });
-  while(usados.indexOf(nome)>=0) nome=base+' '+(k++);
-  ponteRest('/rest/v1/contas', { metodo:'POST', prefer:'return=minimal', corpo:{
-    user_id:window.EASYAPP_PONTE.sessao().user_id, nome:nome, tipo:'CARTAO', instituicao:banco, titular:tit,
-    final:fim||null, fechamento:fecha, limite:lim, saldo_inicial:0, bandeira:(el('ckBand').value||null) } })
-  .then(function(){
-    toast('Cartão criado'); ST.cartaoNovo=false; ST.contasInfo=null; ST.bancos=null; ST.cacheMes={}; ST.extras=null; ST.saldos=null;
+  var dados={ instituicao:banco, titular:tit, final:fim||null, fechamento:fecha, limite:lim, bandeira:band, conta_pagamento:conta };
+  var feito;
+  if(id){
+    var c0=(ST.bancos||[]).filter(function(c){ return c.id===id; })[0]||{};
+    if(c0.pluggy_account_id){ delete dados.instituicao; delete dados.final; }   // vêm do banco
+    feito=ponteRest('/rest/v1/contas?id=eq.'+id, { metodo:'PATCH', corpo:dados, prefer:'return=minimal' });
+  } else {
+    var base=(normaliza(banco).toUpperCase()+' CARTAO '+(fim||tit)).slice(0,56), nome=base, k=2;
+    var usados=(ST.bancos||[]).map(function(c){ return c.nome; });
+    while(usados.indexOf(nome)>=0) nome=base+' '+(k++);
+    dados.nome=nome; dados.tipo='CARTAO'; dados.saldo_inicial=0; dados.user_id=window.EASYAPP_PONTE.sessao().user_id;
+    feito=ponteRest('/rest/v1/contas', { metodo:'POST', prefer:'return=minimal', corpo:dados });
+  }
+  feito.then(function(){
+    toast(id?'Cartão salvo':'Cartão criado'); ST.cartaoNovo=false; ST.cartaoEd=null; ST.contasInfo=null;
+    ST.bancos=null; ST.cacheMes={}; ST.extras=null; ST.saldos=null;
     bancosCarregar();
-    // o "Saiu de" do lançar e as telas do cartão leem os cartões de novo
+    // o "Saiu de", a aba Cartão e o fechamento da fatura leem os cartões de novo
     google.script.run.withSuccessHandler(function(){ carregar(ST.mes, true); }).withFailureHandler(function(){}).apiLimparCache();
-  }).catch(function(e){ toast('Não criei: '+e.message); });
+  }).catch(function(e){ toast('Não salvei: '+e.message); });
 }
 // a máscara de dinheiro, aceitando o sinal de menos (cheque especial)
 function mascaraMoedaSinal(inp){
@@ -16350,7 +16437,8 @@ function iconeCat(g){
 function nomeBonito(s){
   var t=String(s||'').toLowerCase().replace(/(^|[\s\/(-])(\S)/g, function(m,a,b){ return a+b.toUpperCase(); });
   // "e", "de", "da"... ficam minúsculos no meio do nome (Restaurantes e Delivery)
-  return t.replace(/ (E|De|Da|Do|Das|Dos|A|O|Em|Na|No|Para|Com) /g, function(m){ return m.toLowerCase(); });
+  return t.replace(/ (E|De|Da|Do|Das|Dos|A|O|Em|Na|No|Para|Com) /g, function(m){ return m.toLowerCase(); })
+          .replace(/\b(Pf|Pj|Ipva|Iptu|Iof|Fgts|Inss|Cdb|Lci|Lca|Btg|Xp|C6)\b/g, function(m){ return m.toUpperCase(); });   // siglas ficam em maiúsculas
 }
 function cfgTrocarAba(a){ ST.cfgAba=a; ST.cfgEditando=null; ST.cfgReplicando=null; renderConfig(); }
 function cfgContas(){
