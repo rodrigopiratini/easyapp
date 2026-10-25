@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.50.0 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.50.2 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10162,6 +10162,8 @@ window.pedirTexto = function (o, feito) {
   .fam-res div:last-child{text-align:right}
   /* sininho do classificar */
   #badge{position:relative}
+  #badge.tem{width:auto!important;padding:0 12px 0 10px!important;gap:6px;display:inline-flex;align-items:center;
+    background:var(--acc)!important;color:#fff!important;font-size:12.5px;font-weight:700;white-space:nowrap;border-radius:999px}
   #badge .sino-n{position:absolute;top:-4px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;
     background:#ef4444;color:#fff;font-size:10px;font-weight:800;line-height:17px;text-align:center;box-sizing:border-box}
   /* encolhido: barra de cima com o mês e o saldo */
@@ -11257,10 +11259,12 @@ function render(){ renderPendentes(); renderMes(); renderPainel(); renderCartao(
    Com coisa para ver, ele acende. */
 function marcarBadge(q){
   var b=el('badge'); if(!b) return;
-  // sininho: com coisa para classificar, o número em vermelho por cima
-  b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;display:block"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>'+
-    (q ? '<span class="sino-n">'+(q>99?'99+':q)+'</span>' : '');
-  b.title = q ? q+' para classificar' : 'Classificar';
+  // etiqueta, não sino (25/10: o sino não dizia "classificar"). Com pendência
+  // vira uma pílula com o número e a palavra; sem, só o ícone discreto.
+  var ic='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;flex:none"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>';
+  b.classList.toggle('tem', !!q);
+  b.innerHTML = q ? ic+'<span>'+(q>99?'99+':q)+' a classificar</span>' : ic;
+  b.title = q ? q+' lançamentos para classificar' : 'Classificar (nada pendente)';
 }
 
 function ajustarFiltros(){
@@ -13883,7 +13887,10 @@ function acharNoExtrato(id, linha){
   /* Pelo id, sempre que houver. A versão nova manda linha 0 em todos os
      lançamentos: "id OU linha" devolvia o primeiro da lista, e o lápis de
      um abria a ficha de outro. A linha só vale no app da planilha (> 0). */
-  var itens=(ST.extrato&&ST.extrato.itens)||[], i;
+  /* Quando a atualização por trás (aviso do banco, Open Finance) zera o
+     ST.extrato, a lista continua na tela: procura também no que foi desenhado
+     (25/10: tocar na linha dava "Não achei esse lançamento"). */
+  var itens=((ST.extrato&&ST.extrato.itens)||[]).concat(ST.extratoVisto||[]), i;
   if(id){
     for(i=0;i<itens.length;i++) if(String(itens[i].id)===String(id)) return itens[i];
   }
@@ -14086,6 +14093,7 @@ function salvarEditado(){
 var IC_MEIO_CARTAO='<svg class="ic-meio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="cartão"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>';
 var IC_MEIO_CONTA='<svg class="ic-meio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="conta"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18"/></svg>';
 function extratoConta(e){
+  ST.extratoVisto=(e&&e.itens)||[];
   var comp=e.regime==='COMPETENCIA';
   // os quatro numa linha só, num cartão (22/10: os quatro cartões ocupavam meia tela)
   // competência: no lugar do "inicial", quanto foi no cartão (já somado no "saiu")
@@ -14200,6 +14208,7 @@ function miniCard(k,v,cls){
 }
 
 function extratoCartao(e){
+  ST.extratoVisto=(e&&e.itens)||[];
   /* Previsto (a meta do cartão), realizado, saldo e compras - como na conta
      corrente. Filtrando um cartão, o previsto é a meta dividida pelos
      cartões da fatura. O mês já está no filtro de cima. */
