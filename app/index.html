@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.58.1 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.58.2 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -12792,9 +12792,10 @@ function notaDaVerba(d){
 function linhaCompacta(d, i, nat){
   var rec=nat==='RECEITA', cj=JSON.stringify(d.categoria).replace(/"/g,'&quot;');
   var prev=d.previsto||0, real=d.realizado||0;
-  var pct=prev>0.005?Math.min(100,Math.round(Math.abs(real)/prev*100)):(real>0.005?100:0);
+  var uso=prev>0.005?Math.abs(real)/prev*100:(real>0.005?100:0), pct=Math.min(100,Math.floor(uso));
   var passou=!rec && real-prev>0.005, faltaEntrar=rec && prev-real>0.005;
-  var corBar=passou?'var(--bad)':(pct>=100?'var(--ok)':'var(--acc)');
+  // a partir de 98% do previsto é "cumprido" (verde): R$ 298 de R$ 300 ficava azul e R$ 99,90 de R$ 100 verde
+  var corBar=passou?'var(--bad)':(uso>=98?'var(--ok)':'var(--acc)');
   var dif;
   if(prev<=0.005 && Math.abs(real)>0.005) dif='<span class="lc-dif neg">sem previsto</span>';
   else if(rec) dif=faltaEntrar?'<span class="lc-dif">falta '+num(prev-real)+'</span>':'<span class="lc-dif pos">'+(real-prev>0.005?'+'+num(real-prev):'ok')+'</span>';
