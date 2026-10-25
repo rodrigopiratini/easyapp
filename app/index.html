@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.58.5 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.58.6 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -975,7 +975,10 @@ window.pedirTexto = function (o, feito) {
     // em competência (055) entram também as compras no cartão feitas no mês
     return config().then(function (c0) { var comp = competencia(c0);
     return Promise.all([lerTudo(q), saldoAberturaDoMes(mes, filtro),
-                        comp ? extratoCartaoDe(mes, '', 'TUDO', true) : null]).then(function (r) {
+                        // filtro de uma subcategoria (busca entre aspas): entram também as
+                        // compras dela no cartão - a Escola paga pela conta E pelo cartão
+                        // somava R$ 2.518 no Mês e o Extrato mostrava só os R$ 2.133 da conta
+                        (comp || /^\s*["“].+["”]\s*$/.test(busca || '')) ? extratoCartaoDe(mes, '', 'TUDO', comp) : null]).then(function (r) {
       // o mais recente em cima; no mesmo dia, o que entrou por último
       var itens = r[0].map(function (l) { return paraItem(l); }).sort(maisNovoPrimeiro);
       var inicial = r[1].inicial, vale = r[1].vale;
@@ -14767,7 +14770,7 @@ function extratoConta(e){
   // os quatro numa linha só, num cartão (22/10: os quatro cartões ocupavam meia tela)
   // competência: no lugar do "inicial", quanto foi no cartão (já somado no "saiu")
   var h='<div class="mini resumo4">'+
-    (comp ? miniCard('no cartão', num(e.cartao||0), 'neg') : miniCard('inicial', num(e.saldoInicial), e.saldoInicial>=0?'':'neg'))+
+    ((comp || e.cartao>0.005) ? miniCard('no cartão', num(e.cartao||0), 'neg') : miniCard('inicial', num(e.saldoInicial), e.saldoInicial>=0?'':'neg'))+
     miniCard('entrou', num(e.creditos), 'pos')+
     miniCard('saiu', num(e.debitos), 'neg')+
     miniCard('final', num(e.saldoFinal), e.saldoFinal>=0?'pos':'neg')+
