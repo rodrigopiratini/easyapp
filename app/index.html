@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.53.0 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.53.1 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10369,6 +10369,11 @@ window.pedirTexto = function (o, feito) {
   .bk-lg{position:relative;display:inline-grid;place-items:center;flex:none;border-radius:28%;font-style:normal;font-weight:800;overflow:hidden;vertical-align:middle;margin-right:6px}
   .bk-lg img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff;padding:2px;box-sizing:border-box}
   .bnd{width:30px;height:19px;flex:none;display:inline-block;vertical-align:middle;margin-right:6px;border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+  .ic-ct{display:inline-flex;align-items:center;vertical-align:middle;margin-right:2px;position:relative;top:-1px}
+  .li .d2 i .ic-ct .bk-lg,.pd-tx small .ic-ct .bk-lg,.mv-tx small .ic-ct .bk-lg{width:12px!important;height:12px!important;font-size:5px!important;margin-right:3px;border-radius:3px}
+  .li .d2 i .ic-ct .bnd-p,.pd-tx small .ic-ct .bnd-p,.mv-tx small .ic-ct .bnd-p{width:18px;height:11px;margin-right:3px;border-radius:2px}
+  .ic-ct .bk-lg{margin-right:4px;border-radius:5px}
+  .bnd.bnd-p{width:22px;height:14px;margin-right:4px;border-radius:3px}
   .bk-tipo{width:32px;flex:none;display:inline-grid;place-items:center;font-size:15px}
   .bk-tipo .bnd{margin-right:0}
   .fm-acoes .fm-del{color:#f87171!important;background:rgba(248,113,113,.14)!important}
@@ -11088,7 +11093,7 @@ function desenharMovimento(){
     return '<div class="mv-dia"><span>'+tx(nome)+'</span><span>'+moeda(s)+'</span></div>'+dias[d].map(function(x){
       var sub=[nomeSub(x.categoria,x.grupo), x.conta, MEIO[x.meio]||''].filter(Boolean).join(' · ');
       return '<div class="mv-ln"><div class="mv-ic">'+iconeCat(x.grupo||x.categoria)+'</div>'+
-        '<div class="mv-tx"><b>'+tx(x.descricao||nomeSub(x.categoria,x.grupo))+'</b><small>'+tx(sub)+'</small></div>'+
+        '<div class="mv-tx"><b>'+tx(x.descricao||nomeSub(x.categoria,x.grupo))+'</b><small>'+icConta(x.conta)+tx(sub)+'</small></div>'+
         '<div class="mv-v" style="color:'+cor+'">'+((ent!==(x.valor<0))?'+ ':'− ')+moeda(Math.abs(x.valor))+'</div></div>';
     }).join('');
   }).join('');
@@ -11221,7 +11226,7 @@ function lancarComo(tipo, cartao){
   if(cartao){
     var c=ondeItens().filter(function(x){ return x.grupo==='CARTAO'; })[0];
     var i=el('nonde'), b=el('btn_nonde');
-    if(c && i && b){ i.value=c.valor; b.innerHTML=ponto('CARTAO')+tx(c.rotulo)+'<span style="margin-left:auto;color:var(--dim)">&#9662;</span>'; }
+    if(c && i && b){ i.value=c.valor; b.innerHTML=icConta(c.conta, 18)+tx(c.rotulo)+'<span style="margin-left:auto;color:var(--dim)">&#9662;</span>'; }
   }
   var d=el('nd'); if(d) setTimeout(function(){ try{ d.focus(); }catch(e){} }, 50);
 }
@@ -11533,6 +11538,7 @@ function carregarAno(ano){
 /* ---------- 1. CONFIRMAR ---------- */
 var IC_CARTAO_PD='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;display:block"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>';
 function renderPendentes(){
+  garantirContasInfo();
   var c=el('tela-pendentes');
   var h='';
   // topo no estilo do resto do app (a faixa marrom com o texto longo virou um "i")
@@ -11568,7 +11574,7 @@ function renderPendentes(){
     h+='<div class="card pd'+(p.novo?' novo':'')+'" id="p'+i+'">'+
        '<div class="pd-cab"><span class="pd-ic '+(rec?'rec':'des')+'">'+(p.meio==='CARTAO_CREDITO'?IC_CARTAO_PD:(rec?'&#8595;':'&#8593;'))+'</span>'+
          '<div class="pd-tx"><b>'+(p.novo?'<i class="pd-novo">novo</i>':'')+tx(p.descricao)+'</b>'+
-         '<small>'+p.dataHora+' · '+tx(p.conta||'sem conta')+' · '+meioTxt+'</small></div>'+
+         '<small>'+p.dataHora+' · '+icConta(p.conta)+tx(p.conta||'sem conta')+' · '+meioTxt+'</small></div>'+
          '<div class="pd-v '+(rec?'pos':'')+'">'+(rec?'+ ':'')+moeda(p.valor)+'</div></div>'+
        '<div class="m" style="font-size:11.5px;margin-top:1px">'+
          (p.moeda?' · <b style="color:var(--warn)">'+p.moeda+' '+num(p.valorOriginal)+'</b> × '+num(p.cotacao)+(p.cotacaoAprox?' (aprox.)':''):'')+
@@ -11995,7 +12001,7 @@ function botaoEscolha(id, valor, vazio, titulo, itens, aoEscolher, textoNovo){
     if(o.valor===valor) achado=o;
   });
   var pintar = valor
-    ? ponto(achado?(achado.grupo||achado.rotulo):valor)+tx(achado?achado.rotulo:valor)
+    ? (achado&&achado.conta?icConta(achado.conta, 18):ponto(achado?(achado.grupo||achado.rotulo):valor))+tx(achado?achado.rotulo:valor)
     : '<span style="color:var(--dim)">'+vazio+'</span>';
   return '<input type="hidden" id="'+id+'" value="'+String(valor||'').replace(/"/g,'&quot;')+'">'+
     '<button class="bt-conta" id="btn_'+id+'" onclick="abrirEscolha(\''+id+'\',\''+
@@ -12019,7 +12025,7 @@ function montarPicker(busca){
       ? li.map(function(x){
           return '<div class="pk'+(x.valor===atual?' sel':'')+'" '+
             'onclick="escolherConta('+JSON.stringify(x.valor).replace(/"/g,'&quot;')+')">'+
-            ponto(x.grupo||x.rotulo)+'<span>'+tx(x.rotulo)+'</span>'+
+            (x.conta?icConta(x.conta, 20):ponto(x.grupo||x.rotulo))+'<span>'+tx(x.rotulo)+'</span>'+
             (x.grupo?'<span class="fam">'+tx(x.grupo)+'</span>':'')+'</div>';
         }).join('')
       : '<div class="vazio" style="padding:26px">Nada com esse nome.</div>';
@@ -12084,7 +12090,7 @@ function escolherLista(p, valor){
   var rot = achado ? achado.rotulo : valor;
   var fam = achado ? (achado.grupo||achado.rotulo) : valor;
   var bt=el('btn_'+p.id);
-  if(bt) bt.innerHTML = ponto(fam)+tx(rot)+
+  if(bt) bt.innerHTML = (achado&&achado.conta?icConta(achado.conta, 18):ponto(fam))+tx(rot)+
     '<span style="margin-left:auto;color:var(--dim)">&#9662;</span>';
   if(p.aoEscolher) eval(p.aoEscolher);
 }
@@ -12283,7 +12289,7 @@ function htmlSaldos(s){
     var dq = x.desdeMs ? new Date(x.desdeMs) : null;
     var quando = dq ? ('0'+dq.getDate()).slice(-2)+'/'+('0'+(dq.getMonth()+1)).slice(-2) : '';
     h+='<div class="ln" style="grid-template-columns:1fr auto">'+
-       '<div class="nm">'+logoDaConta(x.conta, 20)+
+       '<div class="nm">'+icConta(x.conta, 20)+
        '<span>'+tx(x.conta)+
          '<br><span style="font-size:10.5px;color:var(--dim)">'+
          moeda(x.inicial)+(quando?' em '+quando:'')+
@@ -12297,6 +12303,7 @@ function htmlSaldos(s){
 }
 
 function renderMes(){
+  garantirContasInfo();
   var r=ST.resumo, c=el('tela-mes');
   renderMesNav();
   if(!r){ c.innerHTML=''; return; }
@@ -14080,7 +14087,7 @@ function grafico(k){
 
 /* ---------- EXTRATO: tudo que entrou e saiu, com ajuste na linha ---------- */
 function renderExtrato(){
-  if(!ST.contasInfo) infoContas(function(){ if(ST.telaAtual==='extrato'||ST.telaAtual==='mes'){ renderExtrato(); renderMes(); } });
+  garantirContasInfo();
   var c=el('tela-extrato');
   if(!ST.mes) return;
   ST.modoEx = ST.modoEx || 'CONTA';
@@ -14415,7 +14422,7 @@ function extratoConta(e){
        '<span class="d2">'+tx(x.fornecedor)+
          (x.status==='PENDENTE'?'<b class="pend">a confirmar</b>':'')+
          seloManual(x)+
-         '<i>'+(comp?(x.noCartao?IC_MEIO_CARTAO:IC_MEIO_CONTA):'')+origemIc(x)+tx(rotuloCat(x.categoria)||'sem categoria')+' · '+tx(x.cartao||x.conta)+'</i></span>'+
+         '<i>'+(comp?(x.noCartao?IC_MEIO_CARTAO:IC_MEIO_CONTA):'')+origemIc(x)+tx(rotuloCat(x.categoria)||'sem categoria')+' · '+icConta(x.cartao||x.conta)+tx(x.cartao||x.conta)+'</i></span>'+
        '<span class="d3 '+(x.credito?'pos':'neg')+'">'+(x.credito?'+':'-')+moeda(v)+
          '<i>'+(x.noCartao?(x.parcela?'parcela '+x.parcela:'no cartão'):x.semConta?'sem conta':x.foraDoSaldo&&x.status!=='IGNORADO'?'fora do saldo':moeda(x.saldo))+'</i></span>'+
        '<button class="bt-x" title="excluir" onclick="event.stopPropagation();excluirLanc('+x.linha+',this,\''+(x.id||'')+'\')">&times;</button>'+
@@ -14534,7 +14541,7 @@ function extratoCartao(e){
     var linha=function(nome, valor, chave){
       var on=(chave===sel);
       return '<div class="row" style="font-size:13px;padding:2px 0;gap:8px">'+
-        (chave?logoDaConta(chave, 18)+bandeiraHtml(((ST.contasInfo||{})[chave]||{}).bandeira):'')+
+        (chave?icConta(chave, 18):'')+
         '<span style="flex:1;'+(on?'color:var(--acc);font-weight:600':'color:var(--dim)')+'">'+nome+'</span>'+
         '<span class="num" style="'+(on?'color:var(--acc);font-weight:600':'')+'">'+num(valor)+'</span>'+
         '<button class="flt'+(on?' on':'')+'" onclick="ST.cartaoSel=\''+((on||!chave)?'TUDO':chave)+'\';ST.extrato=null;renderExtrato()">'+
@@ -14559,7 +14566,7 @@ function extratoCartao(e){
            : (/parcela\s*\d/i.test(x.obs||'')
                ? ' <b class="parc">'+String(x.obs).replace(/parcela\s*/i,'')+'</b>' : ''))+
          seloManual(x)+
-         '<i>'+origemIc(x)+tx(rotuloCat(x.categoria)||'sem categoria')+' · '+tx(x.cartao.replace('CARTAO ',''))+
+         '<i>'+origemIc(x)+tx(rotuloCat(x.categoria)||'sem categoria')+' · '+icConta(x.cartao)+tx(x.cartao.replace('CARTAO ',''))+
          '</i></span>'+
        '<span class="d3">'+moeda(x.valor)+'<i>'+moeda(x.acumulado)+'</i></span>'+
        '<button class="bt-x" title="excluir" onclick="event.stopPropagation();excluirLanc('+x.linha+',this,\''+(x.id||'')+'\')">&times;</button>'+
@@ -14658,9 +14665,9 @@ function ondeItens(){
   });
   var ctas=((ST.saldos&&ST.saldos.contas)||[]);
   return cart.map(function(n){
-      return { valor:'C|'+n, rotulo:n.replace('CARTAO ',''), grupo:'CARTAO' };
+      return { valor:'C|'+n, rotulo:n.replace('CARTAO ',''), grupo:'CARTAO', conta:n };
     }).concat(ctas.map(function(c){
-      return { valor:'D|'+c.conta, rotulo:c.conta,
+      return { valor:'D|'+c.conta, rotulo:c.conta, conta:c.conta,
                grupo: c.titular==='INV' ? 'INVESTIMENTO' : c.titular };
     }));
 }
@@ -16002,8 +16009,8 @@ var BANCO_VIS={ 'BANCO DO BRASIL':['bb','BB','#f8d117','#14284b'], 'CAIXA':['cai
 function logoBanco(banco, px){
   px=px||28;
   var k=normaliza(banco||'').toUpperCase(), v=BANCO_VIS[k]||[null,(k.replace(/[^A-Z0-9]/g,'').slice(0,2)||'?'),'#475569'];
-  return '<i class="bk-lg" style="width:'+px+'px;height:'+px+'px;font-size:'+Math.round(px*0.36)+'px;background:'+v[2]+';color:'+(v[3]||'#fff')+'">'+tx(v[1])+
-    (v[0]?'<img src="'+LOGO_BANCOS+v[0]+'.svg" alt="" loading="lazy" onerror="this.remove()">':'')+'</i>';
+  return '<span class="bk-lg" style="width:'+px+'px;height:'+px+'px;font-size:'+Math.round(px*0.36)+'px;background:'+v[2]+';color:'+(v[3]||'#fff')+'">'+tx(v[1])+
+    (v[0]?'<img src="'+LOGO_BANCOS+v[0]+'.svg" alt="" loading="lazy" onerror="this.remove()">':'')+'</span>';
 }
 function bandeiraHtml(b){
   b=String(b||'').toUpperCase().replace(/[^A-Z]/g,'');
@@ -16029,6 +16036,19 @@ function infoContas(pronto){
       ST.contasInfo={}; (l||[]).forEach(function(c){ ST.contasInfo[c.nome]=c; }); ST._lendoContas=false; if(pronto) pronto(ST.contasInfo);
     }).catch(function(){ ST._lendoContas=false; });
   });
+}
+/* Em todo lugar onde aparece uma conta ou um cartão: o logo do banco e,
+   no cartão, a bandeira (25/10: "bandeira em todos os lugares"). */
+function icConta(nome, px){
+  if(!nome) return '';
+  var c=(ST.contasInfo||{})[nome]||{ nome:nome };
+  var cartao=c.tipo==='CARTAO' || /CARTAO|CARTÃO/.test(String(nome).toUpperCase());
+  return '<span class="ic-ct">'+logoBanco(bancoDe(c), px||15)+
+    (cartao&&c.bandeira?bandeiraHtml(c.bandeira).replace('class="bnd"','class="bnd bnd-p"'):'')+'</span>';
+}
+function garantirContasInfo(){
+  if(ST.contasInfo || ST._lendoContas) return;
+  infoContas(function(){ try{ renderMes(); renderExtrato(); renderPendentes(); }catch(e){} });
 }
 function logoDaConta(nome, px){
   var c=(ST.contasInfo||{})[nome]||{ nome:nome };
