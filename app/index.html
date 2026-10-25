@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.51.6 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.51.7 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -12022,19 +12022,28 @@ function destravar(i){
 /* Formulario de conta nova dentro da propria classificacao.
    Cria a conta (e a familia, se for nova) e ja deixa selecionada. */
 function abrirCriar(alvo, selectId, natureza){
-  var fams=((ST.resumo&&ST.resumo.familias)||[]);
+  // as mesmas perguntas do Config (25/10): categoria, nome sem a categoria,
+  // previsto e tipo. As categorias são TODAS as do cadastro - antes vinham só
+  // as que tinham movimento no mês, e faltava categoria na lista.
+  var vistas={}, fams=[];
+  (ST.categorias||[]).concat(ST.config&&ST.config.contas||[]).forEach(function(c){
+    var g=String(c.grupo||'').toUpperCase(); if(g && !vistas[g]){ vistas[g]=1; fams.push(g); } });
+  ((ST.resumo&&ST.resumo.familias)||[]).forEach(function(g){ g=String(g).toUpperCase(); if(!vistas[g]){ vistas[g]=1; fams.push(g); } });
+  fams.sort();
+  var nat = natureza==='RECEITA' ? 'RECEITA' : 'DESPESA';
   el(alvo).innerHTML =
-    '<div style="border:1px solid var(--acc);border-radius:10px;padding:10px;margin-top:8px">'+
-    '<div class="lbl" style="margin-bottom:7px">Nova subcategoria</div>'+
-    '<input id="xNome" placeholder="nome da subcategoria (ex.: CASA - SEGURO PORTAO)">'+
-    '<div class="lbl" style="margin-top:9px">Categoria</div>'+
-    botaoEscolha('xFam', '', 'escolher a categoria…', 'categoria', fams, '',
-                 '+ criar categoria nova')+
-    '<div class="lbl" style="margin-top:9px">Previsto por mês</div>'+
-    '<input id="xPrev" placeholder="0,00" inputmode="decimal" oninput="mascaraMoeda(this)">'+
-    '<div class="row" style="gap:8px;margin-top:9px">'+
+    '<div class="sub-ed" style="margin-top:10px">'+
+    '<div class="fm">'+
+      '<div class="fm-c"><span>Categoria</span>'+
+        botaoEscolha('xFam', '', 'escolher…', 'categoria', fams, '', '+ criar categoria nova')+'</div>'+
+      '<div class="fm-c"><span>Nome da subcategoria</span><input id="xNome" placeholder="ex.: Seguro"></div>'+
+      '<div class="fm-c"><span>Previsto por mês</span><input id="xPrev" placeholder="0,00" inputmode="decimal" oninput="mascaraMoeda(this)"></div>'+
+      '<div class="fm-c"><span>Tipo</span>'+
+        segEscolha('xNat', nat, ['DESPESA','RECEITA'])+'</div>'+
+    '</div>'+
+    '<div class="fm-acoes">'+
       '<button class="bt-no" style="flex:1" onclick="cancelarCriar(\''+alvo+'\',\''+selectId+'\')">Cancelar</button>'+
-      '<button class="bt-ok" style="flex:2" onclick="criarNaClassificacao(\''+alvo+'\',\''+
+      '<button class="bt-ok" style="flex:1.4" onclick="criarNaClassificacao(\''+alvo+'\',\''+
         selectId+'\',\''+natureza+'\')">Criar e usar</button>'+
     '</div></div>';
   var e=el('xNome'); if(e) e.focus();
@@ -12056,10 +12065,13 @@ function cancelarCriar(alvo, selectId){
 }
 
 function criarNaClassificacao(alvo, selectId, natureza){
-  var nome=el('xNome').value.trim();
-  if(!nome){ toast('Dê um nome para a subcategoria'); return; }
+  var suf=el('xNome').value.trim();
+  if(!suf){ toast('Dê um nome para a subcategoria'); return; }
   var fam=(el('xFam').value||'').trim();
   if(!fam){ toast('Escolha a categoria'); return; }
+  // gravada como no Config: "CATEGORIA - NOME" (se a pessoa já digitou a categoria na frente, não repete)
+  var nome = semGrupo(suf, fam)!==suf ? suf : fam+' - '+suf;
+  if(el('xNat')) natureza=el('xNat').value || natureza;
   var prev=parseFloat(String(el('xPrev').value||'0').replace(/\./g,'').replace(',','.'))||0;
   toast('Criando...');
   google.script.run.withSuccessHandler(function(r){
