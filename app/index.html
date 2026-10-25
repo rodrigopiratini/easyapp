@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.57.0 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.58.0 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10300,6 +10300,25 @@ window.pedirTexto = function (o, feito) {
   .hr-chip i{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--dim);font-size:18px}
   /* filtro de categoria dentro da lista */
   .ln-toque{cursor:pointer}
+  /* linha compacta do Mês */
+  .lcp{position:relative;overflow:hidden;border-top:1px solid rgba(255,255,255,.06)}
+  .lc-acoes{position:absolute;right:0;top:0;bottom:0;display:flex;visibility:hidden}
+  .lcp.aberta .lc-acoes,.lcp.mexendo .lc-acoes{visibility:visible}
+  .lc-acoes button{border:0!important;border-radius:0!important;width:64px;height:100%;padding:0!important;color:#fff!important;font-size:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+  .lc-acoes small{font-size:10px;font-weight:600}
+  .lc-rp{background:#3b5bdb!important}.lc-x{background:#c92a2a!important}
+  .lc-fr{position:relative;padding:9px 2px;cursor:pointer;transition:transform .2s ease;touch-action:pan-y}
+  .lcp.aberta .lc-fr{transform:translateX(calc(-64px * var(--n,2)))}
+  .lc-l1{display:flex;align-items:center;gap:8px;font-size:13.5px}
+  .lc-nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+  .lc-l1 b{white-space:nowrap;font-size:14px}
+  .lc-l1 .pt{flex:none}
+  .lc-l2{display:flex;align-items:center;gap:8px;margin-top:6px;padding-left:16px}
+  .lc-bar{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden}.lc-bar u{display:block;height:100%;border-radius:2px}
+  .lc-prev{font-size:11.5px;color:var(--dim);white-space:nowrap;border-bottom:1px dashed rgba(139,153,181,.6);padding:2px 0;cursor:pointer}
+  .lc-prev.vb{border-bottom-style:dotted}
+  .lc-dif{font-size:11.5px;white-space:nowrap;min-width:58px;text-align:right;color:var(--dim)}
+  .lc-dif.pos{color:var(--ok)}.lc-dif.neg{color:var(--bad)}
   .fam-chips{display:flex;gap:7px;overflow-x:auto;margin:10px -14px 4px;padding:0 14px 2px;scrollbar-width:none}
   .fam-chips::-webkit-scrollbar{display:none}
   .fam-chips .fc{flex:none;display:flex;align-items:center;gap:6px;padding:6px 12px 6px 6px!important;border-radius:999px!important;
@@ -12619,24 +12638,9 @@ function renderMes(){
          '<div><small>realizado</small><b>'+moeda(lReal)+'</b></div>'+
          '<div><small>'+(lPrev-lReal>=0?'sobra':'passou')+'</small><b class="'+(lPrev-lReal>=0?'pos':'neg')+'">'+moeda(Math.abs(lPrev-lReal))+'</b></div></div>'
        : '')+
-     '<div class="cab-ln"><span>subcategoria</span><span>previsto</span><span>realizado</span><span>diferença</span></div>'+
-     '<div class="cab-mob"><span>previsto</span><span>realizado</span><span>saldo</span></div>';
+     '';
   lista.forEach(function(d,i){
-    // tocar na linha (fora do previsto e dos botões) abre o Extrato só desta subcategoria
-    h+='<div class="ln tab ln-toque" title="'+tx(d.grupo)+'" onclick="if(!event.target.closest(\'input,button\'))verNoExtrato('+JSON.stringify(d.categoria).replace(/"/g,'&quot;')+',\''+(d.pagaPor||'')+'\')">'+
-       '<div class="nm">'+ponto(d.grupo)+'<span>'+tx(rotuloCat(d.categoria, d.grupo))+'</span>'+
-         (d.saldo>0.005 && !d.daVerba && d.categoria!=='CARTAO - A CLASSIFICAR'
-           ? '<button class="bt-x" title="reprogramar a sobra para os próximos meses" style="color:#93b8ff;font-size:14px;flex:none;margin-left:4px" '+
-             'onclick="abrirReprog('+JSON.stringify(d.categoria).replace(/"/g,'&quot;')+',\'linha\')">&#8618;</button>' : '')+
-         iconePagaPor(d.pagaPor)+'</div>'+
-       '<input id="pv'+i+'"'+((d.daVerba>0.005||d.distribuido>0.005)?' class="vb" title="o previsto veio da verba do cartão"':'')+' value="'+(d.previsto>0.005?num(d.previsto):'')+'" '+
-         'placeholder="0,00"'+(Number(d.padrao)>0.005&&d.previsto<=0.005?' title="sem previsto neste mês (o padrão da subcategoria é '+num(d.padrao)+')"':'')+' inputmode="decimal" '+
-         'onfocus="this.select()" onblur="salvarPrevisto('+i+')" '+
-         'onkeydown="if(event.key===\'Enter\')this.blur()">'+
-       '<span class="n">'+moeda(d.realizado)+'</span>'+
-       '<span class="n dif '+(d.saldo<0?'neg':'pos')+'">'+moeda(d.saldo)+
-         botaoLinhaMes(d)+
-       '</span></div>'+
+    h+=linhaCompacta(d, i, 'DESPESA')+
        (ST.reprog===d.categoria && ST.reprogOnde==='linha' ? painelReprog({categoria:d.categoria, falta:d.saldo}) : '');
   });
   ST.linhasMes=lista;
@@ -12644,23 +12648,13 @@ function renderMes(){
 
   var rec=r.receitas.filter(function(d){return d.realizado>0||d.previsto>0;});
   if(rec.length && ST.familia==='TUDO'){
-    h+='<div class="card"><div class="lbl" style="margin-bottom:8px">Entradas</div>'+
-       '<div class="cab-ln"><span>subcategoria</span><span>previsto</span><span>realizado</span><span>diferença</span></div>'+
-       '<div class="cab-mob"><span>previsto</span><span>realizado</span><span>saldo</span></div>';
+    h+='<div class="card"><div class="lbl" style="margin-bottom:4px">Entradas</div>';
     // o previsto da entrada tambem e editavel: antes so a despesa era, e nao
     // havia como corrigir um salario ou um aluguel direto na linha
     var base=lista.length;
     rec.forEach(function(d,k){
       var j=base+k;
-      h+='<div class="ln tab"><div class="nm">'+ponto('RECEITA')+'<span>'+tx(rotuloCat(d.categoria, d.grupo))+'</span></div>'+
-         '<input id="pv'+j+'" value="'+(d.previsto>0.005?num(d.previsto):'')+'" '+
-           'placeholder="0,00"'+(Number(d.padrao)>0.005&&d.previsto<=0.005?' title="sem previsto neste mês (o padrão da subcategoria é '+num(d.padrao)+')"':'')+' inputmode="decimal" '+
-           'onfocus="this.select()" onblur="salvarPrevisto('+j+')" '+
-           'onkeydown="if(event.key===\'Enter\')this.blur()">'+
-         '<span class="n">'+moeda(d.realizado)+'</span>'+
-         '<span class="n dif '+(d.saldo<0?'neg':'pos')+'">'+moeda(d.saldo)+
-         botaoLinhaMes(d)+
-         '</span></div>';
+      h+=linhaCompacta(d, j, 'RECEITA');
       ST.linhasMes.push(d);
     });
     h+=linhaMais('RECEITA')+'</div>';
@@ -12788,6 +12782,70 @@ function notaDaVerba(d){
   return '<div style="margin:-4px 0 7px 20px">'+nota+'</div>';
 }
 
+/* Linha compacta do Mês (25/10): nome e realizado em cima; embaixo a barra
+   do previsto usado, o "de R$ previsto" (toque muda o previsto) e quanto
+   sobra ou passou. Tocar na linha abre o Extrato dela; arrastar para a
+   esquerda mostra ↪ (reprogramar a sobra) e × (tirar do mês). */
+function linhaCompacta(d, i, nat){
+  var rec=nat==='RECEITA', cj=JSON.stringify(d.categoria).replace(/"/g,'&quot;');
+  var prev=d.previsto||0, real=d.realizado||0;
+  var pct=prev>0.005?Math.min(100,Math.round(Math.abs(real)/prev*100)):(real>0.005?100:0);
+  var passou=!rec && real-prev>0.005, faltaEntrar=rec && prev-real>0.005;
+  var corBar=passou?'var(--bad)':(pct>=100?'var(--ok)':'var(--acc)');
+  var dif;
+  if(prev<=0.005 && Math.abs(real)>0.005) dif='<span class="lc-dif neg">sem previsto</span>';
+  else if(rec) dif=faltaEntrar?'<span class="lc-dif">falta '+num(prev-real)+'</span>':'<span class="lc-dif pos">'+(real-prev>0.005?'+'+num(real-prev):'ok')+'</span>';
+  else dif=passou?'<span class="lc-dif neg">−'+num(real-prev)+'</span>':(prev-real>0.005?'<span class="lc-dif pos">sobra '+num(prev-real)+'</span>':'<span class="lc-dif pos">ok</span>');
+  var podeReprog=!rec && d.saldo>0.005 && !d.daVerba && d.categoria!=='CARTAO - A CLASSIFICAR';
+  var x=botaoLinhaMes(d), temX=/<button/.test(x);
+  var nAc=(podeReprog?1:0)+(temX?1:0);
+  return '<div class="lcp" style="--n:'+nAc+'">'+
+    '<div class="lc-acoes">'+
+      (podeReprog?'<button class="lc-rp" onclick="abrirReprog('+cj+',\'linha\')">&#8618;<small>reprogramar</small></button>':'')+
+      (temX?x.replace('class="bt-x"','class="lc-x"').replace('&times;</button>','&times;<small>tirar</small></button>'):'')+
+    '</div>'+
+    '<div class="lc-fr" onclick="if(!lcArrastou&&!event.target.closest(\'.lc-prev\'))verNoExtrato('+cj+',\''+(d.pagaPor||'')+'\')">'+
+      '<div class="lc-l1">'+ponto(rec?'RECEITA':d.grupo)+'<span class="lc-nm">'+tx(nomeBonito(rotuloCat(d.categoria, d.grupo)))+'</span>'+
+        (rec?'':iconePagaPor(d.pagaPor))+'<b>'+moeda(real)+'</b></div>'+
+      '<div class="lc-l2"><span class="lc-bar"><u style="width:'+pct+'%;background:'+corBar+'"></u></span>'+
+        '<span class="lc-prev'+((d.daVerba>0.005||d.distribuido>0.005)?' vb':'')+'" onclick="editarPrevistoLinha('+i+')">de '+num(prev)+'</span>'+dif+'</div>'+
+    '</div></div>';
+}
+function editarPrevistoLinha(i){
+  var d=(ST.linhasMes||[])[i]; if(!d) return;
+  pedirTexto({ titulo:'Previsto em '+NOMES_MES[Number(ST.mes.split('-')[1])], dica:nomeBonito(rotuloCat(d.categoria, d.grupo)),
+               valor:d.previsto>0.005?num(d.previsto):'', tipo:'valor', ok:'Salvar' },
+    function(v){ salvarPrevistoTexto(d.categoria, v); });
+}
+/* arrastar a linha para a esquerda mostra as ações; tocar fora fecha */
+var lcArrastou=false;
+(function(){
+  var x0=null, y0=null, fr=null, dx=0, horiz=null;
+  document.addEventListener('touchstart', function(e){
+    var f=e.target.closest && e.target.closest('.lc-fr');
+    document.querySelectorAll('.lcp.aberta').forEach(function(l){ if(!f || l!==f.parentNode) l.classList.remove('aberta'); });
+    lcArrastou=false;
+    if(!f){ fr=null; return; }
+    fr=f; x0=e.touches[0].clientX; y0=e.touches[0].clientY; dx=0; horiz=null;
+  }, { passive:true });
+  document.addEventListener('touchmove', function(e){
+    if(!fr) return;
+    var mx=e.touches[0].clientX-x0, my=e.touches[0].clientY-y0;
+    if(horiz===null && (Math.abs(mx)>8 || Math.abs(my)>8)) horiz=Math.abs(mx)>Math.abs(my);
+    if(!horiz) return;
+    var w=(fr.previousSibling||{}).offsetWidth||0; if(!w) return;
+    var base=fr.parentNode.classList.contains('aberta')?-w:0;
+    dx=Math.max(-w, Math.min(0, base+mx));
+    fr.style.transition='none'; fr.style.transform='translateX('+dx+'px)'; lcArrastou=true; fr.parentNode.classList.add('mexendo');
+  }, { passive:true });
+  document.addEventListener('touchend', function(){
+    if(!fr) return;
+    var w=(fr.previousSibling||{}).offsetWidth||0, l=fr.parentNode;
+    fr.style.transition=''; fr.style.transform=''; l.classList.remove('mexendo');
+    if(lcArrastou) l.classList.toggle('aberta', dx < -w/2);
+    fr=null; setTimeout(function(){ lcArrastou=false; }, 50);
+  });
+})();
 function botaoLinhaMes(d){
   var cat = JSON.stringify(d.categoria).replace(/"/g,'&quot;');
   // Previsto que veio da verba nao existe na planilha - nao ha o que tirar
