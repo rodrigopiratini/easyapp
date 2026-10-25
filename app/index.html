@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.55.1 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.56.0 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -745,9 +745,25 @@ window.pedirTexto = function (o, feito) {
   /* `cartoes` é a fatura ABERTA, não a do mês da tela: é por ela que as
      abas Cartão e Extrato > Cartão sabem para onde ir. Devolvendo o mês da
      tela, quem estava em outubro continuava em outubro. */
+  /* A fatura aberta de um cartão com fechamento próprio (061): a mesma regra
+     do banco (mes_da_fatura) para a data de hoje. */
+  function faturaAbertaDoCartao(k) {
+    var d = new Date(), f = Number(k.fechamento), v = Number(k.vencimento) || (f <= 21 ? f + 7 : f + 7 - 30);
+    var a = d.getFullYear(), m = d.getMonth() + 1;
+    if (d.getDate() > f) { m++; }
+    if (!(v > f)) { m++; }
+    while (m > 12) { m -= 12; a++; }
+    return a + '-' + ('0' + m).slice(-2);
+  }
   function saldos() {
-    return config().then(function (c) {
-      var mes = faturaAberta(c);
+    return Promise.all([config(), rest('/rest/v1/contas?select=fechamento,vencimento&tipo=eq.CARTAO&ativa=is.true').catch(function () { return []; })])
+    .then(function (r0) {
+      var c = r0[0], cartoes = r0[1] || [];
+      // a primeira fatura aberta entre os cartões: os com fechamento próprio
+      // pela regra deles; os sem (ou nenhum cadastrado), pelo Ajustes
+      var meses = cartoes.filter(function (k) { return k.fechamento; }).map(faturaAbertaDoCartao);
+      if (!meses.length || cartoes.some(function (k) { return !k.fechamento; })) meses.push(faturaAberta(c));
+      var mes = meses.sort()[0];
       return Promise.all([
         rest('/rest/v1/saldos_contas?select=nome,tipo,titular,saldo_inicial,saldo_desde,movimento,saldo&order=nome'),
         rest('/rest/v1/fatura_mes?select=mes_ref,cartao,compras,total&mes_ref=eq.' + mes),
@@ -1454,8 +1470,11 @@ window.pedirTexto = function (o, feito) {
   function ignorar(linha, id) {
     return acharLinha(id).then(function (uuid) {
       if (!uuid) return { ok: false, erro: 'não achei o lançamento' };
-      return mudar('lancamentos', 'id=eq.' + uuid, { status: 'IGNORADO' })
-        .then(function () { return { ok: true }; });
+      // anota quando foi ignorado: é por isso que ele aparece em "Ignorados" para resgatar
+      return rest('/rest/v1/lancamentos?select=dados&id=eq.' + uuid).then(function (r) {
+        var d = ((r || [])[0] || {}).dados || {}; d.ignorado_em = new Date().toISOString();
+        return mudar('lancamentos', 'id=eq.' + uuid, { status: 'IGNORADO', dados: d });
+      }).then(function () { return { ok: true }; });
     });
   }
 
@@ -9933,6 +9952,8 @@ window.pedirTexto = function (o, feito) {
   .pd-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:2px 4px 12px}
   .pd-topo h2{margin:0;font-size:20px;font-weight:800;letter-spacing:-.3px}
   .pd-topo small{display:block;font-size:12.5px;color:var(--dim);margin-top:2px}
+  .pd.ign{padding:10px 12px}.pd.ign .pd-tx b,.pd.ign .pd-v{opacity:.75}
+  .ign-bt{margin-top:4px;border:0!important;border-radius:999px!important;padding:4px 10px!important;font-size:12px;font-weight:700;background:rgba(var(--accr),.2)!important;color:var(--acc)!important;cursor:pointer}
   .pd-sec{display:flex;align-items:center;justify-content:space-between;padding:14px 4px 8px;font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.4px;text-transform:uppercase}
   .pd-vazio{text-align:center;color:var(--dim);font-size:13.5px;padding:40px 0}
   .pd-vazio div{width:54px;height:54px;border-radius:50%;margin:0 auto 10px;display:grid;place-items:center;font-size:24px;
@@ -11671,8 +11692,51 @@ function renderPendentes(){
     h+='<button class="bt-ac" onclick="confirmarTodos()" style="margin-bottom:16px">'+
        'Confirmar os já classificados</button>';
   }
-  c.innerHTML = h + filaSemCategoria();
+  c.innerHTML = h + filaSemCategoria() + blocoIgnorados();
   setTimeout(reaplicarCriada, 0);
+}
+
+/* Ignorados (25/10): o que foi ignorado nos últimos 60 dias fica aqui para
+   voltar. Ficam de fora os que o próprio app ignora (o lado do cartão do
+   pagamento da fatura, o distribuído em partes, os espelhos) e o histórico
+   antigo do Open Finance (ignorado em massa na importação). */
+function blocoIgnorados(){
+  if(ST.ignorados===undefined){
+    ST.ignorados=null;
+    var d=new Date(Date.now()-60*864e5).toISOString().slice(0,10);
+    ponteRest('/rest/v1/lancamentos?select=id,data,valor,natureza,descricao,fornecedor,meio,origem,dados,contas(nome)'+
+      '&status=eq.IGNORADO&data=gte.'+d+'&order=data.desc&limit=200').then(function(l){
+      ST.ignorados=(l||[]).filter(function(x){
+        var o=String((x.dados||{}).obs||'');
+        if(x.origem==='ESPELHO'||x.origem==='RATEIO'||/PAGAMENTO DA FATURA \(lado do cart|distribu[ií]do em|outro lado de/i.test(o)) return false;
+        return (x.dados||{}).ignorado_em || /^(PUSH|MANUAL|EMAIL)$/.test(x.origem||'');
+      });
+      if(ST.telaAtual==='pendentes') renderPendentes();
+    }).catch(function(){ ST.ignorados=[]; });
+    return '';
+  }
+  var l=ST.ignorados||[]; if(!l.length) return '';
+  var aberto=!!ST.abreIgn;
+  var h='<div class="pd-sec" style="cursor:pointer" onclick="ST.abreIgn=!ST.abreIgn;renderPendentes()"><span>Ignorados ('+l.length+') '+setaAbre(aberto)+'</span>'+
+    dica('Lançamentos ignorados nos últimos 60 dias. Toque em "voltar" e ele vai para o Classificar de novo.')+'</div>';
+  if(!aberto) return h;
+  return h+l.map(function(x,i){
+    var rec=x.natureza==='RECEITA', conta=(x.contas||{}).nome||'';
+    return '<div class="card pd ign">'+
+      '<div class="pd-cab"><span class="pd-ic '+(rec?'rec':'des')+'">'+(x.meio==='CARTAO_CREDITO'?IC_CARTAO_PD:(rec?'&#8595;':'&#8593;'))+'</span>'+
+        '<div class="pd-tx"><b>'+tx(x.fornecedor||x.descricao||'')+'</b>'+
+        '<small>'+icConta(conta)+String(x.data||'').split('-').reverse().slice(0,2).join('/')+(conta?' · '+tx(conta):'')+
+          ((x.dados||{}).obs?' · '+tx((x.dados||{}).obs):'')+'</small></div>'+
+        '<div style="text-align:right"><div class="pd-v">'+moeda(Number(x.valor)||0)+'</div>'+
+        '<button class="ign-bt" onclick="voltarIgnorado('+i+')">&#8617; voltar</button></div></div></div>';
+  }).join('');
+}
+function voltarIgnorado(i){
+  var x=(ST.ignorados||[])[i]; if(!x) return;
+  var d=x.dados||{}; delete d.ignorado_em; d.obs_volta='voltou do ignorado ('+new Date().toLocaleDateString('pt-BR')+')';
+  ponteRest('/rest/v1/lancamentos?id=eq.'+x.id, { metodo:'PATCH', prefer:'return=minimal', corpo:{ status:'PENDENTE', dados:d } })
+    .then(function(){ toast('Voltou para o Classificar'); ST.ignorados=undefined; ST.cacheMes={}; ST.extrato=null; carregar(); })
+    .catch(function(e){ toast('Não consegui: '+e.message); });
 }
 
 /* As compras vindas das faturas ja estao confirmadas, mas sem categoria.
@@ -11961,7 +12025,7 @@ function seletorOutraConta(i, natureza, contaAtual){
 function ignorar(i){
   var p=ST.pendentes[i];
   el('p'+i).style.opacity=.35;
-  google.script.run.withSuccessHandler(function(){ toast('Ignorado'); carregar(); })
+  google.script.run.withSuccessHandler(function(){ toast('Ignorado — fica em Ignorados, no fim desta tela'); ST.ignorados=undefined; carregar(); })
     .apiIgnorar(p.linha, p.id);
 }
 /* Botao que abre a folha de selecao no lugar do <select> nativo,
@@ -16281,7 +16345,7 @@ function bancosHtml(){
         h+='<div style="padding:0 0 9px 40px">'+
           (ST.cartaoEd===c.id ? cartaoForm(c) :
             '<div class="m" style="font-size:11.5px;margin-bottom:7px">'+
-              (c.fechamento?'fecha dia '+c.fechamento:'fecha no dia do Ajustes')+
+              (c.fechamento?'fecha dia '+c.fechamento+(c.vencimento?', vence dia '+c.vencimento:''):'fecha no dia do Ajustes')+
               (c.limite?' · limite '+moeda(c.limite):'')+
               ' · '+(pg?'paga pela '+icConta(pg.nome)+tx(pg.nome):'<b style="color:var(--warn)">sem conta padrão</b>')+'</div>'+
             '<div class="row" style="gap:6px">'+
@@ -16357,6 +16421,7 @@ function cartaoForm(c){
         '<datalist id="bkLista">'+BANCOS_LISTA.map(function(b){ return '<option value="'+b+'">'; }).join('')+'</datalist></div>'+
       '<div class="fm-c"><span>Final do cartão</span><input id="ckFinal" inputmode="numeric" maxlength="4" placeholder="1234" value="'+tx(c.final||'')+'"'+(of?' disabled':'')+'></div>'+
       '<div class="fm-c"><span>Fatura fecha dia</span><input id="ckFecha" inputmode="numeric" maxlength="2" placeholder="o do Ajustes" value="'+(c.fechamento||'')+'"></div>'+
+      '<div class="fm-c"><span>Vence dia</span><input id="ckVence" inputmode="numeric" maxlength="2" placeholder="7 dias depois" value="'+(c.vencimento||'')+'"></div>'+
       '<div class="fm-c"><span>Limite</span><input id="ckLimite" inputmode="decimal" placeholder="0,00" oninput="mascaraMoeda(this)" value="'+(c.limite?num(c.limite):'')+'"></div>'+
       '<div class="fm-c fm-full"><span>Paga pela conta</span>'+
         botaoEscolha('ckConta', c.conta_pagamento||'', 'escolher a conta corrente…', 'conta', contasCorrentesItens(), '')+'</div>'+
@@ -16373,9 +16438,12 @@ function cartaoSalvar(id){
   var fecha=parseInt(String(el('ckFecha').value||'').replace(/\D/g,''),10)||null;
   var lim=parseFloat(String(el('ckLimite').value||'').replace(/\./g,'').replace(',','.'))||null;
   var tit=el('ckTit').value||'PF', conta=el('ckConta').value||null, band=el('ckBand').value||null;
+  var vence=parseInt(String(el('ckVence').value||'').replace(/\D/g,''),10)||null;
+  if(vence!==null && (vence<1||vence>31)){ toast('O dia do vencimento vai de 1 a 31'); return; }
   if(!banco){ toast('Diga o banco do cartão'); el('ckBanco').focus(); return; }
   if(fecha!==null && (fecha<1||fecha>31)){ toast('O dia do fechamento vai de 1 a 31'); return; }
-  var dados={ instituicao:banco, titular:tit, final:fim||null, fechamento:fecha, limite:lim, bandeira:band, conta_pagamento:conta };
+  // fechamento e vencimento: o banco refaz o mês da fatura das compras deste cartão (061)
+  var dados={ instituicao:banco, titular:tit, final:fim||null, fechamento:fecha, vencimento:vence, limite:lim, bandeira:band, conta_pagamento:conta };
   var feito;
   if(id){
     var c0=(ST.bancos||[]).filter(function(c){ return c.id===id; })[0]||{};
