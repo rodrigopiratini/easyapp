@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.56.5 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.56.6 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10383,6 +10383,12 @@ window.pedirTexto = function (o, feito) {
   #movFolha .mv-br{display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:8px;font-size:12.5px}
   #movFolha .mv-br .mv-tri{display:block;grid-column:2/4;height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:-3px}
   #movFolha .mv-br .mv-tri i{display:block;min-width:3px;height:100%;border-radius:2px}
+  #movFolha .mv-br{cursor:pointer;border-radius:10px;transition:opacity .15s}
+  #movFolha .mv-br small{color:var(--dim);font-size:11px}
+  #movFolha .mv-barras.tem .mv-br.off{opacity:.35}
+  #movFolha .mv-br.on span:nth-child(2){font-weight:700}
+  #movFolha .mv-tira{display:table;margin:6px auto 0;border:0!important;border-radius:999px!important;padding:4px 12px!important;font-size:12px;
+    background:rgba(var(--accr),.2)!important;color:var(--txt)!important;cursor:pointer}
   #movFolha .mv-lista{overflow-y:auto;padding:6px 14px 18px;-webkit-overflow-scrolling:touch}
   #movFolha .mv-dia{font-size:11.5px;font-weight:700;color:var(--dim);letter-spacing:.4px;text-transform:uppercase;
     display:flex;justify-content:space-between;padding:14px 4px 6px}
@@ -11115,7 +11121,7 @@ window.addEventListener('scroll', ajustarCabMini, { passive:true });
    total, as categorias que mais pesam e a lista por dia. */
 function abrirMovimento(lado){
   var f=el('movFolha'); if(!f || !ST.mes) return;
-  ST.movLado=lado; f.classList.remove('hide');
+  ST.movLado=lado; ST.movGrupo=''; f.classList.remove('hide');
   if(ST.mov && ST.mov.mes===ST.mes){ desenharMovimento(); return; }
   el('movTopo').innerHTML=''; el('movLista').innerHTML='<div class="mv-vazio">Carregando...</div>';
   var mes=ST.mes;
@@ -11128,6 +11134,7 @@ function abrirMovimento(lado){
 }
 /* Toque num lançamento da folha: a mesma edição do Extrato (o lançado à mão
    abre a ficha inteira; o que veio do banco, a troca de destino). */
+function movFiltrar(g){ ST.movGrupo=(ST.movGrupo===g)?'':g; desenharMovimento(); }
 function abrirLancMov(uuid){
   google.script.run.withSuccessHandler(function(x){
     if(!x){ toast('Não achei esse lançamento'); return; }
@@ -11167,23 +11174,31 @@ function nomeSub(c, g){
 }
 function desenharMovimento(){
   var r=ST.mov, ent=ST.movLado==='E', comp=r.regime==='COMPETENCIA';
-  var lista=ent?r.entradas:r.saidas, tot=ent?r.totalEntradas:r.totalSaidas;
+  var todos=ent?r.entradas:r.saidas;
   var cor=ent?'var(--ok)':'var(--bad)', p=r.mes.split('-');
   var rot=ent?(comp?'Recebeu':'Entrada'):(comp?'Gastou':'Saída');
   // as categorias que mais pesam
-  var porG={}; lista.forEach(function(x){ var g=x.grupo||'OUTROS'; porG[g]=(porG[g]||0)+x.valor; });
+  var porG={}, qtG={}; todos.forEach(function(x){ var g=x.grupo||'OUTROS'; porG[g]=(porG[g]||0)+x.valor; qtG[g]=(qtG[g]||0)+1; });
   var gs=Object.keys(porG).sort(function(a,b){ return porG[b]-porG[a]; }), mx=gs.length?Math.abs(porG[gs[0]])||1:1;
+  // tocar numa categoria mostra só os lançamentos dela (aqui mesmo); de novo, todos
+  var fg=ST.movGrupo && porG[ST.movGrupo]!==undefined ? ST.movGrupo : '';
+  var lista=fg ? todos.filter(function(x){ return (x.grupo||'OUTROS')===fg; }) : todos;
+  var tot=fg ? porG[fg] : (ent?r.totalEntradas:r.totalSaidas);
   // todas as categorias; o bloco mostra ~4 e rola por dentro (25/10)
   var barras=gs.map(function(g){
-    return '<div class="mv-br"><span>'+iconeCat(g)+'</span><span>'+tx(nomeBonito(g))+'</span><b>'+moeda(porG[g])+'</b>'+
+    var gj=JSON.stringify(g).replace(/"/g,'&quot;');
+    return '<div class="mv-br'+(fg===g?' on':'')+(fg&&fg!==g?' off':'')+'" onclick="movFiltrar('+gj+')"><span>'+iconeCat(g)+'</span><span>'+tx(nomeBonito(g))+' <small>'+qtG[g]+'</small></span><b>'+moeda(porG[g])+'</b>'+
       '<span class="mv-tri"><i style="width:'+Math.max(3,Math.round(Math.abs(porG[g])/mx*100))+'%;background:'+cor+'"></i></span></div>';
   }).join('');
+  var rolou=(document.querySelector('#movFolha .mv-barras')||{}).scrollTop||0;
   el('movTopo').innerHTML=
-    '<div class="mv-seg"><button class="'+(ent?'on':'')+'" onclick="ST.movLado=\'E\';desenharMovimento()">'+(comp?'Recebeu':'Entradas')+'</button>'+
-    '<button class="'+(ent?'':'on')+'" onclick="ST.movLado=\'S\';desenharMovimento()">'+(comp?'Gastou':'Saídas')+'</button></div>'+
-    '<div class="mv-tot"><small>'+rot+' em '+NOMES_MES[Number(p[1])].toLowerCase()+' · '+lista.length+' lançamento'+(lista.length===1?'':'s')+'</small>'+
-    '<b style="color:'+cor+'">'+moeda(tot)+'</b></div>'+
-    (barras?'<div class="mv-barras">'+barras+'</div>':'');
+    '<div class="mv-seg"><button class="'+(ent?'on':'')+'" onclick="ST.movLado=\'E\';ST.movGrupo=\'\';desenharMovimento()">'+(comp?'Recebeu':'Entradas')+'</button>'+
+    '<button class="'+(ent?'':'on')+'" onclick="ST.movLado=\'S\';ST.movGrupo=\'\';desenharMovimento()">'+(comp?'Gastou':'Saídas')+'</button></div>'+
+    '<div class="mv-tot"><small>'+rot+' em '+NOMES_MES[Number(p[1])].toLowerCase()+(fg?' · '+tx(nomeBonito(fg)):'')+' · '+lista.length+' lançamento'+(lista.length===1?'':'s')+'</small>'+
+    '<b style="color:'+cor+'">'+moeda(tot)+'</b>'+
+    (fg?'<button class="mv-tira" onclick="movFiltrar(\'\')">'+tx(nomeBonito(fg))+' &times;</button>':'')+'</div>'+
+    (barras?'<div class="mv-barras'+(fg?' tem':'')+'">'+barras+'</div>':'');
+  var bb=document.querySelector('#movFolha .mv-barras'); if(bb) bb.scrollTop=rolou;
   if(!lista.length){ el('movLista').innerHTML='<div class="mv-vazio">Nada neste mês.</div>'; return; }
   var MEIO={PIX:'Pix',DEBITO:'Débito',BOLETO:'Boleto',DINHEIRO:'Dinheiro',CARTAO_CREDITO:'Cartão',PAGAMENTO_FATURA:'Fatura',TED:'TED',TRANSFERENCIA:'Transferência'};
   var hoje=new Date(), dias={}, ordem=[];
