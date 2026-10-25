@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.58.0 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.58.1 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10340,6 +10340,7 @@ window.pedirTexto = function (o, feito) {
   .cx-it .t{font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .cx-it .n{font-size:13px;font-weight:600;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
   .cx-it input:checked~.t,.cx-it input:checked~.n{opacity:.4;text-decoration:line-through}
+  .cx-it .t .cx-sub{display:block;font-size:10.5px;color:var(--dim);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .cx-info{font-size:11.5px;color:var(--dim);line-height:1.4;padding:6px 2px 8px}
   .cx-info b{color:var(--txt);font-weight:600}
   .cx-acao{display:flex;gap:8px;margin-top:8px}.cx-acao button{height:40px;padding:0 14px!important;font-size:13.5px}.cx-acao .bt-ok{flex:1}
@@ -12564,7 +12565,9 @@ function renderMes(){
           h+='<div class="cx-it"><label>'+
              '<input type="checkbox"'+(!x.fatura&&ST.cxSel[x.categoria]?' checked':'')+' onchange="'+(x.fatura ? 'pagarFaturaPerguntando(this)'
                : 'cxMarcar('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+',this.checked)')+'">'+
-             '<span class="t">'+tx(x.categoria)+'</span>'+
+             '<span class="t">'+tx(x.categoria)+
+               // a fatura prevista = o que já foi lançado + o previsto no cartão que ainda não caiu (25/10)
+               (x.fatura && cx.faturaVerba>0.005 ? '<small class="cx-sub">'+moeda(cx.faturaLancada)+' lançado + '+moeda(cx.faturaVerba)+' ainda previsto</small>' : '')+'</span>'+
              '<span class="n '+(x.natureza==='RECEITA'?'pos':'neg')+'">'+
              (x.natureza==='RECEITA'?'+':'-')+moeda(x.falta)+'</span></label>'+
              (podeReprog?'<button class="cx-rp" title="reprogramar para os próximos meses" '+
