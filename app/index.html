@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.55.0 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.55.1 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -861,7 +861,8 @@ window.pedirTexto = function (o, feito) {
       var pc = {}, pg = {};
       r[3].forEach(function (l) {
         var v = Number(l.valor) || 0, cn = (l.contas || {}).nome || 'NAO IDENTIFICADA', gn = (l.categorias || {}).grupo || 'SEM CATEGORIA';
-        var x = pc[cn] = pc[cn] || { cartao: cn, total: 0, compras: 0 }; x.total += v; x.compras++;
+        var x = pc[cn] = pc[cn] || { cartao: cn, total: 0, compras: 0, grupos: {} }; x.total += v; x.compras++;
+        var xg = x.grupos[gn] = x.grupos[gn] || { total: 0, compras: 0 }; xg.total += v; xg.compras++;
         pg[gn] = (pg[gn] || 0) + v;
       });
       var porCartao = Object.keys(pc).map(function (k) { pc[k].total = n(pc[k].total); return pc[k]; })
@@ -1017,19 +1018,21 @@ window.pedirTexto = function (o, feito) {
     });
   }
 
-  function extratoCartao(mes, busca, cartaoSel) {
-    return config().then(function (c0) { return extratoCartaoDe(mes, busca, cartaoSel, competencia(c0)); });
+  function extratoCartao(mes, busca, cartaoSel, familia) {
+    return config().then(function (c0) { return extratoCartaoDe(mes, busca, cartaoSel, competencia(c0), familia); });
   }
   // em competência: as compras feitas no mês (pela data), não as da fatura que vence nele
-  function extratoCartaoDe(mes, busca, cartaoSel, comp) {
+  function extratoCartaoDe(mes, busca, cartaoSel, comp, familia) {
     var q = '/rest/v1/lancamentos?select=id,data,valor,natureza,descricao,fornecedor,meio,'
-          + 'status,origem,origem_id,parcela_num,parcela_total,dados,criado_em,contas(nome),categorias(nome)'
+          + 'status,origem,origem_id,parcela_num,parcela_total,dados,criado_em,contas(nome),categorias(nome,grupo)'
           + (comp ? dataEntre(mes) : '&mes_ref=eq.' + mes) + '&meio=eq.CARTAO_CREDITO&status=neq.IGNORADO'
           // so compra e estorno: o credito do PAGAMENTO que o Open Finance poe
           // dentro do cartao (RECEITA) somava na fatura o que ja foi pago
           + '&natureza=eq.DESPESA&order=data.desc,id.desc';
     return lerTudo(q).then(function (linhas) {
-      var itens = linhas.map(function (l) { return paraItem(l); });
+      var itens = linhas.map(function (l) { var x = paraItem(l); x.grupo = (l.categorias || {}).grupo || ''; return x; });
+      // a categoria escolhida na aba Cartão (rosca ou botões) vale aqui também
+      if (familia && familia !== 'TUDO') itens = itens.filter(function (x) { return x.grupo === familia; });
       // os cartões da lista saem de TODAS as compras: filtrando, os outros
       // continuam lá (apagados) para entrar no filtro também
       var porCartao = {};
@@ -10400,11 +10403,15 @@ window.pedirTexto = function (o, feito) {
   .pz-g{width:118px;height:118px;flex:none}
   .pz-t1{font-size:8px;fill:#8b99b5}.pz-t2{font-size:11px;font-weight:800;fill:#e8edf7}
   .pz-leg{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
-  .pz-it{display:grid;grid-template-columns:10px minmax(0,1fr) auto;align-items:center;gap:7px;font-size:12.5px;cursor:pointer;border-radius:8px;padding:2px 4px}
+  .pz-it{display:grid;grid-template-columns:10px minmax(0,1fr) 62px 34px;align-items:center;gap:7px;font-size:12.5px;cursor:pointer;border-radius:8px;padding:2px 4px}
   .pz-it i{width:10px;height:10px;border-radius:3px}.pz-it span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .pz-it.on{background:rgba(255,255,255,.08)}
+  .pz-it em{font-style:normal;color:var(--dim);font-size:12px;white-space:nowrap;text-align:right}.pz-it b{text-align:right}
+  .pz-leg.tem .pz-it:not(.on){opacity:.45}
   /* Extrato → Cartão: filtro de vários; os de fora ficam cinza */
   .cf-lista{padding:9px 12px;margin-bottom:10px}
+  .fam-chip{display:inline-flex;align-items:center;gap:6px;margin:0 0 10px;padding:6px 12px;border-radius:999px;background:rgba(var(--accr),.18);color:var(--txt);font-size:13px;cursor:pointer}
+  .fam-chip b{color:var(--dim);font-size:15px}
   .cf-it{display:grid;grid-template-columns:48px minmax(0,1fr) auto 16px;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer;transition:opacity .15s}
   .cf-nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .cf-it.on .cf-nm,.cf-it.on .num{color:var(--acc);font-weight:600}
@@ -11325,6 +11332,7 @@ function mudarFiltro(f){
 }
 function mudarFamilia(f){
   ST.familia = (ST.familia===f && f!=='TUDO') ? 'TUDO' : f;
+  ST.extrato=null;   // o extrato do cartão também filtra pela categoria
   // o Cartao tambem obedece ao filtro: ele estava de fora, e trocar a
   // familia mudava o Mes enquanto a lista de verbas do cartao ficava igual
   renderCabecalho(); renderMes(); renderCartao(); renderExtrato();
@@ -13069,7 +13077,7 @@ function extratoAdiantado(){
   var x=ST.extras;
   if(!x || ST.busca) return null;
   if(ST.modoEx==='CARTAO'){
-    if((ST.cartaoSel||'TUDO')!=='TUDO') return null;
+    if((ST.cartaoSel||'TUDO')!=='TUDO' || (ST.familia||'TUDO')!=='TUDO') return null;
     return (x.mesCartao===ST.mes) ? x.extratoCartao : null;
   }
   if((ST.filtro||'TUDO')!==(x.filtro||'TUDO')) return null;
@@ -13970,10 +13978,17 @@ function filtrarCartao(nome){
 /* Resumo compacto por cartão (aba Cartão, entre o Ritmo e o Por tipo de
    gasto): tocar abre as compras daquele cartão no Extrato. */
 function resumoPorCartao(k){
-  var l=(k.porCartao||[]).filter(function(x){ return x.total>0.005; });
-  if(!l.length) return '';
+  // com uma categoria escolhida (na rosca ou nos botões), cada cartão mostra só o dela
+  var fam=(ST.familia&&ST.familia!=='TUDO')?ST.familia:'';
+  var l=(k.porCartao||[]).map(function(x){
+    if(!fam) return x;
+    var g=(x.grupos||{})[fam]||{ total:0, compras:0 };
+    return { cartao:x.cartao, total:Math.round(g.total*100)/100, compras:g.compras };
+  }).filter(function(x){ return x.total>0.005; }).sort(function(a,b){ return b.total-a.total; });
+  if(!l.length) return fam?'<div class="card rc-lista"><div class="lbl">Por cartão · '+tx(nomeBonito(fam))+'</div><div class="m" style="padding:8px 0">Nada desta categoria no cartão.</div></div>':'';
   var mx=l[0].total||1;
-  return '<div class="card rc-lista"><div class="lbl" style="margin-bottom:4px">Por cartão</div>'+
+  return '<div class="card rc-lista"><div class="row" style="margin-bottom:4px"><div class="lbl">Por cartão'+(fam?' · '+tx(nomeBonito(fam)):'')+'</div>'+
+    (fam?'<button class="flt" onclick="mudarFamilia(\'TUDO\')">todas &times;</button>':'')+'</div>'+
     l.map(function(x){
       var nj=JSON.stringify(x.cartao).replace(/"/g,'&quot;');
       return '<div class="rc-it" onclick="verComprasDoCartao('+nj+')">'+icConta(x.cartao, 18)+
@@ -13992,19 +14007,27 @@ function pizzaCategorias(k){
   var R=42, C=2*Math.PI*R, ac=0;
   var fat=l.map(function(x){
     var f=x.total/tot, d=f*C, cr=x.outros?'#64748b':cor(x.grupo);
-    var arco='<circle r="'+R+'" cx="60" cy="60" fill="none" stroke="'+cr+'" stroke-width="18" '+
+    var apaga=ST.familia&&ST.familia!=='TUDO'&&ST.familia!==x.grupo;
+    var arco='<circle r="'+R+'" cx="60" cy="60" fill="none" stroke="'+cr+'" stroke-width="18"'+(apaga?' opacity=".25"':'')+' '+
       'stroke-dasharray="'+d.toFixed(2)+' '+(C-d).toFixed(2)+'" stroke-dashoffset="'+(-ac).toFixed(2)+'"/>';
     ac+=d; return arco;
   }).join('');
   return '<div class="card pz"><div class="lbl" style="margin-bottom:6px">Por categoria</div><div class="pz-in">'+
     '<svg viewBox="0 0 120 120" class="pz-g"><g transform="rotate(-90 60 60)">'+fat+'</g>'+
-      '<text x="60" y="56" text-anchor="middle" class="pz-t1">'+nCat+(nCat===1?' categoria':' categorias')+'</text>'+
-      '<text x="60" y="72" text-anchor="middle" class="pz-t2">'+moeda(tot).replace(/,\d\d$/,'')+'</text></svg>'+
-    '<div class="pz-leg">'+l.map(function(x){
+      (function(){
+        var f=(ST.familia&&ST.familia!=='TUDO')?l.filter(function(x){ return x.grupo===ST.familia; })[0]:null;
+        return f
+          ? '<text x="60" y="52" text-anchor="middle" class="pz-t1">'+tx(nomeBonito(f.grupo)).slice(0,14)+'</text>'+
+            '<text x="60" y="67" text-anchor="middle" class="pz-t2">'+moeda(f.total).replace(/,\d\d$/,'')+'</text>'+
+            '<text x="60" y="80" text-anchor="middle" class="pz-t1">'+Math.round(f.total/tot*100)+'%</text>'
+          : '<text x="60" y="56" text-anchor="middle" class="pz-t1">'+nCat+(nCat===1?' categoria':' categorias')+'</text>'+
+            '<text x="60" y="72" text-anchor="middle" class="pz-t2">'+moeda(tot).replace(/,\d\d$/,'')+'</text>';
+      })()+'</svg>'+
+    '<div class="pz-leg'+(ST.familia&&ST.familia!=='TUDO'?' tem':'')+'">'+l.map(function(x){
       var on=ST.familia===x.grupo, gj=JSON.stringify(x.grupo).replace(/"/g,'&quot;');
       return '<div class="pz-it'+(on?' on':'')+'"'+(x.outros?'':' onclick="mudarFamilia('+gj+')"')+'>'+
         '<i style="background:'+(x.outros?'#64748b':cor(x.grupo))+'"></i><span>'+tx(nomeBonito(x.grupo))+'</span>'+
-        '<b>'+Math.round(x.total/tot*100)+'%</b></div>';
+        '<em>'+moeda(x.total).replace(/,\d\d$/,'')+'</em><b>'+Math.round(x.total/tot*100)+'%</b></div>';
     }).join('')+'</div></div></div>';
 }
 function verComprasDoCartao(nome){
@@ -14218,7 +14241,7 @@ function renderExtrato(){
         .apiExtratoConta(ST.mes, ST.filtro, ST.busca);
     else
       google.script.run.withSuccessHandler(ok).withFailureHandler(erro)
-        .apiExtratoCartao(ST.mes, ST.busca, ST.cartaoSel||'TUDO');
+        .apiExtratoCartao(ST.mes, ST.busca, ST.cartaoSel||'TUDO', ST.familia||'TUDO');
     return;
   }
   pintarExtrato(c, abas, busca,
@@ -14628,6 +14651,8 @@ function extratoCartao(e){
     miniCard('saldo', num(saldoC), saldoC>=0?'pos':'neg')+
     miniCard('compras', String(e.quantos))+
     '</div>';
+  if(ST.familia && ST.familia!=='TUDO')
+    h+='<div class="fam-chip" onclick="mudarFamilia(\'TUDO\')">'+iconeCat(ST.familia)+' só '+tx(nomeBonito(ST.familia))+' <b>&times;</b></div>';
   if(e.porCartao.length>1 || filtrado){
     h+='<div class="card cf-lista">'+
       '<div class="row" style="margin-bottom:2px"><span class="lbl">Cartões</span>'+
