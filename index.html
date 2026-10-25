@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>EasyAPP Financial — o app de finanças simples que você personaliza conversando</title>
-<meta name="description" content="Começa simples: mês, cartão e extrato, com os lançamentos entrando sozinhos. O resto você cria pedindo ao assistente de IA — telas, gráficos e controles, de finanças ou de qualquer parte da sua rotina — sem programar.">
-<meta property="og:title" content="EasyAPP Financial — simples para começar, do seu jeito para sempre">
-<meta property="og:description" content="Mês, cartão e extrato lançando sozinhos. E um assistente de IA que programa no seu app o que você pedir.">
+<title>EasyAPP — o app do seu negócio, criado por você numa conversa</title>
+<meta name="description" content="Lava-jato, salão, marmitaria, oficina, loja, pet shop: você descreve como o seu negócio funciona e o assistente de IA cria o app dele — agenda, pedidos, estoque, fiado, comissão e o caixa. Com o seu nome, a sua cor e as suas regras. Sem programar.">
+<meta property="og:title" content="EasyAPP — seu negócio merece um app. E ele vai ser seu.">
+<meta property="og:description" content="Você conta como o seu negócio funciona; o assistente de IA cria o app dele, com o seu nome e a sua cor. E o caixa já vem pronto.">
 <meta property="og:image" content="https://easyappfinancial.com.br/img/icone.png">
 <meta property="og:url" content="https://easyappfinancial.com.br/">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="pt_BR">
 <link rel="canonical" href="https://easyappfinancial.com.br/">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"EasyAPP Financial","applicationCategory":"FinanceApplication","operatingSystem":"Android, iOS","url":"https://easyappfinancial.com.br/","description":"App de finanças pessoais simples (mês, cartão e extrato) que você personaliza pedindo ao assistente de IA: telas, gráficos e controles novos, sem programar.","offers":{"@type":"Offer","price":"19.90","priceCurrency":"BRL"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"EasyAPP Financial","applicationCategory":"BusinessApplication","operatingSystem":"Android, iOS","url":"https://easyappfinancial.com.br/","description":"App para pequenos negócios e para as finanças pessoais que você monta pedindo ao assistente de IA: agenda, pedidos, estoque, fiado, comissão e o caixa, sem programar.","offers":{"@type":"Offer","price":"19.90","priceCurrency":"BRL"}}</script>
 <meta name="theme-color" content="#0b0f19">
 <link rel="icon" href="img/icone-192.png">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
@@ -72,7 +72,7 @@ nav .btn{padding:10px 18px;font-size:14px;border-radius:10px}
 .hero .ctas{display:flex;gap:14px;flex-wrap:wrap;margin:36px 0 22px}
 .hero small{color:var(--tx3);font-size:14px}
 .hero .phones{position:relative;height:640px}
-.hero .phones .phone{position:absolute}
+.hero .phones .phone-slot{position:absolute}
 .hero .phones .p1{left:50%;top:0;transform:translateX(-62%) rotate(-4deg);z-index:2}
 .hero .phones .p2{left:50%;top:70px;transform:translateX(-5%) rotate(5deg) scale(.88);opacity:.9;z-index:1}
 @media(max-width:900px){.hero .wrap{grid-template-columns:1fr}.hero .phones{height:600px;margin-top:20px}}
@@ -249,6 +249,82 @@ footer a{color:var(--tx2)}
 @media(max-width:820px){.planos,.baixar{grid-template-columns:1fr}}
 footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
 
+/* ---------- vitrine de negócios (cada nicho com o app "dele") ---------- */
+.vitrine{background:radial-gradient(1000px 500px at 50% 0%,rgba(6,182,212,.13),transparent 60%),var(--bg);border-top:1px solid var(--line)}
+.vitrine .sec-h{max-width:880px}
+.vitrine h2{font-size:clamp(36px,5.6vw,62px)!important}
+.nichos{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 18px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.nichos::-webkit-scrollbar{display:none}
+.nichos button{flex:none;font:inherit;font-size:15px;font-weight:700;padding:12px 18px;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--tx2);cursor:pointer;transition:all .2s;display:flex;gap:8px;align-items:center}
+.nichos button:hover{color:var(--tx);border-color:#3d4a6b}
+.nichos button.on{background:var(--k);border-color:var(--k);color:#071018;box-shadow:0 10px 30px -10px var(--k)}
+.palco{display:grid;grid-template-columns:1fr 1.15fr;gap:50px;align-items:center;margin-top:30px}
+.palco .txt{animation:surgeT .5s ease}
+.palco .dor{font-family:Sora;font-weight:800;font-size:clamp(26px,3.4vw,38px);line-height:1.15;margin:12px 0 22px}
+.palco .dor span{color:var(--k)}
+.antes{list-style:none;display:grid;gap:8px;margin-bottom:22px}
+.antes li{display:flex;gap:10px;color:var(--tx2);font-size:15.5px;text-decoration:line-through;text-decoration-color:rgba(239,68,68,.6)}
+.antes li:before{content:"✕";color:var(--verm);font-weight:800;text-decoration:none;display:inline-block}
+.pedido{margin-top:24px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--k);border-radius:16px;padding:16px 18px}
+.pedido .lbl2{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.pedido q{display:block;margin-top:8px;font-size:15.5px;line-height:1.5;quotes:"“" "”"}
+.copiar{font:inherit;font-size:12px;font-weight:700;letter-spacing:0;text-transform:none;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card2);color:var(--tx);cursor:pointer}
+.dupla{display:flex;gap:22px;justify-content:center;position:relative}
+.dupla:before{content:"";position:absolute;inset:5% 0;background:radial-gradient(circle,color-mix(in srgb,var(--k) 22%,transparent),transparent 65%);z-index:0}
+.dupla figure{position:relative;z-index:1;text-align:center;animation:surgeT .5s ease}
+.dupla figure:nth-child(2){margin-top:60px}
+.dupla figcaption{margin-top:12px;font-size:13.5px;font-weight:600;color:var(--tx2)}
+.dupla .phone{width:272px;height:556px}
+@media(max-width:1000px){.palco{grid-template-columns:1fr;gap:34px}.palco .dupla{order:-1}}
+@media(max-width:620px){.dupla{justify-content:flex-start;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 4px 10px;margin:0 -20px;padding-left:20px;scrollbar-width:none}.dupla::-webkit-scrollbar{display:none}.dupla figure{scroll-snap-align:center;flex:none}.dupla figure:nth-child(2){margin-top:0}.dupla .phone{width:262px;height:536px}}
+.dados{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:80px}
+.dados div{background:rgba(22,29,45,.6);border:1px solid var(--line);border-radius:18px;padding:20px}
+.dados b{display:block;font-family:Sora;font-size:28px;letter-spacing:-.02em}
+.dados span{font-size:14px;color:var(--tx2)}
+.fonte{color:var(--tx3);font-size:12.5px;margin-top:12px}
+@media(max-width:820px){.dados{grid-template-columns:1fr 1fr}}
+/* o celular de cada negócio: nome, cor e menu dele */
+.nk .ahead .t{display:flex;align-items:center;gap:7px}
+.nk .lg{width:20px;height:20px;border-radius:6px;background:var(--k);display:grid;place-items:center;font-size:11px}
+.nk .ia{width:22px;height:22px;border-radius:50%;background:#1c2436;border:1px solid #2a3450;display:grid;place-items:center;color:var(--k);font-size:11px}
+.nk .tabbar span.on{color:var(--k)}.nk .tabbar span.on:before{background:var(--k)}
+.nk .body{gap:8px}
+.nk .screen{text-align:left}
+.kp .sub{margin-top:1px}
+.kp{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.kp>div{background:var(--card);border:1px solid #232c40;border-radius:12px;padding:8px 8px 7px}
+.kp b{display:block;font-family:Sora;font-weight:800;font-size:14px;letter-spacing:-.02em;margin-top:2px}
+.kp>div:first-child{border-color:var(--k)}.kp>div:first-child b{color:var(--k)}
+.st{font-size:7.5px;font-weight:800;padding:3px 6px;border-radius:999px;white-space:nowrap;letter-spacing:.02em}
+.it2{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #222b3e}
+.it2:last-child{border:0}
+.it2 .av{flex:none;width:24px;height:24px;border-radius:8px;display:grid;place-items:center;font-size:12px;background:#0c111c}
+.it2 .m{flex:1;min-width:0;line-height:1.3}.it2 .m b{display:block;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it2 .v{text-align:right;font-weight:700;font-size:10.5px;line-height:1.3}
+.hora{font-family:Sora;font-weight:700;font-size:9.5px;color:var(--tx2);width:30px;flex:none}
+.livre{border:1px dashed #33405c;border-radius:9px;padding:5px 8px;color:var(--tx3);font-size:9.5px;margin:4px 0}
+.mbt{display:inline-block;margin-top:7px;font-size:9px;font-weight:800;padding:5px 10px;border-radius:999px;background:var(--k);color:#071018}
+/* o app é seu */
+.dono{background:radial-gradient(900px 500px at 100% 0%,rgba(34,197,94,.12),transparent 60%),#0a0d16;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.vs > div{border-radius:var(--r);padding:28px;border:1px solid var(--line)}
+.vs .eles{background:rgba(22,29,45,.5)}
+.vs .nos{background:linear-gradient(160deg,rgba(34,197,94,.12),rgba(59,130,246,.10));border-color:rgba(34,197,94,.5)}
+.vs h3{font-family:Sora;font-size:22px;margin-bottom:16px}
+.vs ul{list-style:none;display:grid;gap:12px}
+.vs li{display:flex;gap:10px;font-size:16px}
+.vs .eles li{color:var(--tx2)}.vs .eles li:before{content:"✕";color:var(--verm);font-weight:800}
+.vs .nos li:before{content:"✓";color:var(--verde);font-weight:800}
+@media(max-width:820px){.vs{grid-template-columns:1fr}}
+.marca{display:flex;gap:14px;flex-wrap:wrap;margin-top:40px;justify-content:center}
+.marca span{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:14px;background:var(--card);border:1px solid var(--line);font-weight:700;font-size:15px}
+.marca i{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-style:normal;font-size:12px}
+/* e o seu? */
+.todos{display:flex;flex-wrap:wrap;gap:8px}
+.todos button{font:inherit;font-size:14px;font-weight:600;padding:9px 14px;border-radius:999px;background:rgba(22,29,45,.75);border:1px solid var(--line);color:var(--tx2);cursor:pointer;transition:all .15s}
+.todos button:hover,.todos button.on{color:var(--tx);border-color:var(--azul);background:rgba(59,130,246,.14)}
+.todos-ped{margin-top:22px;max-width:820px}
+
 .rv{opacity:0;transform:translateY(26px);transition:opacity .8s ease,transform .8s ease}
 .rv.on{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none}html{scroll-behavior:auto}}
@@ -261,9 +337,10 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
   <div class="wrap">
     <a href="#" class="logo"><img src="img/icone-192.png" alt="">EasyAPP <b>Financial</b></a>
     <div class="links">
-      <a href="#seu-jeito">Do seu jeito</a>
-      <a href="#alem">Além do dinheiro</a>
-      <a href="#funciona">Como funciona</a>
+      <a href="#negocios">Negócios</a>
+      <a href="#dono">O app é seu</a>
+      <a href="#seu-jeito">Como cria</a>
+      <a href="#funciona">O caixa</a>
       <a href="#planos">Planos</a>
       <a href="#testar">Baixar</a>
     </div>
@@ -275,92 +352,104 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
 <header class="hero">
   <div class="wrap">
     <div class="rv">
-      <span class="eyebrow"><i></i>14 dias grátis · sem cartão</span>
-      <h1>Simples para começar.<br><span class="grad">Do seu jeito para sempre.</span></h1>
-      <p class="lead">Começa com o essencial: o <b>mês</b>, o <b>cartão</b> e o <b>extrato</b>, com os lançamentos entrando sozinhos. O resto você pede ao assistente e <b>ele programa no seu app</b>: uma tela nova, um gráfico, um controle, outra cor. Sem planilha. Sem programador.</p>
+      <span class="eyebrow"><i></i>Para quem tem negócio e não tem tempo</span>
+      <h1>Seu negócio merece um app.<br><span class="grad">E ele vai ser seu.</span></h1>
+      <p class="lead">Lava-jato, salão, marmitaria, oficina, loja, pet shop. Você conta <b>como o seu negócio funciona</b> e o assistente cria o app dele: agenda, pedidos, estoque, fiado, comissão e o caixa, com <b>o seu nome, a sua cor e as suas regras</b>. Sem programador. Sem sistema engessado. Sem caderno.</p>
       <div class="ctas">
         <a class="btn btn-p js-apk" href="#testar">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18a.38.38 0 10-.66-.38l-1.86 3.22a11.4 11.4 0 00-9.84 0L5.22 5.92a.38.38 0 10-.66.38L6.4 9.48A10.8 10.8 0 001 18h22a10.8 10.8 0 00-5.4-8.52zM7 15.25a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5zm10 0a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5z"/></svg>
-          Baixar para Android
+          Criar o app do meu negócio
         </a>
         <a class="btn btn-s js-ios" href="#iphone">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8 1.5 0 1.9.8 3.2.8 1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8 0 0-2.5-1-2.5-3.9zM14 5.5c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1 .1 2.1-.6 2.8-1.4z"/></svg>
           Baixar para iPhone
         </a>
       </div>
-      <small>14 dias grátis · Android e iPhone · sem cartão</small>
+      <small>14 dias grátis · Android e iPhone · sem cartão · <a href="#negocios" style="color:var(--tx2);text-decoration:underline">ver os apps de exemplo ↓</a></small>
     </div>
 
     <div class="phones rv">
-      <!-- tela MÊS (valores fictícios) -->
-      <div class="phone p1"><div class="screen"><div class="notch"></div><div class="sbar"></div>
-        <div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>
-        <div class="months"><span>JUL</span><span>AGO</span><span>SET</span><span class="on">OUT</span><span class="off">NOV</span><span class="off">DEZ</span></div>
-        <div class="body">
-          <div class="c bl">
-            <div class="lbl">Caixa — o que bate com o banco</div>
-            <div class="row" style="margin-top:4px"><span>Saldo em conta hoje</span><b>R$ 4.218,40</b></div>
-            <div class="row"><span>Ainda entra no mês</span><b class="g">R$ 2.500,00</b></div>
-            <div class="row"><span>Ainda sai (sem cartão)</span><b class="r">R$ 1.932,15</b></div>
-            <div class="lbl" style="margin-top:8px">Saldo projetado no fim do mês</div>
-            <div class="big g">R$ 4.786,25</div>
-          </div>
-          <div class="c">
-            <div style="display:flex;justify-content:space-between"><div><div class="lbl">Entrou</div><div class="g" style="font-weight:800;font-size:15px">R$ 12.400</div></div><div style="text-align:right"><div class="lbl">Saiu</div><div class="r" style="font-weight:800;font-size:15px">R$ 9.870</div></div></div>
-            <div class="bar"><i style="width:80%;background:var(--verde)"></i></div>
-            <div class="sub" style="margin-top:5px">gastou 80% do que entrou · sobrou R$ 2.530</div>
-          </div>
-          <div class="c">
-            <div class="lbl">Despesas (24)</div>
-            <div class="row"><span><i class="dot" style="background:var(--azul)"></i>Moradia · Aluguel</span><b>R$ 2.100,00</b></div>
-            <div class="row"><span><i class="dot" style="background:var(--azul)"></i>Moradia · Energia</span><b>R$ 186,30</b></div>
-            <div class="row"><span><i class="dot" style="background:var(--roxo)"></i>Mercado</span><b>R$ 1.240,55</b></div>
-            <div class="row"><span><i class="dot" style="background:var(--amar)"></i>Combustível</span><b>R$ 420,00</b></div>
-          </div>
-        </div>
-        <div class="tabbar"><span class="on">Mês</span><span>Cartão</span><span>Extrato</span><span>Config</span></div>
-      </div></div>
-
-      <!-- tela CARTÃO (valores fictícios) -->
-      <div class="phone p2"><div class="screen"><div class="notch"></div><div class="sbar"></div>
-        <div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>
-        <div class="body">
-          <div class="c"><div class="lbl">Fatura em aberto</div><div class="big">R$ 3.142,80</div><div class="sub">87 compras · fecha dia 28</div></div>
-          <div class="c">
-            <div class="lbl r">Estourou a verba</div>
-            <div class="row"><span>Restaurantes<br><span class="sub">verba R$ 600 · R$ 19/dia</span></span><b class="r">+R$ 142</b></div>
-            <div class="bar"><i style="width:100%;background:var(--verm)"></i></div>
-            <div class="lbl g" style="margin-top:10px">Ainda tem saldo</div>
-            <div class="row"><span>Mercado<br><span class="sub">verba R$ 1.500</span></span><b class="g">R$ 12/dia</b></div>
-            <div class="bar"><i style="width:72%;background:var(--verde)"></i></div>
-            <div class="row" style="margin-top:6px"><span>Farmácia<br><span class="sub">verba R$ 250</span></span><b class="g">R$ 4/dia</b></div>
-            <div class="bar"><i style="width:55%;background:var(--verde)"></i></div>
-            <div class="row" style="margin-top:6px"><span>Streaming<br><span class="sub">verba R$ 90</span></span><b class="g">R$ 0,80/dia</b></div>
-            <div class="bar"><i style="width:74%;background:var(--verde)"></i></div>
-          </div>
-        </div>
-        <div class="tabbar"><span>Mês</span><span class="on">Cartão</span><span>Extrato</span><span>Config</span></div>
-      </div></div>
+      <!-- preenchidos pelo script (vitrine): o app do lava-jato e o do salão -->
+      <div class="phone-slot p1" id="heroA"></div>
+      <div class="phone-slot p2" id="heroB"></div>
     </div>
   </div>
 </header>
 
 <div class="strip">
   <div class="wrap">
-    <div class="it rv"><b class="grad">3 telas</b><span>para começar: mês, cartão e extrato. Nada de menu cheio no primeiro dia</span></div>
-    <div class="it rv"><b class="grad">✦ IA</b><span>que programa no seu app o que você pedir, em português</span></div>
-    <div class="it rv"><b class="grad">0</b><span>lançamentos à mão: o e-mail ou o aviso do banco já vira lançamento</span></div>
-    <div class="it rv"><b class="grad">R$ 19,90</b><span>por mês, com assistente incluído. 14 dias grátis</span></div>
+    <div class="it rv"><b class="grad">1 conversa</b><span>para o seu negócio ter o sistema dele, em português, sem programar</span></div>
+    <div class="it rv"><b class="grad">100% seu</b><span>nome, cor, telas e regras: o app é do jeito que o seu negócio funciona</span></div>
+    <div class="it rv"><b class="grad">0</b><span>caderno, planilha esquecida ou “depois eu anoto”</span></div>
+    <div class="it rv"><b class="grad">R$ 19,90</b><span>por mês, com o assistente incluído. Menos que uma lavagem simples</span></div>
   </div>
 </div>
+
+<!-- ============================== VITRINE DE NEGÓCIOS ============================== -->
+<section id="negocios" class="vitrine">
+  <div class="wrap">
+    <div class="sec-h rv">
+      <span class="eyebrow"><i style="background:var(--ciano);box-shadow:0 0 12px var(--ciano)"></i>Escolha o seu negócio</span>
+      <h2>Veja o app que o seu negócio <span class="grad">vira numa conversa.</span></h2>
+      <p>Cada tela abaixo é um módulo que o assistente cria a partir de <b>um pedido em português</b>, que está logo ao lado. Copie, cole no seu EasyAPP, ajuste do seu jeito e pronto: o seu negócio tem o app dele.</p>
+    </div>
+    <div class="nichos rv" id="nichos" role="tablist" aria-label="Negócios"></div>
+    <div class="palco" id="palco"></div>
+    <p class="fonte">Telas de exemplo, com nomes e dados fictícios.</p>
+
+    <div class="dados">
+      <div class="rv"><b class="grad">1 milhão+</b><span>de salões, barbearias, manicures e estéticas registrados como MEI</span></div>
+      <div class="rv"><b class="grad">645 mil</b><span>lojas de roupa e acessórios só entre os MEI</span></div>
+      <div class="rv"><b class="grad">473 mil</b><span>pedreiros, eletricistas e prestadores de obra MEI</span></div>
+      <div class="rv"><b class="grad">Quase todos</b><span>tocando o negócio no caderno, no WhatsApp e na memória</span></div>
+    </div>
+    <p class="fonte">Números de MEI: Sebrae, junho de 2025, com base na Receita Federal.</p>
+  </div>
+</section>
+
+<!-- ============================== O APP É SEU ============================== -->
+<section id="dono" class="dono">
+  <div class="wrap">
+    <div class="sec-h rv">
+      <span class="eyebrow"><i></i>Você é o dono</span>
+      <h2>Sistema pronto você aluga.<br><span class="grad">O EasyAPP é seu.</span></h2>
+      <p>Sistema de nicho te entrega as telas que um programador achou que o seu negócio precisava, e cobra por cada uma. No EasyAPP, quem decide é você. O seu negócio mudou? O app muda junto, no mesmo dia.</p>
+    </div>
+    <div class="vs">
+      <div class="eles rv"><h3>Sistema pronto</h3><ul>
+        <li>Você se adapta ao jeito do sistema</li>
+        <li>Faltou um campo? Abre chamado e espera</li>
+        <li>Paga por módulo, por usuário, por tela</li>
+        <li>Um sistema para a agenda, outro para o caixa, uma planilha para o resto</li>
+        <li>A marca na tela é a do fornecedor</li>
+      </ul></div>
+      <div class="nos rv"><h3>O app do seu negócio</h3><ul>
+        <li>O app se adapta ao jeito que você trabalha</li>
+        <li>Faltou um campo? Pede, e ele aparece em minutos</li>
+        <li>Um preço só, com o assistente incluído</li>
+        <li>Agenda, pedidos, estoque e o caixa no mesmo app, conversando entre si</li>
+        <li>O seu nome, a sua cor, o seu menu</li>
+      </ul></div>
+    </div>
+    <div class="marca rv">
+      <span><i style="background:#06b6d4">🚿</i>Lava-Jato do Zé</span>
+      <span><i style="background:#ec4899">✂️</i>Studio Bella</span>
+      <span><i style="background:#f59e0b">🍱</i>Cozinha da Rosa</span>
+      <span><i style="background:#f97316">🔧</i>Auto Center Silva</span>
+      <span><i style="background:#22c55e">🐾</i>Pet Feliz</span>
+      <span><i style="background:#a855f7">👗</i>Lua Moda</span>
+    </div>
+    <p class="manifesto rv">Ninguém conhece o seu negócio melhor que você.<br><span>Agora o seu app também.</span></p>
+  </div>
+</section>
 
 <!-- ============================== DO SEU JEITO ============================== -->
 <section id="seu-jeito" class="custom">
   <div class="wrap">
     <div class="sec-h rv">
-      <span class="eyebrow"><i style="background:var(--roxo);box-shadow:0 0 12px var(--roxo)"></i>O coração do EasyAPP</span>
-      <h2>Você não se adapta ao app.<br><span class="grad">O app se adapta a você.</span></h2>
-      <p>Todo app de finanças te entrega as telas que <i>alguém</i> achou que você precisava. O EasyAPP começa enxuto e cresce do seu jeito: dentro dele mora um assistente de IA que <b>programa</b>. Você descreve, ele escreve o código, testa e entrega pronto — no menu ou como um cartão na tela inicial. Você vira o dono do seu próprio app, sem escrever uma linha de código.</p>
+      <span class="eyebrow"><i style="background:var(--roxo);box-shadow:0 0 12px var(--roxo)"></i>Como o app nasce</span>
+      <h2>Você fala.<br><span class="grad">Ele programa.</span></h2>
+      <p>Dentro do EasyAPP mora um assistente de IA que <b>escreve o código</b> do seu app. Você descreve o seu negócio do jeito que explicaria a um funcionário novo, ele monta a tela, você vê a prévia e aplica. Ficou faltando algo? É só pedir de novo, de dentro da própria tela.</p>
     </div>
 
     <div class="grid">
@@ -378,14 +467,14 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
 
       <div class="rv">
         <div class="pedidos">
-          <div class="ped"><em class="b">Telas novas</em><q>Cria uma tela para eu acompanhar meus investimentos.</q><span>Ele programa o módulo e coloca no menu.</span></div>
-          <div class="ped"><em class="g">Gráficos</em><q>Quero um gráfico dos meus gastos por categoria nos últimos 6 meses.</q><span>Pronto em uma conversa, com os seus números.</span></div>
-          <div class="ped"><em class="y">Sua empresa, sua obra, seu gado</em><q>Cria um controle da minha empresa: clientes, serviços e contas a receber.</q><span>Qualquer coisa que hoje mora numa planilha.</span></div>
-          <div class="ped"><em style="color:var(--roxo)">Aparência</em><q>Deixa o app com cara de roxo e letra maior.</q><span>Cores, fontes, nomes do menu — tudo seu.</span></div>
-          <div class="ped"><em class="g">Subcategorias</em><q>Cria a subcategoria Academia, R$ 120 por mês, com reajuste em janeiro.</q><span>Ele lança os 12 meses de previsão sozinho.</span></div>
-          <div class="ped"><em class="y">Regras</em><q>Tudo que for do posto Avenida é combustível do carro da empresa.</q><span>Daqui para frente, ele classifica assim.</span></div>
-          <div class="ped"><em style="color:var(--ciano)">Controles</em><q>Quero um contador de quanto falta para a viagem de dezembro.</q><span>Vira um cartãozinho na tela do mês.</span></div>
-          <div class="ped"><em class="r">Tirar o que não usa</em><q>Some com a aba de empresa, eu não tenho CNPJ.</q><span>Menos tela, menos ruído.</span></div>
+          <div class="ped"><em class="b">A tela do negócio</em><q>Cria a agenda do meu salão com as três profissionais e os serviços de cada uma.</q><span>Ele programa o módulo e coloca no menu.</span></div>
+          <div class="ped"><em class="g">Dinheiro que entra</em><q>Quando eu marcar o pedido como pago, lança no caixa da empresa.</q><span>O módulo conversa com o financeiro.</span></div>
+          <div class="ped"><em class="y">Lembretes</em><q>Me avisa 5 meses depois da revisão para eu chamar o cliente de volta.</q><span>Vira notificação no seu celular.</span></div>
+          <div class="ped"><em style="color:var(--roxo)">A sua marca</em><q>Deixa o app com o nome Studio Bella e tudo em rosa.</q><span>Nome, cores e menu: tudo seu.</span></div>
+          <div class="ped"><em class="g">Orçamento em PDF</em><q>Monta o orçamento com peças e mão de obra e gera o PDF para eu mandar.</q><span>Sai pronto para compartilhar.</span></div>
+          <div class="ped"><em class="y">Foto na entrada</em><q>Quero tirar uma foto do carro quando ele chega no pátio.</q><span>Acabou a discussão do risco na porta.</span></div>
+          <div class="ped"><em style="color:var(--ciano)">Número do dia</em><q>Põe na tela inicial quanto entrou hoje e quantos carros faltam.</q><span>Vira um cartãozinho na primeira tela.</span></div>
+          <div class="ped"><em class="r">Mudou o negócio</em><q>Agora tenho plano mensal: 4 lavagens por R$ 120. Coloca isso.</q><span>O app muda no mesmo dia.</span></div>
         </div>
       </div>
     </div>
@@ -396,27 +485,20 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
       <div class="rv"><div class="ico" style="background:rgba(59,130,246,.15)">🔒</div><h4>Liberdade sem brecha</h4><p>Você muda o <i>seu</i> app, com os <i>seus</i> dados. Senha, banco e segurança ficam fora do alcance — de você e de qualquer um. Trava com digital ou rosto.</p></div>
     </div>
 
-    <p class="manifesto rv">A sua vida não é igual à de ninguém.<br><span>Por que o seu app seria?</span></p>
+    <p class="manifesto rv">O seu negócio não é igual a nenhum outro.<br><span>Por que o seu app seria?</span></p>
   </div>
 </section>
 
-<!-- ============================== ALÉM DO DINHEIRO ============================== -->
+<!-- ============================== E O SEU? ============================== -->
 <section id="alem" class="custom" style="padding-top:20px">
   <div class="wrap">
     <div class="sec-h rv">
-      <span class="eyebrow"><i style="background:var(--amar);box-shadow:0 0 12px var(--amar)"></i>Além do dinheiro</span>
-      <h2>Começa pelas suas contas.<br><span class="grad">Vai até onde a sua rotina pedir.</span></h2>
-      <p>O financeiro é a porta de entrada. Lá dentro, o mesmo assistente constrói o que a sua vida precisa — mesmo que não tenha nada a ver com dinheiro.</p>
+      <span class="eyebrow"><i style="background:var(--amar);box-shadow:0 0 12px var(--amar)"></i>Não achou o seu?</span>
+      <h2>Se dá para explicar,<br><span class="grad">dá para virar app.</span></h2>
+      <p>Toque no seu negócio (ou na sua paixão) e veja o pedido que monta o app dele. Não está aqui? Descreva do seu jeito: o assistente entende.</p>
     </div>
-    <div class="pedidos alem">
-      <div class="ped rv"><em class="b">🏐 Esporte</em><q>Faz o scout das minhas atletas a cada partida, fundamento por fundamento.</q><span>Toques grandes na quadra e o resumo do jogo no fim.</span></div>
-      <div class="ped rv"><em class="g">🐂 Campo</em><q>Controla meu rebanho: compras, vacinas e pesagens por lote.</q><span>E o custo de cada lote, ao lado das suas contas.</span></div>
-      <div class="ped rv"><em class="y">🏗️ Obra</em><q>Acompanha a reforma: etapas, fornecedores e quanto já foi.</q><span>Sem caderno perdido no canteiro.</span></div>
-      <div class="ped rv"><em style="color:var(--rosa)">🎂 Pequeno negócio</em><q>Agenda das encomendas de bolo, com quem já pagou o sinal.</q><span>O seu negócio dentro do mesmo app.</span></div>
-      <div class="ped rv"><em style="color:var(--ciano)">🏋️ Saúde</em><q>Registra meus treinos e mostra a evolução da carga.</q><span>Com gráfico, do jeito que você pedir.</span></div>
-      <div class="ped rv"><em style="color:var(--roxo)">📚 Estudos</em><q>Monta o cronograma do concurso com as horas de cada matéria.</q><span>E mostra o que ficou para trás na semana.</span></div>
-    </div>
-    <p class="manifesto rv">Se dá para descrever,<br><span>dá para ter no seu app.</span></p>
+    <div class="todos rv" id="todos"></div>
+    <div class="pedido todos-ped" id="todosPed" style="--k:var(--azul)"></div>
   </div>
 </section>
 
@@ -424,9 +506,9 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
 <section id="funciona">
   <div class="wrap">
     <div class="sec-h rv">
-      <span class="eyebrow"><i></i>Como funciona</span>
-      <h2>Você vive. <span class="grad">Ele anota.</span></h2>
-      <p>Esquece a planilha que você abandona em março. O EasyAPP escuta o seu banco, organiza tudo por categoria e te diz, todo dia, quanto ainda pode gastar.</p>
+      <span class="eyebrow"><i></i>O caixa já vem pronto</span>
+      <h2>O dinheiro da empresa <span class="grad">e o da sua casa.</span></h2>
+      <p>Por baixo de qualquer app que você criar mora um financeiro completo, com a empresa (PJ) e a casa (PF) separadas. Os lançamentos entram sozinhos pelo aviso do banco, e o que os seus módulos recebem cai no mesmo caixa. Você sabe, todo dia, quanto ainda pode gastar.</p>
     </div>
 
     <!-- 1. lança sozinho -->
@@ -600,7 +682,36 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
       <p>Feito para ler de relance, no celular, na fila do mercado. Um número por conceito — o mesmo em todas as telas.</p>
     </div>
   </div>
-  <div class="galeria" id="galeria"></div>
+  <div class="galeria" id="galeria">
+      <!-- tela MÊS (valores fictícios); a galeria acrescenta as outras -->
+      <figure><div class="phone"><div class="screen"><div class="notch"></div><div class="sbar"></div>
+        <div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>
+        <div class="months"><span>JUL</span><span>AGO</span><span>SET</span><span class="on">OUT</span><span class="off">NOV</span><span class="off">DEZ</span></div>
+        <div class="body">
+          <div class="c bl">
+            <div class="lbl">Caixa — o que bate com o banco</div>
+            <div class="row" style="margin-top:4px"><span>Saldo em conta hoje</span><b>R$ 4.218,40</b></div>
+            <div class="row"><span>Ainda entra no mês</span><b class="g">R$ 2.500,00</b></div>
+            <div class="row"><span>Ainda sai (sem cartão)</span><b class="r">R$ 1.932,15</b></div>
+            <div class="lbl" style="margin-top:8px">Saldo projetado no fim do mês</div>
+            <div class="big g">R$ 4.786,25</div>
+          </div>
+          <div class="c">
+            <div style="display:flex;justify-content:space-between"><div><div class="lbl">Entrou</div><div class="g" style="font-weight:800;font-size:15px">R$ 12.400</div></div><div style="text-align:right"><div class="lbl">Saiu</div><div class="r" style="font-weight:800;font-size:15px">R$ 9.870</div></div></div>
+            <div class="bar"><i style="width:80%;background:var(--verde)"></i></div>
+            <div class="sub" style="margin-top:5px">gastou 80% do que entrou · sobrou R$ 2.530</div>
+          </div>
+          <div class="c">
+            <div class="lbl">Despesas (24)</div>
+            <div class="row"><span><i class="dot" style="background:var(--azul)"></i>Moradia · Aluguel</span><b>R$ 2.100,00</b></div>
+            <div class="row"><span><i class="dot" style="background:var(--azul)"></i>Moradia · Energia</span><b>R$ 186,30</b></div>
+            <div class="row"><span><i class="dot" style="background:var(--roxo)"></i>Mercado</span><b>R$ 1.240,55</b></div>
+            <div class="row"><span><i class="dot" style="background:var(--amar)"></i>Combustível</span><b>R$ 420,00</b></div>
+          </div>
+        </div>
+        <div class="tabbar"><span class="on">Mês</span><span>Cartão</span><span>Extrato</span><span>Config</span></div>
+      </div></div><figcaption>Mês: o caixa que bate com o banco</figcaption></figure>
+  </div>
   <p class="wrap" style="color:var(--tx3);font-size:13px">Telas ilustrativas com dados fictícios.</p>
 </section>
 
@@ -610,11 +721,11 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
     <div class="sec-h rv">
       <span class="eyebrow"><i></i>Planos</span>
       <h2>Comece grátis. <span class="grad">Fique se gostar.</span></h2>
-      <p>14 dias grátis, sem cartão. Começa simples — mês, cartão e extrato — e o resto você cria pedindo ao assistente. Cancele quando quiser, pelo próprio app.</p>
+      <p>14 dias grátis, sem cartão, para montar o app do seu negócio e ver se ele paga a conta (spoiler: um cliente que volta já paga). Cancele quando quiser, pelo próprio app.</p>
     </div>
     <div class="planos">
       <div class="plano rv"><span class="tag-p">Para começar</span><h4>Teste grátis</h4><div class="preco">R$ 0<small> · 14 dias</small></div>
-        <ul><li>Mês, cartão e extrato, lançando sozinhos</li><li>Sem cartão de crédito</li><li>Assistente incluído para criar suas telas</li></ul></div>
+        <ul><li>Mês, cartão e extrato, lançando sozinhos</li><li>Sem cartão de crédito</li><li>Assistente incluído para criar o app do seu negócio</li></ul></div>
       <div class="plano rv"><span class="tag-p">Mais flexível</span><h4>Mensal</h4><div class="preco">R$ 19,90<small> /mês</small></div>
         <ul><li>Tudo do app, sem limite de contas</li><li>Assistente incluído todo mês</li><li>Personalize quanto quiser</li></ul></div>
       <div class="plano destaque rv"><span class="tag-p">2 meses grátis</span><h4>Anual</h4><div class="preco">R$ 199<small> /ano</small></div>
@@ -630,8 +741,8 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
   <div class="wrap">
     <div class="sec-h rv">
       <span class="eyebrow"><i></i>Baixar</span>
-      <h2>Instale em <span class="grad">2 minutos.</span></h2>
-      <p>Baixe, crie a sua conta (nome, e-mail e senha) e marque seus bancos e contas. O app já abre com o seu mês montado.</p>
+      <h2>Seu concorrente ainda está no caderno.<br><span class="grad">Você não precisa estar.</span></h2>
+      <p>Instale em 2 minutos: baixe, crie a sua conta e marque seus bancos. Depois, abra o assistente ✦ e cole o pedido do seu negócio.</p>
     </div>
     <div class="baixar">
       <div class="cta-final rv">
@@ -673,6 +784,9 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
   <div class="wrap">
     <div class="sec-h rv"><h2>Perguntas</h2></div>
     <div class="faq">
+      <details><summary>Serve para o meu negócio?</summary><p>Se você consegue explicar como ele funciona, serve. Lava-jato, salão, barbearia, marmitaria, confeitaria, oficina, loja de roupa, pet shop, prestador de obra, motorista de app, personal, aulas particulares, distribuidora: o assistente monta o controle do jeito que o seu negócio trabalha, com agenda, pedidos, estoque, fiado, comissão, orçamento em PDF, lembretes e o caixa.</p></details>
+      <details><summary>Tem modelo pronto ou eu tenho que criar?</summary><p>Você cria, mas não começa do zero: os pedidos desta página são um bom ponto de partida. Copie, cole no assistente ✦ do app, veja a prévia e aplique. Depois, peça os ajustes que o seu negócio pede (“tira o campo tal”, “põe o preço do pacote”).</p></details>
+      <details><summary>Meus funcionários podem usar no celular deles?</summary><p>Ainda não: hoje o app é do dono, numa conta só. Você pode deixar um celular no balcão com a tela do negócio aberta, e o app abre com digital ou rosto.</p></details>
       <details><summary>O que dá para criar com o assistente?</summary><p>Quase tudo que hoje mora numa planilha: um controle de investimentos, das contas da empresa, de uma obra, de metas, um gráfico, um simulador, um cartão na tela inicial com o que você quer ver todo dia. Também muda cores, nomes do menu e esconde o que você não usa. Você pede em português, vê a prévia e aplica — e pode pedir ajustes de dentro do próprio módulo.</p></details>
       <details><summary>Só dá para criar coisas de finanças?</summary><p>Não. O app começa pelas finanças, mas o assistente constrói qualquer controle que você descrever: o scout do seu time, o rebanho, a obra, os treinos, as encomendas do seu negócio, os estudos. Fica tudo no mesmo app, cada um com o seu botão no menu.</p></details>
       <details><summary>Tem para iPhone?</summary><p>Tem: no iPhone o EasyAPP roda pelo Safari e vira um ícone na tela inicial, em tela cheia como um app (veja acima). Os lançamentos entram pelo e-mail do banco, pelo Apple Pay (app Atalhos) e pelo Open Finance.</p></details>
@@ -787,34 +901,342 @@ document.querySelectorAll('.rv').forEach(function (el) { io.observe(el); });
   por(60);
 })();
 
+/* ====== VITRINE DE NEGÓCIOS ======
+   Cada negócio tem o app "dele": nome, cor, menu e duas telas montadas aqui em
+   HTML (não são prints). Os dados são fictícios. O pedido de cada um é o texto
+   que o cliente cola no assistente para criar um módulo parecido.
+   Link direto para um negócio (anúncio por nicho): ?negocio=lava, salao,
+   marmita, oficina, pet, loja, obra ou motorista. */
+var CV = '#22c55e', CR = '#ef4444', CY = '#f59e0b', CB = '#3b82f6', CP = '#a855f7', CC = '#06b6d4', CK = '#ec4899', CO = '#f97316', CG = '#8b99b5';
+function kp(a) {
+  return '<div class="kp">' + a.map(function (x) { return '<div><div class="lbl">' + x[0] + '</div><b>' + x[1] + '</b>' + (x[2] ? '<div class="sub">' + x[2] + '</div>' : '') + '</div>'; }).join('') + '</div>';
+}
+function cd(t, h, cls) { return '<div class="c' + (cls ? ' ' + cls : '') + '">' + (t ? '<div class="lbl">' + t + '</div>' : '') + h + '</div>'; }
+function st(t, cor) { return '<span class="st" style="background:' + cor + '26;color:' + cor + '">' + t + '</span>'; }
+function it(av, b, sub, dir) { return '<div class="it2"><span class="av">' + av + '</span><span class="m"><b>' + b + '</b><span class="sub">' + sub + '</span></span><span class="v">' + dir + '</span></div>'; }
+function barras(rows) {
+  return rows.map(function (r) {
+    return '<div class="row" style="border:0;padding:5px 0 0"><span>' + r[0] + '</span><b>' + r[1] + '</b></div><div class="bar" style="margin-top:3px"><i style="width:' + r[2] + '%;background:' + r[3] + '"></i></div>';
+  }).join('');
+}
+function linhas(rows) { return rows.map(function (r) { return '<div class="row"><span>' + r[0] + '</span><b' + (r[2] ? ' class="' + r[2] + '"' : '') + '>' + r[1] + '</b></div>'; }).join(''); }
+function ag(h, cli, serv, cor, dir) {
+  return '<div class="it2"><span class="hora">' + h + '</span><span class="m" style="border-left:3px solid ' + cor + ';padding-left:7px"><b>' + cli + '</b><span class="sub">' + serv + '</span></span><span class="v">' + dir + '</span></div>';
+}
+function calor() {  // R$ por hora, de segunda a domingo, em seis faixas do dia
+  var dias = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'], horas = ['6h', '9h', '12h', '15h', '18h', '21h'],
+      v = [[2, 3, 1, 1, 4, 3], [2, 3, 1, 1, 4, 2], [2, 3, 2, 1, 4, 3], [2, 3, 1, 2, 4, 3], [2, 3, 2, 2, 4, 4], [1, 2, 3, 3, 4, 4], [0, 1, 3, 2, 3, 2]],
+      cores = ['#1a2234', '#1e3a6b', '#1d4ed8', '#3b82f6', '#93c5fd'], h = '';
+  horas.forEach(function (x, j) { h += '<text x="' + (24 + j * 35) + '" y="8" text-anchor="middle" fill="#64748b" font-size="6.5">' + x + '</text>'; });
+  dias.forEach(function (d, i) {
+    h += '<text x="3" y="' + (19 + i * 11) + '" fill="#64748b" font-size="6.5">' + d + '</text>';
+    v[i].forEach(function (n, j) { h += '<rect x="' + (8 + j * 35) + '" y="' + (12 + i * 11) + '" width="32" height="9" rx="2.5" fill="' + cores[n] + '"/>'; });
+  });
+  return '<svg viewBox="0 0 220 92" style="width:100%;margin-top:6px">' + h + '</svg><div class="sub">sexta e sábado, das 18h às 23h: R$ 44/hora</div>';
+}
+function etapa(nome, est, dir) {
+  var cor = est === 'ok' ? CV : est === 'agora' ? CY : '#3b465e';
+  return '<div class="it2" style="padding:4px 0;border:0"><span style="width:14px;height:14px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:8px;color:#062010;background:' + cor + (est === 'agora' ? ';box-shadow:0 0 8px ' + CY : '') + '">' + (est === 'ok' ? '✓' : '') + '</span>' +
+    '<span class="m"' + (est ? '' : ' style="color:var(--tx3)"') + '>' + nome + '</span><span class="v sub">' + dir + '</span></div>';
+}
+
+var NICHOS = [
+  { id: 'lava', em: '🚿', nome: 'Lava-jato', marca: 'Lava-Jato do Zé', k: CC,
+    dor: 'O carro esquecido no pátio. O mensalista que <span>sumiu e ninguém notou.</span>',
+    antes: ['Placa anotada no papelão', '“Quanto entrou hoje?” e ninguém sabe', 'O cliente fiel some e você nem percebe'],
+    depois: ['O pátio na palma da mão: lavando, secando, pronto', 'Faturamento do dia por serviço, na hora', 'Quem sumiu há mais de 30 dias, para chamar de volta', 'Foto do carro na entrada: acabou a discussão do risco'],
+    pedido: 'Cria o sistema do meu lava-jato: carros no pátio com placa, modelo, serviço e status (na fila, lavando, secando, pronto), foto do carro na entrada, tabela de preços, planos mensais e a lista de quem não volta há mais de 30 dias. Lavagem paga cai no caixa.',
+    abas: ['Pátio', 'Clientes', 'Preços', 'Caixa'], on: [0, 1], leg: ['O pátio de hoje', 'Mensalistas e quem sumiu'],
+    mod: { nome: 'Pátio', curto: 'Cria o sistema do meu lava-jato: pátio com status, foto na entrada e quem sumiu', resp: 'Pronto! Fiz o <b>Pátio</b>: os carros com status e foto na entrada, o faturamento do dia por serviço e quem sumiu há mais de 30 dias.', custo: 'R$ 0,58', hora: '08:10' },
+    telas: [
+      kp([['Hoje', 'R$ 1.240'], ['Carros', '23'], ['Ticket', 'R$ 54']]) +
+      cd('No pátio agora · 5',
+        it('🚙', 'RTA-4E21 · Onix prata', 'Completa · 10:42 · 📷', st('LAVANDO', CC)) +
+        it('🛻', 'QHB-7A03 · Hilux preta', 'Polimento · 09:15 · 📷', st('SECANDO', CY)) +
+        it('🚗', 'PXY-2C88 · HB20 branco', 'Simples · 11:05', st('PRONTO ✓', CV)) +
+        it('🚙', 'SDF-9B12 · Compass', 'Higienização · 11:20', st('NA FILA', CG)) +
+        it('🚗', 'MLK-1D45 · Argo', 'Completa · mensalista', st('NA FILA', CG))) +
+      cd('Serviços de hoje', barras([['Simples · 11', 'R$ 385', 55, CC], ['Completa · 7', 'R$ 420', 60, CB], ['Polimento · 3', 'R$ 270', 39, CP], ['Higienização · 2', 'R$ 165', 24, CY]])),
+      kp([['Mensalistas', '38'], ['Recorrente', 'R$ 4.520', 'por mês'], ['Sumiram', '14']]) +
+      cd('Planos mensais',
+        it('⭐', 'Básico · 4 lavagens', '26 clientes · R$ 100', '<b>R$ 2.600</b>') +
+        it('💎', 'Premium · 4 + 1 polimento', '12 clientes · R$ 160', '<b>R$ 1.920</b>')) +
+      cd('Sumiram há mais de 30 dias',
+        it('👤', 'Marcos · Corolla', 'vinha toda semana · última 12/09', '<b class="r">43 dias</b>') +
+        it('👤', 'Dra. Paula · SW4', 'completa + cera · última 20/09', '<b class="r">35 dias</b>') +
+        it('👤', 'Seu Antônio · Strada', 'simples · última 22/09', '<b class="y">33 dias</b>') +
+        '<span class="mbt">Ver os 14 · R$ 760/mês parados</span>', 'br')
+    ] },
+
+  { id: 'salao', em: '✂️', nome: 'Salão e barbearia', marca: 'Studio Bella', k: CK,
+    dor: 'A comissão feita na calculadora no fim do mês. A cliente que <span>não voltou para a química.</span>',
+    antes: ['Agenda no caderno, com rasura e horário dobrado', 'Comissão calculada no fim do mês, na mão', 'Cliente que some e ninguém chama de volta'],
+    depois: ['O dia de cada profissional, com os horários vagos para encaixe', 'Comissão do mês pronta, por profissional', 'Aviso de quem passou do tempo de voltar', 'Cada atendimento pago cai no caixa'],
+    pedido: 'Monta a agenda do meu salão com as três profissionais e os serviços com preço e duração; calcula a comissão de cada uma (40% no serviço, 10% no produto) e me avisa quando a cliente passar do tempo de voltar.',
+    abas: ['Agenda', 'Clientes', 'Comissão', 'Caixa'], on: [0, 2], leg: ['A agenda de hoje', 'A comissão do mês, pronta'],
+    mod: { nome: 'Agenda', curto: 'Monta a agenda do meu salão com as 3 profissionais e a comissão de cada uma', resp: 'Pronto! Fiz a <b>Agenda</b>: o dia de cada profissional, os horários vagos, a comissão do mês e quem passou da hora de voltar.', custo: 'R$ 0,61', hora: '07:52' },
+    telas: [
+      kp([['Hoje', 'R$ 1.180'], ['Atendim.', '11'], ['Vagos', '2']]) +
+      cd('Hoje · <b style="color:' + CK + '">Ju</b> · <b style="color:' + CP + '">Bia</b> · <b style="color:' + CC + '">Tati</b>',
+        ag('09:00', 'Carla M.', 'Escova · Ju', CK, '<div>R$ 70</div>' + st('FEITO', CV)) +
+        ag('10:30', 'Fernanda', 'Coloração + corte · Bia', CP, '<div>R$ 260</div>' + st('AGORA', CY)) +
+        '<div class="livre">12:00 · horário livre, cabe um encaixe</div>' +
+        ag('13:30', 'Patrícia', 'Unha em gel · Tati', CC, '<div>R$ 120</div>') +
+        ag('14:00', 'Rafaela', 'Mechas · Bia', CP, '<div>R$ 380</div>') +
+        '<div class="livre">16:00 · horário livre</div>' +
+        ag('17:00', 'Juliana', 'Escova + hidratação · Ju', CK, '<div>R$ 130</div>')),
+      kp([['A pagar', 'R$ 6.570'], ['Serviços', 'R$ 16.425'], ['Atendim.', '214']]) +
+      cd('Comissão de outubro · 40%',
+        it('<b style="color:' + CP + '">B</b>', 'Bia', 'R$ 7.550 em serviços · 94 atend.', '<b>R$ 3.020</b>') +
+        it('<b style="color:' + CK + '">J</b>', 'Ju', 'R$ 5.350 em serviços · 71 atend.', '<b>R$ 2.140</b>') +
+        it('<b style="color:' + CC + '">T</b>', 'Tati', 'R$ 3.525 em serviços · 49 atend.', '<b>R$ 1.410</b>')) +
+      cd('Passou da hora de voltar · 9',
+        it('💇', 'Camila R.', 'coloração · volta a cada 45 dias', '<b class="r">+18 dias</b>') +
+        it('💅', 'Luana', 'gel · volta a cada 21 dias', '<b class="y">+6 dias</b>') +
+        it('💇', 'Sônia', 'progressiva · a cada 90 dias', '<b class="y">+4 dias</b>'), 'br')
+    ] },
+
+  { id: 'marmita', em: '🍱', nome: 'Marmitaria e delivery', marca: 'Cozinha da Rosa', k: CY,
+    dor: 'O pedido que se perdeu no WhatsApp. O fiado <span>que ninguém lembra quanto é.</span>',
+    antes: ['Pedido anotado no papel, no WhatsApp e na cabeça', 'Cozinha demais ou de menos todo dia', 'Fiado sem conta e sem data'],
+    depois: ['Os pedidos do dia com horário e endereço de entrega', 'Quanto de cada prato cozinhar, somado sozinho', 'Quem deve, quanto e desde quando', 'A margem de cada marmita, pelo custo dos ingredientes'],
+    pedido: 'Cria o controle da minha marmitaria: pedidos do dia com horário e endereço de entrega, quanto de cada prato cozinhar, quem compra fiado e quanto deve, e a margem de cada marmita pelo custo dos ingredientes.',
+    abas: ['Pedidos', 'Cozinha', 'Fiado', 'Caixa'], on: [0, 2], leg: ['Os pedidos e a produção', 'O fiado e a margem'],
+    mod: { nome: 'Pedidos', curto: 'Cria os pedidos da marmitaria com o que cozinhar e quem compra fiado', resp: 'Pronto! Fiz os <b>Pedidos</b>: as entregas do dia, quanto de cada prato cozinhar, o fiado de cada cliente e a margem de cada marmita.', custo: 'R$ 0,54', hora: '06:45' },
+    telas: [
+      kp([['Hoje', 'R$ 1.408'], ['Marmitas', '64'], ['A entregar', '9']]) +
+      cd('Cozinhar hoje', barras([['Frango grelhado', '22', 100, CY], ['Feijoada', '18', 82, CO], ['Fit · tilápia', '14', 64, CV], ['Strogonoff', '10', 45, CP]])) +
+      cd('Próximas entregas',
+        it('🛵', '#41 · Carlos', '2 frango · R. das Flores, 120', '<div>11:40</div>' + st('PIX ✓', CV)) +
+        it('🏢', '#42 · Escritório Alfa', '8 feijoada · Av. Brasil, 900', '<div>11:50</div>' + st('FIADO', CY)) +
+        it('🛵', '#43 · Marina', '1 fit + suco · R. 7, 45', '<div>12:00</div>' + st('A RECEBER', CR))),
+      kp([['Fiado na rua', 'R$ 1.236'], ['Clientes', '7'], ['Atrasado', 'R$ 418']]) +
+      cd('Quem deve',
+        it('🏢', 'Escritório Alfa', 'acerta toda sexta · 34 marmitas', '<b>R$ 748</b>') +
+        it('👷', 'Obra da Rua 7', 'atrasado há 5 dias', '<b class="r">R$ 282</b>') +
+        it('👵', 'Dona Lúcia', 'atrasado há 12 dias', '<b class="r">R$ 136</b>')) +
+      cd('Margem por marmita',
+        it('🍛', 'Strogonoff', 'custo R$ 8,10 · vende R$ 22', '<b class="g">63%</b>') +
+        it('🫘', 'Feijoada', 'custo R$ 9,80 · vende R$ 22', '<b class="g">55%</b>') +
+        it('🐟', 'Fit · tilápia', 'custo R$ 12,40 · vende R$ 24', '<b class="y">48%</b>'))
+    ] },
+
+  { id: 'oficina', em: '🔧', nome: 'Oficina mecânica', marca: 'Auto Center Silva', k: CO,
+    dor: 'O carro pronto que ninguém cobrou. O orçamento <span>que o cliente jura que não viu.</span>',
+    antes: ['Ordem de serviço em papel carbono', 'Orçamento falado, que vira discussão na entrega', 'Cliente da revisão que nunca mais aparece'],
+    depois: ['Cada carro com status e mecânico responsável', 'Orçamento com peças e mão de obra, em PDF', 'Lembrete da revisão de cada cliente', 'O que está em aberto e o que já pode cobrar'],
+    pedido: 'Cria as ordens de serviço da minha oficina com status e mecânico responsável; orçamento com peças e mão de obra que vira PDF para mandar ao cliente; e me lembra quando o cliente estiver na época da revisão.',
+    abas: ['Oficina', 'Orçam.', 'Clientes', 'Caixa'], on: [0, 1], leg: ['As ordens de serviço', 'O orçamento em PDF'],
+    mod: { nome: 'Oficina', curto: 'Cria as ordens de serviço da oficina com orçamento em PDF', resp: 'Pronto! Fiz a <b>Oficina</b>: cada carro com status e mecânico, o orçamento que vira PDF e o lembrete da revisão de cada cliente.', custo: 'R$ 0,66', hora: '07:30' },
+    telas: [
+      kp([['Em aberto', 'R$ 9.420'], ['Carros', '7'], ['Cobrar', '2']]) +
+      cd('Ordens de serviço',
+        it('🚗', 'OS 1187 · Gol G5', 'embreagem · Rafa', '<div>R$ 1.180</div>' + st('ESPERA PEÇA', CR)) +
+        it('🚙', 'OS 1188 · Corolla', 'revisão 60 mil · Dudu', '<div>R$ 940</div>' + st('NO ELEVADOR', CY)) +
+        it('🛻', 'OS 1189 · Saveiro', 'pastilha e disco · Rafa', '<div>R$ 680</div>' + st('PRONTO · COBRAR', CV)) +
+        it('🚗', 'OS 1190 · Onix', 'barulho na suspensão', '<div>—</div>' + st('DIAGNÓSTICO', CB)) +
+        it('🚙', 'OS 1191 · Renegade', 'óleo e filtros · Dudu', '<div>R$ 390</div>' + st('PRONTO · COBRAR', CV))) +
+      cd('Mecânicos hoje', barras([['Rafa · 3 OS', 'R$ 2.240', 80, CO], ['Dudu · 2 OS', 'R$ 1.330', 48, CB]])),
+      cd('', '<div class="row" style="border:0;padding:0"><div><div class="lbl">Orçamento #322</div><b style="font-size:12px">Strada 2019 · Sr. Marcos</b></div>' + st('APROVADO ✓', CV) + '</div>' +
+        linhas([['Kit embreagem', 'R$ 689,00'], ['Rolamento', 'R$ 112,00'], ['Fluido de freio', 'R$ 47,00'], ['Mão de obra · 4h', 'R$ 500,00'], ['<b>Total</b>', 'R$ 1.348,00', 'g']]) +
+        '<span class="mbt">📄 Gerar PDF</span>') +
+      cd('Hora da revisão · 12 este mês',
+        it('🔔', 'Paulo · Civic', 'última revisão há 6 meses', '<b class="y">avisar</b>') +
+        it('🔔', 'Ana · Kwid', 'troca de óleo vencida', '<b class="r">+15 dias</b>') +
+        it('🔔', 'Jorge · Hilux', '60 mil km chegando', '<b class="y">avisar</b>'), 'br')
+    ] },
+
+  { id: 'pet', em: '🐾', nome: 'Pet shop e banho e tosa', marca: 'Pet Feliz', k: CV,
+    dor: 'A alergia que só o banhista antigo sabia. A vacina <span>que venceu e ninguém avisou.</span>',
+    antes: ['Ficha do pet num caderno que ninguém acha', '“Já pode buscar?” no WhatsApp o dia todo', 'Pacote de banho contado de cabeça'],
+    depois: ['Cada pet com status: no banho, secando, pronto', 'A ficha com raça, peso, alergias e vacinas', 'Aviso antes da vacina vencer', 'Pacotes com quantos banhos já foram usados'],
+    pedido: 'Faz a agenda do meu banho e tosa com o status de cada pet, a ficha do pet com raça, peso, alergias e vacinas (me avisa antes de vencer) e os pacotes mensais de banho com quantos já foram usados.',
+    abas: ['Agenda', 'Pets', 'Pacotes', 'Caixa'], on: [0, 1], leg: ['O banho e tosa de hoje', 'A ficha do pet'],
+    mod: { nome: 'Banho e tosa', curto: 'Faz a agenda do banho e tosa com a ficha de cada pet e as vacinas', resp: 'Pronto! Fiz o <b>Banho e tosa</b>: o status de cada pet, a ficha com alergias e vacinas e os pacotes de banho.', custo: 'R$ 0,52', hora: '08:05' },
+    telas: [
+      kp([['Hoje', 'R$ 860'], ['Pets', '14'], ['Buscar', '3']]) +
+      cd('Banho e tosa',
+        it('🐕', 'Thor · golden', 'banho + tosa higiênica', st('NO BANHO', CC)) +
+        it('🐶', 'Mel · shih-tzu', 'tosa bebê · ⚠ pele sensível', st('SECANDO', CY)) +
+        it('🐩', 'Pipoca · poodle', 'banho · pacote 3 de 4', st('PRONTO · AVISAR', CV)) +
+        it('🐈', 'Nina · gata', 'banho · 14:00', st('AGENDADO', CG)) +
+        it('🐕', 'Bob · vira-lata', 'banho + unhas · 15:30', st('AGENDADO', CG))) +
+      cd('Táxi dog', linhas([['🚐 3 buscas · 2 entregas', 'saída 13h'], ['Próxima: Rua Ipê, 88', '12 min']])),
+      cd('', '<div style="display:flex;gap:10px;align-items:center"><span style="width:44px;height:44px;font-size:24px;border-radius:14px;background:#12301f;display:grid;place-items:center;flex:none">🐶</span><div><b style="font-size:13px">Mel</b><div class="sub">Shih-tzu · 4 anos · 6,2 kg · tutora Ana</div></div></div>') +
+      cd('Atenção', '<div style="color:#fca5a5;font-size:10px;margin-top:3px">⚠ Pele sensível: só shampoo hipoalergênico. Sem perfume.</div>', 'br') +
+      cd('Vacinas', linhas([['V10', 'em dia · mar/26', 'g'], ['Antirrábica', 'vence em 12 dias', 'y'], ['Giárdia', 'em dia · jun/26', 'g']])) +
+      cd('Pacote mensal · 4 banhos', '<div class="bar"><i style="width:75%;background:' + CV + '"></i></div><div class="sub" style="margin-top:4px">3 de 4 usados · renova em 06/11 · R$ 180</div>')
+    ] },
+
+  { id: 'loja', em: '👗', nome: 'Loja de roupas', marca: 'Lua Moda', k: CP,
+    dor: 'A peça que acabou e você só soube quando a cliente pediu. O crediário <span>no caderninho.</span>',
+    antes: ['Estoque “de olho”, sem saber o tamanho que falta', 'Peça encalhada ocupando dinheiro', 'Crediário no caderninho, sem aviso de atraso'],
+    depois: ['Estoque por peça, cor e tamanho, com foto', 'O que está acabando e o que está encalhado', 'Parcelas de cada cliente, com as atrasadas em vermelho', 'O mais vendido da semana, para repor certo'],
+    pedido: 'Faz o estoque da minha loja por peça, cor e tamanho, com foto; me mostra o que está acabando e o que está encalhado há mais de 60 dias; e controla as vendas no crediário com as parcelas de cada cliente.',
+    abas: ['Vendas', 'Estoque', 'Crediário', 'Caixa'], on: [1, 2], leg: ['O estoque que avisa', 'O crediário sem caderninho'],
+    mod: { nome: 'Estoque', curto: 'Faz o estoque da loja por tamanho e o crediário de cada cliente', resp: 'Pronto! Fiz o <b>Estoque</b>: peças por cor e tamanho, o que está acabando, o encalhado e o crediário de cada cliente.', custo: 'R$ 0,59', hora: '09:20' },
+    telas: [
+      kp([['Peças', '412'], ['Parado', 'R$ 18,3 mil'], ['Acabando', '6']]) +
+      cd('Acabando',
+        it('👗', 'Vestido midi floral', 'M e G em estoque', st('P: 1 UN', CY)) +
+        it('👖', 'Calça wide jeans', '36 e 40 em estoque', st('38: ZERO', CR)) +
+        it('👚', 'Blusa canelada preta', 'P e G em estoque', st('M: 2 UN', CY))) +
+      cd('Mais vendidos da semana', barras([['Calça wide', '14', 100, CP], ['Vestido midi', '11', 78, CK], ['Cropped tricô', '8', 57, CB], ['Body básico', '6', 43, CC]])) +
+      cd('', '<div class="row" style="border:0;padding:0"><span>Encalhado há +60 dias<br><span class="sub">37 peças · R$ 2.960 parados</span></span><b class="y">liquidar?</b></div>', 'br'),
+      kp([['A receber', 'R$ 4.870'], ['Este mês', 'R$ 1.640'], ['Atrasadas', '3']]) +
+      cd('Parcelas',
+        it('👩', 'Mariana Souza', 'parcela 2 de 4 · vence 28/10', '<b>R$ 89,00</b>') +
+        it('👩', 'Joana Lima', 'parcela 3 de 5 · R$ 74,90', '<b class="r">6 dias</b>') +
+        it('👩', 'Cris Andrade', 'parcela 1 de 3 · vence 02/11', '<b>R$ 126,60</b>') +
+        it('👩', 'Bruna (revendedora)', 'parcela 4 de 4 · R$ 210,00', '<b class="r">12 dias</b>')) +
+      cd('Recebido no mês', '<div class="bar"><i style="width:62%;background:' + CP + '"></i></div><div class="sub" style="margin-top:4px">R$ 1.020 de R$ 1.640 · 62%</div>')
+    ] },
+
+  { id: 'obra', em: '🧱', nome: 'Obras e reformas', marca: 'Reformas JR', k: '#eab308',
+    dor: 'A obra terminou e você descobriu que <span>trabalhou de graça.</span>',
+    antes: ['Material comprado sem saber de qual obra', 'Diária paga em dinheiro, sem anotar', 'Recebimento por etapa que fica para trás'],
+    depois: ['Cada obra com etapas e quanto recebe em cada uma', 'Material e diárias separados por obra', 'O lucro real de cada obra', 'O que falta receber, somado'],
+    pedido: 'Cria o controle das minhas obras: cada obra com etapas, quanto recebo em cada etapa, o material comprado e as diárias da equipe, para eu ver o lucro de cada obra e o que falta receber.',
+    abas: ['Obras', 'Orçam.', 'Equipe', 'Caixa'], on: [0, 2], leg: ['As obras e as etapas', 'Diárias e material da semana'],
+    mod: { nome: 'Obras', curto: 'Cria o controle das minhas obras com etapas, material e diárias', resp: 'Pronto! Fiz as <b>Obras</b>: as etapas e os recebimentos de cada uma, o material, as diárias e o lucro de cada obra.', custo: 'R$ 0,63', hora: '06:58' },
+    telas: [
+      kp([['A receber', 'R$ 27,4 mil'], ['Obras', '3'], ['Lucro', 'R$ 11,2 mil']]) +
+      cd('Apto Sr. Paulo · reforma completa', '<div class="row" style="border:0;padding:0"><span>recebido R$ 20.400 de R$ 30.000</span><b>68%</b></div><div class="bar"><i style="width:68%;background:#eab308"></i></div>') +
+      cd('Casa Vila Nova · banheiro e cozinha', '<div class="row" style="border:0;padding:0"><span>recebido R$ 6.000 de R$ 18.000</span><b>30%</b></div><div class="bar"><i style="width:30%;background:#eab308"></i></div>') +
+      cd('Etapas · Apto Sr. Paulo',
+        etapa('Demolição', 'ok', 'recebido') + etapa('Elétrica', 'ok', 'recebido') + etapa('Hidráulica', 'agora', 'receber R$ 4.800') +
+        etapa('Piso', '', 'nov') + etapa('Pintura', '', 'dez')),
+      kp([['Diárias', 'R$ 2.850'], ['Material', 'R$ 4.130'], ['Semana', '6 dias']]) +
+      cd('Diárias da semana',
+        it('👷', 'Zeca · pedreiro', '5 dias · R$ 250', '<b>R$ 1.250</b>') +
+        it('👷', 'Tião · servente', '5 dias · R$ 150', '<b>R$ 750</b>') +
+        it('⚡', 'Léo · eletricista', '2 dias · R$ 300', '<b>R$ 600</b>') +
+        it('🖌️', 'Juca · pintor', '1 dia · R$ 250', '<b>R$ 250</b>')) +
+      cd('Material comprado', barras([['Cimento e areia', 'R$ 1.480', 100, '#eab308'], ['Elétrico', 'R$ 1.120', 76, CB], ['Hidráulico', 'R$ 930', 63, CC], ['Ferragens', 'R$ 600', 41, CG]]))
+    ] },
+
+  { id: 'motorista', em: '🚗', nome: 'Motorista e entregador', marca: 'Corridas do Léo', k: CB,
+    dor: 'Rodou 10 horas e não sabe <span>se ganhou ou pagou para trabalhar.</span>',
+    antes: ['Ganho espalhado em três apps', 'Combustível e desgaste que ninguém desconta', 'Meta da semana “no feeling”'],
+    depois: ['Quanto ganhou por app, por hora e por km', 'O lucro de verdade, já descontado o carro', 'A meta da semana e quanto falta', 'Os dias e horários que mais rendem'],
+    pedido: 'Cria o controle das minhas corridas: quanto ganhei em cada app por dia, as horas e os km rodados, o lucro de verdade descontando combustível e desgaste, a meta da semana e os horários que mais rendem.',
+    abas: ['Hoje', 'Semana', 'Carro', 'Caixa'], on: [0, 1], leg: ['O lucro de verdade do dia', 'A meta e onde rende mais'],
+    mod: { nome: 'Corridas', curto: 'Cria o controle das minhas corridas com o lucro de verdade', resp: 'Pronto! Fiz as <b>Corridas</b>: o ganho por app, por hora e por km, o lucro já descontado o carro e a meta da semana.', custo: 'R$ 0,47', hora: '23:14' },
+    telas: [
+      kp([['Ganho hoje', 'R$ 286'], ['Por hora', 'R$ 31,80'], ['Km', '214']]) +
+      cd('Por app', barras([['Uber', 'R$ 168', 100, CB], ['99', 'R$ 82', 49, CY], ['iFood', 'R$ 36', 21, CR]])) +
+      cd('Lucro de verdade', linhas([['Ganho bruto', 'R$ 286,00'], ['Combustível · 214 km', '− R$ 111,30', 'r'], ['Desgaste e manutenção', '− R$ 21,40', 'r']]) +
+        '<div class="lbl" style="margin-top:6px">Sobrou hoje</div><div class="big g">R$ 153,30</div>', 'bl'),
+      kp([['Meta', 'R$ 1.800'], ['Feito', 'R$ 1.240'], ['Falta', 'R$ 560']]) +
+      cd('Meta da semana', '<div class="bar"><i style="width:69%;background:' + CB + '"></i></div><div class="sub" style="margin-top:4px">69% · faltam 2 dias · R$ 280 por dia</div>') +
+      cd('Onde rende mais · R$ por hora', calor()) +
+      cd('Carro',
+        it('🛢️', 'Troca de óleo', 'faltam 1.200 km', st('LOGO', CY)) +
+        it('🛞', 'Pneus dianteiros', 'faltam 8.000 km', st('OK', CV)))
+    ] }
+];
+
+/* o celular de um negócio: o nome, a cor e o menu dele */
+function celular(n, i) {
+  return '<div class="phone nk" style="--k:' + n.k + '"><div class="screen"><div class="notch"></div><div class="sbar"></div>' +
+    '<div class="ahead"><div class="t"><span class="lg">' + n.em + '</span>' + n.marca + '</div><span class="ia">✦</span></div>' +
+    '<div class="body">' + n.telas[i] + '</div>' +
+    '<div class="tabbar">' + n.abas.map(function (a, j) { return '<span' + (j === n.on[i] ? ' class="on"' : '') + '>' + a + '</span>'; }).join('') + '</div></div></div>';
+}
+
+function copiar(bt, texto) {
+  function ok() { bt.textContent = 'Copiado ✓'; setTimeout(function () { bt.textContent = 'Copiar pedido'; }, 2200); }
+  if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(texto).then(ok, function () {}); return; }
+  var t = document.createElement('textarea'); t.value = texto; t.style.position = 'fixed'; t.style.opacity = '0';
+  document.body.appendChild(t); t.select(); try { document.execCommand('copy'); ok(); } catch (e) {} t.remove();
+}
+function caixaPedido(titulo, texto) {
+  return '<div class="lbl2">' + titulo + '<button class="copiar" type="button">Copiar pedido</button></div><q>' + texto + '</q>';
+}
+
+(function () {
+  var bar = document.getElementById('nichos'), palco = document.getElementById('palco'), atual = -1;
+  function mostra(i) {
+    if (i === atual) return; atual = i;
+    var n = NICHOS[i];
+    bar.querySelectorAll('button').forEach(function (b, j) { b.classList.toggle('on', j === i); b.setAttribute('aria-selected', j === i); });
+    palco.style.setProperty('--k', n.k);
+    palco.innerHTML =
+      '<div class="txt"><span class="eyebrow"><i style="background:' + n.k + ';box-shadow:0 0 12px ' + n.k + '"></i>' + n.em + ' ' + n.nome + '</span>' +
+        '<div class="dor">' + n.dor + '</div>' +
+        '<ul class="antes">' + n.antes.map(function (a) { return '<li>' + a + '</li>'; }).join('') + '</ul>' +
+        '<ul class="ticks">' + n.depois.map(function (a) { return '<li>' + a + '</li>'; }).join('') + '</ul>' +
+        '<div class="pedido">' + caixaPedido('O pedido que cria este app', n.pedido) + '</div></div>' +
+      '<div class="dupla">' + [0, 1].map(function (t) { return '<figure>' + celular(n, t) + '<figcaption>' + n.leg[t] + '</figcaption></figure>'; }).join('') + '</div>';
+    palco.querySelector('.copiar').onclick = function () { copiar(this, n.pedido); };
+  }
+  NICHOS.forEach(function (n, i) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.setAttribute('role', 'tab'); b.style.setProperty('--k', n.k);
+    b.innerHTML = '<span>' + n.em + '</span>' + n.nome;
+    b.onclick = function () { mostra(i); };
+    bar.appendChild(b);
+  });
+  // ?negocio=pet abre a página já no pet shop (e põe o app dele no topo)
+  var pedido = (new URLSearchParams(location.search).get('negocio') || '').toLowerCase(), ini = -1;
+  NICHOS.forEach(function (n, i) { if (n.id === pedido) ini = i; });
+  mostra(Math.max(ini, 0));
+  document.getElementById('heroA').innerHTML = ini < 0 ? celular(NICHOS[0], 0) : celular(NICHOS[ini], 0);
+  document.getElementById('heroB').innerHTML = ini < 0 ? celular(NICHOS[1], 0) : celular(NICHOS[ini], 1);
+})();
+
+/* não achou o seu? cada botão mostra o pedido que monta o app daquele negócio */
+(function () {
+  var L = [
+    ['💈', 'Barbearia', 'Cria a agenda da minha barbearia com os barbeiros, os serviços com preço, o plano mensal de cortes e a comissão de cada barbeiro.'],
+    ['🎂', 'Confeitaria', 'Faz a agenda das encomendas de bolo e doces com data de entrega, sabor, sinal pago e o que falta receber, e o custo de cada receita.'],
+    ['🍔', 'Lanchonete', 'Cria o controle da minha lanchonete: vendas do dia por produto, estoque de pão, carne e bebida com aviso de reposição e o lucro de cada lanche.'],
+    ['🥖', 'Padaria', 'Controla a produção da padaria: quanto assar de cada pão por dia, o que sobrou, as encomendas e a margem de cada produto.'],
+    ['🥩', 'Açougue', 'Faz o controle do açougue: compra de carcaça, rendimento em cada corte, preço por quilo e o lucro de cada peça.'],
+    ['🍻', 'Distribuidora de bebidas', 'Cria o estoque da minha distribuidora com entradas e saídas, os pedidos de entrega, o fiado dos bares e o que está acabando.'],
+    ['📱', 'Assistência de celular', 'Cria as ordens de serviço de conserto de celular com defeito, peça, prazo, garantia e status, e o orçamento em PDF.'],
+    ['💅', 'Manicure', 'Monta a minha agenda de manicure com os clientes, o tempo de cada serviço, quem passou da hora de voltar e quanto ganhei na semana.'],
+    ['💆', 'Estética', 'Cria o controle da minha clínica de estética: agenda, pacotes de sessões com quantas foram feitas, ficha de anamnese e fotos de antes e depois.'],
+    ['🏋️', 'Personal trainer', 'Faz o controle dos meus alunos de personal: horários, mensalidade de cada um com vencimento, presença e a evolução de carga.'],
+    ['📚', 'Aulas particulares', 'Cria o controle das minhas aulas particulares: alunos, horários, pacotes de aulas, quem pagou e o conteúdo de cada aula.'],
+    ['📸', 'Fotógrafo', 'Cria o controle dos meus trabalhos de fotografia: agenda de ensaios e eventos, sinal pago, prazo de entrega das fotos e orçamento em PDF.'],
+    ['🎉', 'Buffet e festas', 'Faz o controle das festas: data, cliente, cardápio, número de convidados, o que já foi pago e a lista de compras de cada evento.'],
+    ['🧵', 'Costureira', 'Cria o controle dos meus consertos e encomendas de costura: cliente, peça, medidas, prazo, valor e o que já foi pago.'],
+    ['🔑', 'Chaveiro', 'Cria o controle dos atendimentos do chaveiro: chamados com endereço, serviço, valor e forma de pagamento, e o faturamento do dia.'],
+    ['⚡', 'Eletricista', 'Cria o controle dos meus serviços de eletricista: orçamentos em PDF, serviços agendados, material usado e quanto recebi.'],
+    ['🪚', 'Marcenaria', 'Faz o controle dos móveis sob medida: projeto, medidas, material, prazo, etapas da produção e as parcelas de cada cliente.'],
+    ['🧹', 'Diarista e limpeza', 'Cria a minha agenda de faxinas com os clientes fixos, os dias de cada um, o valor e quem já pagou no mês.'],
+    ['🏠', 'Corretor de imóveis', 'Cria o controle dos meus imóveis e clientes: o que cada cliente procura, as visitas agendadas, as propostas e a comissão de cada venda.'],
+    ['🦷', 'Consultório', 'Cria a agenda do consultório com os pacientes, o retorno de cada um, os procedimentos e o que o convênio ainda não pagou.'],
+    ['🥗', 'Nutricionista', 'Faz o acompanhamento dos meus pacientes: consultas, peso e medidas a cada retorno com gráfico, e o plano de cada um.'],
+    ['🌱', 'Horta e feira', 'Cria o controle da minha horta: o que plantei e quando colher, o que vendi em cada feira e o lucro de cada produto.'],
+    ['🐂', 'Rebanho', 'Controla meu rebanho: compras, vacinas e pesagens por lote, com o custo de cada lote e o ganho de peso por mês.'],
+    ['🏐', 'Time e scout', 'Faz o scout das minhas atletas a cada partida, fundamento por fundamento, com o mapa de ataques e a eficiência de cada uma.'],
+    ['⛪', 'Igreja e associação', 'Cria o controle dos membros, das contribuições de cada mês, dos eventos e das despesas da nossa associação.'],
+    ['🏢', 'Condomínio', 'Cria o controle do meu condomínio: as taxas de cada unidade com quem está atrasado, as despesas do mês e a reserva do salão de festas.'],
+    ['🚚', 'Fretes e mudanças', 'Cria o controle dos meus fretes: agenda, origem e destino, valor, km rodados, combustível e o lucro de cada frete.'],
+    ['💪', 'Academia', 'Cria o controle da minha academia: alunos, planos, mensalidades vencidas, frequência e quem não aparece há duas semanas.'],
+    ['⚽', 'Escolinha de futebol', 'Faz o controle da escolinha de futebol: alunos por turma, mensalidades, presença nos treinos e os jogos marcados.'],
+    ['🏗️', 'Reforma da casa', 'Acompanha a reforma da minha casa: etapas, fornecedores, o que já foi pago e quanto ainda falta do orçamento.']
+  ];
+  var box = document.getElementById('todos'), ped = document.getElementById('todosPed');
+  function abre(i, b) {
+    box.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); });
+    ped.innerHTML = caixaPedido(L[i][0] + ' ' + L[i][1] + ' · peça assim', L[i][2]);
+    ped.querySelector('.copiar').onclick = function () { copiar(this, L[i][2]); };
+  }
+  L.forEach(function (x, i) {
+    var b = document.createElement('button'); b.type = 'button'; b.textContent = x[0] + ' ' + x[1];
+    b.onclick = function () { abre(i, b); }; box.appendChild(b);
+  });
+  abre(0, box.firstChild);
+})();
+
 /* conversa com o assistente: igual ao app (Chat, cartão do módulo, quanto
-   custou o pedido) e, no fim, a tela nova aberta pelo menu */
+   custou o pedido) e, no fim, a tela nova aberta pelo menu (os negócios da
+   vitrine e o scout) */
 (function () {
   var chat = document.getElementById('chat'), vchat = document.getElementById('vchat'), vmod = document.getElementById('vmod'), rodando = false, ex = 0;
-  // as telas dos módulos: cada uma com um jeito diferente (linhas, rosca, quadra, barras, etapas)
-  function linha(vals, cor, x0, w, y0, h, mn, mx) {
-    return vals.map(function (v, i) { return (x0 + i * w / (vals.length - 1)).toFixed(1) + ',' + (y0 + h - (v - mn) / (mx - mn) * h).toFixed(1); }).join(' ');
-  }
-  function rosca(fat) {
-    var r = 26, C = 2 * Math.PI * r, ac = 0;
-    return '<svg viewBox="0 0 70 70" style="width:74px;flex:none">' + fat.map(function (f) {
-      var s = '<circle cx="35" cy="35" r="' + r + '" fill="none" stroke="' + f[2] + '" stroke-width="11" stroke-dasharray="' + (f[1] / 100 * C).toFixed(1) + ' ' + C.toFixed(1) +
-        '" stroke-dashoffset="' + (-ac / 100 * C).toFixed(1) + '" transform="rotate(-90 35 35)"/>'; ac += f[1]; return s;
-    }).join('') + '<text x="35" y="33" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="800">R$ 1.457</text><text x="35" y="43" text-anchor="middle" fill="#8b99b5" font-size="6">no mês</text></svg>';
-  }
-  var meses = ['mai', 'jun', 'jul', 'ago', 'set', 'out'];
-  var telaCarros =
-    '<div class="c"><div class="lbl">Consumo · km/l</div><svg viewBox="0 0 240 92" style="width:100%;margin-top:6px">' +
-      [0, 1, 2].map(function (i) { return '<line x1="8" x2="232" y1="' + (12 + i * 30) + '" y2="' + (12 + i * 30) + '" stroke="#222b3e"/>'; }).join('') +
-      '<polyline fill="none" stroke="#3b82f6" stroke-width="2.4" stroke-linejoin="round" points="' + linha([10.9, 11.3, 11.1, 11.6, 11.4, 11.8], 0, 12, 216, 10, 60, 9.5, 12) + '"/>' +
-      '<polyline fill="none" stroke="#f59e0b" stroke-width="2.4" stroke-linejoin="round" points="' + linha([10.1, 9.8, 10.4, 10.0, 9.6, 10.4], 0, 12, 216, 10, 60, 9.5, 12) + '"/>' +
-      '<circle cx="228" cy="' + (70 - (11.8 - 9.5) / 2.5 * 60) + '" r="3.5" fill="#3b82f6"/>' +
-      meses.map(function (m, i) { return '<text x="' + (12 + i * 43.2) + '" y="88" text-anchor="middle" fill="#64748b" font-size="7">' + m + '</text>'; }).join('') +
-    '</svg><div class="sub"><b class="b">●</b> Civic 11,8 &nbsp; <b class="y">●</b> Strada 10,4</div></div>' +
-    '<div class="c" style="display:flex;gap:12px;align-items:center">' + rosca([['Combustível', 58, '#22c55e'], ['Manutenção', 22, '#3b82f6'], ['IPVA', 14, '#f59e0b'], ['Seguro', 6, '#a855f7']]) +
-      '<div style="flex:1">' + [['Combustível', '58%', 'var(--verde)'], ['Manutenção', '22%', 'var(--azul)'], ['IPVA', '14%', 'var(--amar)'], ['Seguro', '6%', 'var(--roxo)']].map(function (r) {
-        return '<div class="row" style="padding:3px 0"><span><i class="dot" style="background:' + r[2] + '"></i>' + r[0] + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</div></div>' +
-    '<div class="c br"><div class="row" style="border:0;padding:0"><span>🔧 Revisão da Strada</span><b class="r">em 23 dias</b></div><div class="bar"><i style="width:78%;background:var(--verm)"></i></div><div class="sub" style="margin-top:4px">8.100 de 10.000 km</div></div>';
   var ataques = [[40, 30, 1], [62, 22, 1], [80, 40, 1], [52, 48, 0], [30, 52, 1], [90, 26, 1], [70, 58, 0], [44, 18, 1], [100, 50, 1], [24, 36, 0]];
   var telaScout =
     '<div class="c"><div class="row" style="border:0;padding:0"><div class="lbl">Placar · vitória</div><div class="big g" style="margin:0;font-size:20px">3 × 1</div></div>' +
@@ -826,34 +1248,15 @@ document.querySelectorAll('.rv').forEach(function (el) { io.observe(el); });
     '</svg><div class="sub"><b class="g">●</b> ponto 7 &nbsp; <b class="r">●</b> erro 3</div></div>' +
     '<div class="c"><div class="lbl">Eficiência do time</div>' + [['Saque', 72, 'var(--azul)'], ['Recepção', 86, 'var(--verde)'], ['Ataque', 61, 'var(--amar)'], ['Bloqueio', 44, 'var(--rosa)']].map(function (r) {
       return '<div class="row" style="border:0;padding:5px 0 0"><span>' + r[0] + '</span><b>' + r[1] + '%</b></div><div class="bar" style="margin-top:3px"><i style="width:' + r[1] + '%;background:' + r[2] + '"></i></div>'; }).join('') + '</div>';
-  var etapas = [['Demolição', 'ok'], ['Elétrica', 'ok'], ['Hidráulica', 'agora'], ['Piso', ''], ['Pintura', '']];
-  var telaObra =
-    '<div class="c" style="display:flex;gap:12px;align-items:center"><svg viewBox="0 0 70 70" style="width:70px;flex:none"><circle cx="35" cy="35" r="28" fill="none" stroke="#0c111c" stroke-width="8"/>' +
-      '<circle cx="35" cy="35" r="28" fill="none" stroke="#06b6d4" stroke-width="8" stroke-linecap="round" stroke-dasharray="' + (0.68 * 175.9).toFixed(1) + ' 175.9" transform="rotate(-90 35 35)"/>' +
-      '<text x="35" y="39" text-anchor="middle" fill="#fff" font-size="13" font-weight="800">68%</text></svg>' +
-      '<div><div class="lbl">Já foi</div><div style="font-family:Sora;font-weight:800;font-size:16px">R$ 41.300</div><div class="sub">de R$ 60.000 previstos · faltam 6 semanas</div></div></div>' +
-    '<div class="c"><div class="lbl">Etapas</div><div style="margin-top:6px">' + etapas.map(function (e, i) {
-      var cor = e[1] === 'ok' ? 'var(--verde)' : e[1] === 'agora' ? 'var(--amar)' : '#3b465e';
-      return '<div style="display:flex;gap:8px;align-items:center;position:relative;padding:3px 0">' +
-        '<span style="width:14px;height:14px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:8px;color:#062010;background:' + cor + (e[1] === 'agora' ? ';box-shadow:0 0 8px var(--amar)' : '') + '">' + (e[1] === 'ok' ? '✓' : '') + '</span>' +
-        '<span style="flex:1' + (e[1] ? '' : ';color:var(--tx3)') + '">' + e[0] + '</span><span class="sub">' + (e[1] === 'ok' ? 'feito' : e[1] === 'agora' ? 'em andamento' : ['', '', '', 'nov', 'dez'][i]) + '</span></div>';
-    }).join('') + '</div></div>' +
-    '<div class="c"><div class="lbl">Gasto por fornecedor</div><svg viewBox="0 0 240 70" style="width:100%;margin-top:6px">' +
-      [['Mão de obra', 16.2, '#06b6d4'], ['Elétrica', 9.8, '#3b82f6'], ['Hidráulica', 7.1, '#a855f7'], ['Material', 5.4, '#f59e0b'], ['Caçamba', 2.8, '#ec4899']].map(function (f, i) {
-        var h = f[1] / 16.2 * 40, x = 8 + i * 47;
-        return '<rect x="' + x + '" y="' + (52 - h) + '" width="34" height="' + h.toFixed(1) + '" rx="4" fill="' + f[2] + '"/><text x="' + (x + 17) + '" y="' + (48 - h) + '" text-anchor="middle" fill="#cbd5e1" font-size="7">' + String(f[1]).replace('.', ',') + 'k</text>' +
-          '<text x="' + (x + 17) + '" y="64" text-anchor="middle" fill="#64748b" font-size="6.5">' + f[0] + '</text>';
-      }).join('') + '</svg></div>';
+  function deNegocio(id) {
+    var n = NICHOS.filter(function (x) { return x.id === id; })[0], m = n.mod;
+    return { pedido: m.curto, resp: m.resp, ic: n.em, nome: m.nome, custo: m.custo, hora: m.hora, aba: m.nome, k: n.k, tela: n.telas[0] };
+  }
   var exemplos = [
-    { pedido: 'Cria um controle dos meus carros: abastecimento, revisão e IPVA',
-      resp: 'Pronto! Fiz o módulo <b>Carros</b>: o consumo de cada um mês a mês, para onde vai o dinheiro e o aviso da próxima revisão.',
-      ic: '🚗', nome: 'Carros', custo: 'R$ 0,42', hora: '13:40', aba: 'Carros', tela: telaCarros },
+    deNegocio('lava'), deNegocio('salao'), deNegocio('oficina'),
     { pedido: 'Faz o scout das minhas atletas a cada partida, fundamento por fundamento',
       resp: 'Pronto! Fiz o módulo <b>Scout</b>: você toca na quadra durante o jogo e sai o mapa de ataques e a eficiência de cada fundamento.',
-      ic: '🏐', nome: 'Scout', custo: 'R$ 0,57', hora: '19:12', aba: 'Scout', tela: telaScout },
-    { pedido: 'Acompanha a reforma: etapas, fornecedores e quanto já foi',
-      resp: 'Pronto! Fiz o módulo <b>Reforma</b>: quanto já foi do previsto, a etapa em que a obra está e o gasto por fornecedor.',
-      ic: '🏗️', nome: 'Reforma', custo: 'R$ 0,49', hora: '09:05', aba: 'Reforma', tela: telaObra }
+      ic: '🏐', nome: 'Scout', custo: 'R$ 0,57', hora: '19:12', aba: 'Scout', tela: telaScout }
   ];
   function add(q, html) {
     var d = document.createElement('div'); d.className = q === 'custo' ? 'custo' : 'msg ' + q; d.innerHTML = html; chat.appendChild(d);
@@ -879,6 +1282,7 @@ document.querySelectorAll('.rv').forEach(function (el) { io.observe(el); });
     setTimeout(function () {
       document.getElementById('vmodT').textContent = e.ic + ' ' + e.nome;
       document.getElementById('vmodB').innerHTML = e.tela;
+      vmod.style.setProperty('--k', e.k || '#3b82f6');
       document.getElementById('vmodTab').innerHTML = '<span>Mês</span><span>Cartão</span><span>Extrato</span><span class="on novo">' + e.aba + '</span><span>Config</span>';
       vchat.hidden = true; vmod.hidden = false;
     }, t); t += 5200;
@@ -901,7 +1305,6 @@ document.querySelectorAll('.rv').forEach(function (el) { io.observe(el); });
     var nv = c.querySelector('.lanc'); if (nv) nv.remove();
     f.appendChild(c); var cap = document.createElement('figcaption'); cap.textContent = nome; f.appendChild(cap); g.appendChild(f);
   }
-  clona('.hero .p1', 'Mês: o caixa que bate com o banco');
   clona('#funciona .feat:nth-child(3) .phone', 'Cartão: verba por categoria');
   clona('#funciona .feat:nth-child(4) .phone', 'Metas: onde dá para frear');
   clona('#aposentadoria .phone', 'Plano: aposentadoria');
