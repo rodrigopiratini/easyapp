@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.56.1 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.56.2 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1569,7 +1569,7 @@ window.pedirTexto = function (o, feito) {
   function editarLancamento(linha, id, dados) {
     return acharLinha(id).then(function (uuid) {
       if (!uuid) return { ok: false, erro: 'não achei o lançamento' };
-      return rest('/rest/v1/lancamentos?select=origem&id=eq.' + uuid).then(function (x) {
+      return rest('/rest/v1/lancamentos?select=origem,meio,mes_ref&id=eq.' + uuid).then(function (x) {
         // Só o que VOCÊ lançou pode ser editado inteiro. O que veio do banco
         // tem que continuar espelhando o extrato - ali só o destino muda.
         if ((x[0] || {}).origem !== 'MANUAL') {
@@ -1577,11 +1577,26 @@ window.pedirTexto = function (o, feito) {
         }
         return Promise.all([idDaCategoria(dados.categoria), idDaConta(dados.conta)])
           .then(function (r) {
-            var campos = { valor: n(Math.abs(dados.valor)) };
-            if (dados.data) { campos.data = dados.data; campos.mes_ref = dados.data.slice(0, 7); }
+            var campos = { valor: n(Math.abs(dados.valor)) }, o = x[0] || {};
+            /* Pagamento de fatura é da fatura que ele paga: mudar a data (pagou
+               antes, em 25/10) não muda o mês nem o tipo - antes ele ia para
+               outubro como Pix e a fatura de novembro continuava "a pagar"
+               (25/10, conta do Daniel). Compra no cartão vai para a fatura
+               (o mês seguinte; com fechamento no cartão, o banco acerta - 061). */
+            var pagFatura = o.meio === 'PAGAMENTO_FATURA';
+            var meioNovo = pagFatura ? 'PAGAMENTO_FATURA' : (dados.meio || o.meio);
+            if (dados.data) {
+              campos.data = dados.data;
+              if (pagFatura) campos.mes_ref = o.mes_ref;
+              else if (meioNovo === 'CARTAO_CREDITO') {
+                var p = dados.data.split('-'), m = Number(p[1]) + 1, a = Number(p[0]);
+                if (m > 12) { m = 1; a++; }
+                campos.mes_ref = a + '-' + ('0' + m).slice(-2);
+              } else campos.mes_ref = dados.data.slice(0, 7);
+            }
             if (dados.descricao) { campos.descricao = dados.descricao; campos.fornecedor = dados.descricao; }
             if (dados.natureza) campos.natureza = dados.natureza;
-            if (dados.meio) campos.meio = dados.meio;
+            if (dados.meio && !pagFatura) campos.meio = dados.meio;
             if (r[0]) campos.categoria_id = r[0];
             if (r[1]) campos.conta_id = r[1];
             return mudar('lancamentos', 'id=eq.' + uuid, campos)
