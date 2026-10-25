@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.56.4 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.56.5 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10439,11 +10439,11 @@ window.pedirTexto = function (o, feito) {
   /* aba Cartão: "Onde estou" tocável, resumo por cartão e pizza */
   .cc-toque{cursor:pointer}.cc-seta{color:var(--dim);font-size:15px;margin-left:2px}
   .rc-lista{padding:12px 14px 8px}
-  .rc-it{display:grid;grid-template-columns:48px minmax(0,1fr) 54px auto 12px;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);cursor:pointer;font-size:13px}
+  .rc-it{display:grid;grid-template-columns:48px minmax(0,1fr) 44px 92px 10px;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);cursor:pointer;font-size:13px}
   .rc-it .ic-ct .bk-lg{margin-right:2px}
-  .rc-nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rc-nm small{color:var(--dim)}
+  .rc-nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}.rc-nm small{display:block;color:var(--dim);font-size:11px}
   .rc-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden}.rc-bar i{display:block;height:100%;background:var(--acc);border-radius:2px}
-  .rc-it b{white-space:nowrap;font-size:13px}.rc-sv{color:var(--dim)}
+  .rc-it b{white-space:nowrap;font-size:13px;text-align:right}.rc-sv{color:var(--dim)}
   .pz{padding:12px 14px}.pz-in{display:flex;align-items:center;gap:14px}
   .pz-g{width:118px;height:118px;flex:none}
   .pz-t1{font-size:8px;fill:#8b99b5}.pz-t2{font-size:11px;font-weight:800;fill:#e8edf7}
@@ -14113,7 +14113,7 @@ function resumoPorCartao(k){
     l.map(function(x){
       var nj=JSON.stringify(x.cartao).replace(/"/g,'&quot;');
       return '<div class="rc-it" onclick="verComprasDoCartao('+nj+')">'+icConta(x.cartao, 18)+
-        '<span class="rc-nm">'+tx(nomeBonito(x.cartao.replace(/\s*CARTAO\s*/,' ').trim()))+' <small>'+x.compras+'</small></span>'+
+        '<span class="rc-nm">'+tx(nomeBonito(x.cartao.replace(/\s*CARTAO\s*/,' ').trim()))+'<small>'+x.compras+(x.compras===1?' compra':' compras')+'</small></span>'+
         '<span class="rc-bar"><i style="width:'+Math.max(4,Math.round(x.total/mx*100))+'%"></i></span>'+
         '<b>'+moeda(x.total)+'</b><span class="rc-sv">&#8250;</span></div>';
     }).join('')+'</div>';
