@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.51.0 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.51.1 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -8611,7 +8611,17 @@ window.pedirTexto = function (o, feito) {
     Promise.all([
       lerConta().catch(function () { return null; }),
       fn('openfinance', { acao: 'status' }).catch(function () { return null; }),
-      P.rest('/rest/v1/push_log?select=recebido,status,corpo&order=recebido.desc&limit=15').catch(function () { return []; }),
+      // com o lançamento que cada aviso virou: a loja e o final do cartão na lista
+      // (o título do aviso do Porto é só "Porto")
+      P.rest('/rest/v1/push_log?select=recebido,status,corpo,lancamento&order=recebido.desc&limit=15').then(function (av) {
+        var ids = (av || []).map(function (x) { return x.lancamento; }).filter(Boolean);
+        if (!ids.length) return av || [];
+        return P.rest('/rest/v1/lancamentos?select=id,descricao,dados&id=in.(' + ids.join(',') + ')').then(function (ls) {
+          var por = {}; (ls || []).forEach(function (l) { por[l.id] = l; });
+          av.forEach(function (x) { x.lanc = por[x.lancamento] || null; });
+          return av;
+        }, function () { return av; });
+      }).catch(function () { return []; }),
       token().catch(function () { return null; }),
       // o último aviso que chegou pelo e-mail (050: via = email): se chegou, está funcionando
       P.rest('/rest/v1/push_log?select=recebido&corpo->>via=eq.email&order=recebido.desc&limit=1').catch(function () { return []; }),
@@ -8844,6 +8854,13 @@ window.pedirTexto = function (o, feito) {
       h += '</div>';
 
       // os últimos avisos (recolhido) e o aviso de "para classificar"
+      // a linha de baixo: banco · loja · final do cartão (do lançamento que o aviso virou)
+      var resumoAviso = function (x) {
+        var c = x.corpo || {}, l = x.lanc || {}, d = l.dados || {};
+        var loja = l.descricao && !/^\d{2}\/\d{2}/.test(l.descricao) ? l.descricao : c.estabelecimento || '';
+        var banco = c.app || c.title || '';
+        return [banco, loja, d.cartao_final ? 'final ' + d.cartao_final : ''].filter(Boolean).join(' · ') || String(c.title || '');
+      };
       var ST_TXT = { CONFIRMADO: '✅ lançado', PENDENTE: '🆕 lançado, a classificar', DUPLICADA: '↺ repetido', 'JA VEIO DO BANCO': '🏦 já tinha vindo do banco' };
       h += '<details class="c-passo" style="margin-top:10px"><summary>🔎 Últimos avisos recebidos' +
         (av.length ? ' · ' + ('0' + new Date(av[0].recebido).getDate()).slice(-2) + '/' + ('0' + (new Date(av[0].recebido).getMonth() + 1)).slice(-2) + ' ' +
@@ -8867,7 +8884,7 @@ window.pedirTexto = function (o, feito) {
             ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + ' ' +
             ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) +
             (val ? ' · <b>' + (entrou ? '+' : '−') + reais(val) + '</b>' : '') +
-            '<br><small style="color:var(--dim)">' + esc(String(c.title || c.estabelecimento || c.app || '').slice(0, 40)) + ' ▾</small></span>' +
+            '<br><small style="color:var(--dim)">' + esc(resumoAviso(x).slice(0, 60)) + ' ▾</small></span>' +
             '<span style="text-align:right;font-size:12px">' + st + '</span></summary>' +
             '<div style="font-size:12px;color:var(--dim);padding:0 0 10px;line-height:1.45">' +
               (c.app ? '<b>' + esc(c.app) + '</b> · ' : '') + esc(txt || c.estabelecimento || '(sem texto)') +
