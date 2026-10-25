@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.48.2 \u00b7 24/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.49.0 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -9584,7 +9584,7 @@ window.pedirTexto = function (o, feito) {
   .vazio{text-align:center;color:var(--dim);padding:40px 16px;font-size:14px}
   .load{text-align:center;color:var(--dim);padding:30px}
   .hide{display:none !important}
-  .card.novo{border-color:#7c5310}
+  .card.novo{border-color:var(--line)}
   .tag{font-size:10px;background:#7c5310;color:#ffd9a0;padding:2px 6px;
        border-radius:5px;vertical-align:middle;margin-left:4px;letter-spacing:.5px}
   button:disabled{opacity:.35}
@@ -9822,8 +9822,30 @@ window.pedirTexto = function (o, feito) {
             font-size:13px;font-weight:400;color:var(--txt);text-align:left;margin-top:6px}
   .bt-mais{background:transparent;color:var(--acc);padding:4px 0;font-size:12.5px;
            font-weight:600;white-space:nowrap}
-  .pd{padding:9px 11px}
-  .pd .pd-conta .bt-conta{margin-top:0;padding:7px 10px}
+  .pd{padding:12px 14px}
+  .pd .pd-conta .bt-conta{margin-top:0;padding:0 14px;height:42px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center}
+  /* Classificar no estilo do app (25/10): topo simples, ícone, botões redondos */
+  .pd-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:2px 4px 12px}
+  .pd-topo h2{margin:0;font-size:20px;font-weight:800;letter-spacing:-.3px}
+  .pd-topo small{display:block;font-size:12.5px;color:var(--dim);margin-top:2px}
+  .pd-vazio{text-align:center;color:var(--dim);font-size:13.5px;padding:40px 0}
+  .pd-vazio div{width:54px;height:54px;border-radius:50%;margin:0 auto 10px;display:grid;place-items:center;font-size:24px;
+    background:rgba(52,211,153,.12);color:var(--ok)}
+  .pd-cab{display:flex;align-items:center;gap:12px}
+  .pd-ic{width:40px;height:40px;flex:none;border-radius:13px;display:grid;place-items:center;font-size:17px;font-weight:800}
+  .pd-ic.rec{background:rgba(52,211,153,.14);color:var(--ok)}
+  .pd-ic.des{background:rgba(248,113,113,.13);color:var(--bad)}
+  .pd-tx{flex:1;min-width:0}
+  .pd-tx b{display:block;font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pd-tx small{display:block;font-size:11.5px;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pd-novo{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+    color:var(--acc);background:rgba(var(--accr,79,140,255),.16);padding:1px 6px;border-radius:6px;margin-right:6px;vertical-align:2px}
+  .pd-v{font-size:16px;font-weight:700;white-space:nowrap}
+  .pd-acoes{display:flex;gap:8px;margin-top:12px;align-items:center}
+  .pd-bt{width:42px;height:42px;flex:none;border-radius:50%!important;padding:0!important;display:grid;place-items:center;font-size:17px}
+  .pd-ok{font-size:18px;font-weight:800}
+  .pd-ok:disabled{opacity:.35}
+  .pd .seg button{padding:7px!important}
   .bt-x{background:transparent;color:#5d6b85;padding:0 6px;font-size:16px;
         line-height:1;border-radius:4px;font-weight:400}
   .bt-x:hover{color:var(--bad);background:#2a1414}
@@ -11253,19 +11275,19 @@ function carregarAno(ano){
 }
 
 /* ---------- 1. CONFIRMAR ---------- */
+var IC_CARTAO_PD='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;display:block"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>';
 function renderPendentes(){
   var c=el('tela-pendentes');
   var h='';
-  if(!ST.pendentes.length){
-    h+='<div class="card" style="text-align:center;color:var(--dim);font-size:13px">'+
-       'Nenhuma compra nova esperando confirmação.</div>';
-  }
+  // topo no estilo do resto do app (a faixa marrom com o texto longo virou um "i")
+  var totP=ST.pendentes.reduce(function(a,p){ return a+(Number(p.valor)||0); },0);
   var novos = ST.pendentes.filter(function(p){return p.novo;}).length;
-  if(novos){
-    h+='<div class="card" style="border-color:#7c5310;background:#2a1f0d">'+
-       '<b>'+novos+' fornecedor'+(novos>1?'es':'')+' novo'+(novos>1?'s':'')+'</b>'+
-       '<div class="m" style="margin-top:3px">Escolha a subcategoria e se vale <b>só para esta</b> ou <b>sempre</b> '+
-       'para o fornecedor — no "sempre", as próximas compras no mesmo lugar já vêm preenchidas.</div></div>';
+  h+='<div class="pd-topo"><div><h2>Classificar</h2><small>'+
+     (ST.pendentes.length ? ST.pendentes.length+(ST.pendentes.length>1?' lançamentos':' lançamento')+' · '+moeda(totP)+
+       (novos?' · '+novos+(novos>1?' fornecedores novos':' fornecedor novo'):'') : 'tudo em dia')+
+     '</small></div>'+dica('Escolha a subcategoria e toque no ✓. Em "sempre", as próximas compras do mesmo fornecedor já vêm classificadas; em "só esta", vale só para este lançamento. Ignorar e Distribuir ficam no ⋯.')+'</div>';
+  if(!ST.pendentes.length){
+    h+='<div class="pd-vazio"><div>✓</div>Nenhum lançamento esperando você.</div>';
   }
   ST.pendentes.forEach(function(p,i){
     var op = p.novo
@@ -11283,12 +11305,13 @@ function renderPendentes(){
     var mais = ST.pendMais===i;
     var parcSel = p.parcelasAviso>1 ? p.parcelasAviso : 1;
     var catAtual = (ST.catEscolhida && ST.catEscolhida[p.uuid]) || p.categoria;
+    var rec=p.natureza==='RECEITA';
     h+='<div class="card pd'+(p.novo?' novo':'')+'" id="p'+i+'">'+
-       '<div class="row" style="align-items:baseline;gap:8px">'+
-         '<div class="d" style="font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+tx(p.descricao)+'</div>'+
-         '<div class="big '+(p.natureza==='RECEITA'?'pos':'')+'" style="font-size:16px;white-space:nowrap">'+moeda(p.valor)+'</div></div>'+
-       '<div class="m" style="font-size:11.5px;margin-top:1px">'+p.dataHora+' · '+tx(p.conta||'sem subcategoria')+' · '+meioTxt+
-         (p.novo?' · <span class="tag">NOVO</span>':'')+
+       '<div class="pd-cab"><span class="pd-ic '+(rec?'rec':'des')+'">'+(p.meio==='CARTAO_CREDITO'?IC_CARTAO_PD:(rec?'&#8595;':'&#8593;'))+'</span>'+
+         '<div class="pd-tx"><b>'+(p.novo?'<i class="pd-novo">novo</i>':'')+tx(p.descricao)+'</b>'+
+         '<small>'+p.dataHora+' · '+tx(p.conta||'sem conta')+' · '+meioTxt+'</small></div>'+
+         '<div class="pd-v '+(rec?'pos':'')+'">'+(rec?'+ ':'')+moeda(p.valor)+'</div></div>'+
+       '<div class="m" style="font-size:11.5px;margin-top:1px">'+
          (p.moeda?' · <b style="color:var(--warn)">'+p.moeda+' '+num(p.valorOriginal)+'</b> × '+num(p.cotacao)+(p.cotacaoAprox?' (aprox.)':''):'')+
          (p.parcelasAviso>1?' · aviso diz <b>'+p.parcelasAviso+'x</b>':'')+'</div>'+
        (p.perguntarTitular
@@ -11305,10 +11328,10 @@ function renderPendentes(){
            '<button style="flex:1;padding:5px" class="'+(tipo==='DEBITO'?'on':'')+'" onclick="escolherTipo('+i+',\'DEBITO\')">débito</button></div></div>'
          : '')+
        (p.faltaConta?avisoFaltaConta(p,i):'')+
-       '<div class="row" style="gap:5px;margin-top:6px;align-items:stretch">'+
+       '<div class="pd-acoes">'+
          '<div style="flex:1;min-width:0" class="pd-conta">'+botaoConta('c'+i, catAtual, p.natureza, 'destravar('+i+')')+'</div>'+
-         '<button class="bt-no" style="padding:0 11px;font-size:16px;flex:none" title="mais" onclick="ST.pendMais=ST.pendMais==='+i+'?null:'+i+';renderPendentes()">⋯</button>'+
-         '<button class="bt-ok" style="padding:0 14px;font-size:13px;flex:none" id="b'+i+'" '+((ST.catEscolhida&&ST.catEscolhida[p.uuid]) || (!p.novo&&catAtual)?'':'disabled')+
+         '<button class="bt-no pd-bt" title="mais" onclick="ST.pendMais=ST.pendMais==='+i+'?null:'+i+';renderPendentes()">⋯</button>'+
+         '<button class="bt-ok pd-bt pd-ok" id="b'+i+'" '+((ST.catEscolhida&&ST.catEscolhida[p.uuid]) || (!p.novo&&catAtual)?'':'disabled')+
            ' onclick="confirmar('+i+')">✓</button>'+
        '</div>'+
        '<div id="nc'+i+'"></div>'+
@@ -11343,13 +11366,12 @@ function renderPendentes(){
 function filaSemCategoria(){
   var s=ST.semCategoria;
   if(!s || !s.fornecedores || !s.fornecedores.length) return '';
-  var h='<div class="card" style="border-color:#7c5310;background:#2a1f0d;margin-top:4px">'+
-    '<b>'+s.quantos+' fornecedores sem categoria · '+moeda(s.total)+'</b>'+
-    '<div class="m" style="margin-top:3px">Vieram das faturas. Classifique o fornecedor '+
-    'uma vez e todas as compras dele entram na subcategoria certa.</div></div>';
+  var h='<div class="pd-topo" style="margin-top:14px"><div><h2 style="font-size:17px">Das faturas</h2><small>'+
+    s.quantos+' fornecedores sem subcategoria · '+moeda(s.total)+'</small></div>'+
+    dica('Vieram das faturas. Classifique o fornecedor uma vez e todas as compras dele entram na subcategoria certa.')+'</div>';
 
   s.fornecedores.forEach(function(f,i){
-    h+='<div class="card" style="padding:9px 11px"><div class="forn" style="border:0;padding:0">'+
+    h+='<div class="card pd" style="padding:12px 14px"><div class="forn" style="border:0;padding:0">'+
        '<div class="row"><div style="min-width:0">'+
        '<div class="d" style="font-size:13.5px;line-height:1.25">'+tx(f.exemplo)+'</div>'+
        '<div class="m" style="font-size:11px">'+f.vezes+'x · '+f.qtdMeses+' '+(f.qtdMeses>1?'meses':'mês')+
