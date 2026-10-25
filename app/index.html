@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.56.3 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.56.4 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -4707,6 +4707,13 @@ window.pedirTexto = function (o, feito) {
         });
     });
   }
+  /* Um lançamento no formato do Extrato (para abrir a edição de fora dele:
+     a folha do Entrada/Saída). */
+  function lancamentoItem(uuid) {
+    return rest('/rest/v1/lancamentos?select=id,data,valor,natureza,descricao,fornecedor,meio,status,origem,origem_id,'
+                + 'parcela_num,parcela_total,dados,conta_id,categoria_id,criado_em,contas(nome),categorias(nome)&id=eq.' + uuid)
+      .then(function (r) { return r && r[0] ? paraItem(r[0]) : null; });
+  }
   function itemMov(l, cat, grupo, conta) {
     return { id: l.id, data: l.data, valor: n(Number(l.valor) || 0), meio: l.meio,
              descricao: l.fornecedor || l.descricao || '', detalhe: l.fornecedor ? (l.descricao || '') : '',
@@ -4747,6 +4754,7 @@ window.pedirTexto = function (o, feito) {
     apiSaldos: saldos,
     apiCartao: cartao,
     apiExtratoConta: extratoConta,
+    apiLancamentoItem: lancamentoItem,
     apiMovimentoDoMes: movimentoDoMes,
     apiExtratoCartao: extratoCartao,
     apiCategorias: categorias,
@@ -10378,7 +10386,7 @@ window.pedirTexto = function (o, feito) {
   #movFolha .mv-lista{overflow-y:auto;padding:6px 14px 18px;-webkit-overflow-scrolling:touch}
   #movFolha .mv-dia{font-size:11.5px;font-weight:700;color:var(--dim);letter-spacing:.4px;text-transform:uppercase;
     display:flex;justify-content:space-between;padding:14px 4px 6px}
-  #movFolha .mv-ln{display:flex;align-items:center;gap:12px;padding:10px;border-radius:14px;background:rgba(255,255,255,.035);margin-bottom:6px}
+  #movFolha .mv-ln{cursor:pointer;display:flex;align-items:center;gap:12px;padding:10px;border-radius:14px;background:rgba(255,255,255,.035);margin-bottom:6px}
   #movFolha .mv-ic{width:38px;height:38px;flex:none;border-radius:12px;display:grid;place-items:center;font-size:18px;background:rgba(255,255,255,.07)}
   #movFolha .mv-tx{flex:1;min-width:0}
   #movFolha .mv-tx b{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -11118,6 +11126,16 @@ function abrirMovimento(lado){
     el('movLista').innerHTML='<div class="mv-vazio">Não consegui carregar: '+tx((e&&e.message)||e)+'</div>';
   }).apiMovimentoDoMes(mes);
 }
+/* Toque num lançamento da folha: a mesma edição do Extrato (o lançado à mão
+   abre a ficha inteira; o que veio do banco, a troca de destino). */
+function abrirLancMov(uuid){
+  google.script.run.withSuccessHandler(function(x){
+    if(!x){ toast('Não achei esse lançamento'); return; }
+    fecharMovimento();
+    ST.extratoVisto=(ST.extratoVisto||[]).concat([x]);
+    if(String(x.origem||'')==='MANUAL') abrirEditar(x.id, 0); else abrirDestino(x.id, 0);
+  }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); }).apiLancamentoItem(uuid);
+}
 function fecharMovimento(){ var f=el('movFolha'); if(f){ f.classList.add('hide'); var c=f.querySelector('.mv-caixa'); if(c){ c.style.transform=''; c.style.transition=''; } } }
 /* Puxar a folha para baixo fecha (pela alça, pelo topo ou pela lista já no começo) */
 (function(){
@@ -11179,7 +11197,7 @@ function desenharMovimento(){
     var s=dias[d].reduce(function(a,x){ return a+x.valor; },0);
     return '<div class="mv-dia"><span>'+tx(nome)+'</span><span>'+moeda(s)+'</span></div>'+dias[d].map(function(x){
       var sub=[nomeSub(x.categoria,x.grupo), x.conta, MEIO[x.meio]||''].filter(Boolean).join(' · ');
-      return '<div class="mv-ln"><div class="mv-ic">'+iconeCat(x.grupo||x.categoria)+'</div>'+
+      return '<div class="mv-ln" onclick="abrirLancMov(\''+x.id+'\')"><div class="mv-ic">'+iconeCat(x.grupo||x.categoria)+'</div>'+
         '<div class="mv-tx"><b>'+tx(x.descricao||nomeSub(x.categoria,x.grupo))+'</b><small>'+icConta(x.conta)+tx(sub)+'</small></div>'+
         '<div class="mv-v" style="color:'+cor+'">'+((ent!==(x.valor<0))?'+ ':'− ')+moeda(Math.abs(x.valor))+'</div></div>';
     }).join('');
