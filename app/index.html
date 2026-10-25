@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.50.2 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.51.0 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1332,12 +1332,13 @@ window.pedirTexto = function (o, feito) {
     return Promise.all([idDaCategoria(nome), idDaCategoria(para)]).then(function (r) {
       var de = r[0], destino = r[1];
       if (!de) return { ok: false, erro: 'não achei ' + nome };
-      return rest('/rest/v1/lancamentos?select=id&categoria_id=eq.' + de + '&limit=1')
+      return rest('/rest/v1/lancamentos?select=id&categoria_id=eq.' + de + '&limit=5000')
         .then(function (usados) {
           // Apagar conta com lançamento sem dizer para onde eles vão é perder
           // histórico. O app velho também recusava - e por isso mesmo.
           if (usados.length && !destino) {
-            return { ok: false, erro: 'essa subcategoria tem lançamentos; escolha para onde levá-los' };
+            return { ok: false, precisaDestino: true, lancamentos: usados.length,
+                     erro: 'essa subcategoria tem ' + usados.length + ' lançamento(s)' };
           }
           var mover = usados.length
             ? mudar('lancamentos', 'categoria_id=eq.' + de, { categoria_id: destino })
@@ -10160,10 +10161,23 @@ window.pedirTexto = function (o, feito) {
   .fam-res{display:flex;justify-content:space-between;gap:8px;margin:8px 0 4px;padding:10px 12px;border-radius:14px;background:rgba(var(--accr,59,130,246),.1)}
   .fam-res small{display:block;font-size:11px;color:var(--dim)}.fam-res b{font-size:14px;white-space:nowrap}
   .fam-res div:last-child{text-align:right}
+  /* "De onde vêm": marca redonda, valores alinhados à direita (25/10) */
+  .cx-it{display:flex;align-items:center;gap:4px;border-top:1px solid rgba(255,255,255,.05)}
+  .cx-it label{flex:1;min-width:0;display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:10px;padding:9px 0;cursor:pointer;margin:0}
+  .cx-it input[type=checkbox]{-webkit-appearance:none;appearance:none;width:20px;height:20px;margin:0;border-radius:50%;
+    border:2px solid rgba(255,255,255,.28);background:none;position:relative;cursor:pointer;flex:none}
+  .cx-it input[type=checkbox]:checked{background:var(--acc);border-color:var(--acc)}
+  .cx-it input[type=checkbox]:checked::after{content:'';position:absolute;left:5px;top:1.5px;width:4px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .cx-it .t{font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cx-it .n{font-size:13px;font-weight:600;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+  .cx-it input:checked~.t,.cx-it input:checked~.n{opacity:.4;text-decoration:line-through}
+  .cx-rp{width:28px;flex:none;background:none!important;border:0!important;color:var(--dim);font-size:15px;padding:0!important;cursor:pointer;text-align:center}
+  button.cx-rp{color:#93b8ff}
   /* sininho do classificar */
   #badge{position:relative}
   #badge.tem{width:auto!important;padding:0 12px 0 10px!important;gap:6px;display:inline-flex;align-items:center;
-    background:var(--acc)!important;color:#fff!important;font-size:12.5px;font-weight:700;white-space:nowrap;border-radius:999px}
+    background:linear-gradient(135deg,var(--acc),var(--acc2,var(--acc)))!important;color:#fff!important;font-size:12.5px;font-weight:700;white-space:nowrap;border-radius:999px;
+    box-shadow:0 4px 12px rgba(var(--accr),.3)}
   #badge .sino-n{position:absolute;top:-4px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;
     background:#ef4444;color:#fff;font-size:10px;font-weight:800;line-height:17px;text-align:center;box-sizing:border-box}
   /* encolhido: barra de cima com o mês e o saldo */
@@ -10216,7 +10230,7 @@ window.pedirTexto = function (o, feito) {
   #movFolha .mv-tot{text-align:center;margin:14px 0 4px}
   #movFolha .mv-tot small{display:block;font-size:12px;color:var(--dim);letter-spacing:.3px}
   #movFolha .mv-tot b{font-size:30px;font-weight:800;letter-spacing:-.5px}
-  #movFolha .mv-barras{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+  #movFolha .mv-barras{display:flex;flex-direction:column;gap:10px;margin-top:14px;max-height:172px;overflow-y:auto;overscroll-behavior:contain;padding-bottom:10px}
   #movFolha .mv-br{display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:8px;font-size:12.5px}
   #movFolha .mv-br .mv-tri{display:block;grid-column:2/4;height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:-3px}
   #movFolha .mv-br .mv-tri i{display:block;min-width:3px;height:100%;border-radius:2px}
@@ -10268,7 +10282,7 @@ window.pedirTexto = function (o, feito) {
   .fm-acoes{display:flex;gap:8px;margin-top:10px}
   .fm-acoes button{height:40px;padding:0 10px!important;font-size:14px;margin:0}
   .fm-ic{width:40px;flex:none;display:grid;place-items:center;padding:0!important}
-  .fm-ic:first-child{color:var(--bad)}
+  .fm-acoes .fm-del{color:#f87171!important;background:rgba(248,113,113,.14)!important}
   /* conta ou cartão, na linha do extrato em competência */
   .ic-meio{width:12px;height:12px;vertical-align:-1.5px;margin-right:4px;opacity:.85}
   /* olhinho: valores borrados (o texto continua no lugar, a tela não pula) */
@@ -10919,11 +10933,34 @@ function abrirMovimento(lado){
     el('movLista').innerHTML='<div class="mv-vazio">Não consegui carregar: '+tx((e&&e.message)||e)+'</div>';
   }).apiMovimentoDoMes(mes);
 }
-function fecharMovimento(){ var f=el('movFolha'); if(f) f.classList.add('hide'); }
+function fecharMovimento(){ var f=el('movFolha'); if(f){ f.classList.add('hide'); var c=f.querySelector('.mv-caixa'); if(c){ c.style.transform=''; c.style.transition=''; } } }
+/* Puxar a folha para baixo fecha (pela alça, pelo topo ou pela lista já no começo) */
+(function(){
+  var y0=null, dy=0, cx=null;
+  document.addEventListener('touchstart', function(e){
+    var f=el('movFolha'); if(!f || f.classList.contains('hide')) return;
+    var t=e.target; if(!t.closest || !t.closest('.mv-caixa') || t.closest('.mv-barras') || t.closest('button')) { y0=null; return; }
+    var lista=el('movLista');
+    if(t.closest('#movLista') && lista && lista.scrollTop>0){ y0=null; return; }
+    y0=e.touches[0].clientY; dy=0; cx=f.querySelector('.mv-caixa'); cx.style.transition='none';
+  }, { passive:true });
+  document.addEventListener('touchmove', function(e){
+    if(y0===null || !cx) return;
+    dy=Math.max(0, e.touches[0].clientY-y0);
+    cx.style.transform = dy ? 'translateY('+dy+'px)' : '';
+  }, { passive:true });
+  document.addEventListener('touchend', function(){
+    if(y0===null || !cx) return;
+    y0=null; cx.style.transition='transform .22s ease';
+    if(dy>90){ cx.style.transform='translateY(100%)'; setTimeout(fecharMovimento, 200); }
+    else cx.style.transform='';
+  });
+})();
 function nomeSub(c, g){
-  var t=String(c||''), p=String(g||'')+' - ';
-  if(g && t.toUpperCase().indexOf(p.toUpperCase())===0) t=t.slice(p.length);
-  return t ? nomeBonito(t) : 'Sem subcategoria';
+  // "Saúde - Academia": a categoria sempre junto (25/10)
+  if(!c) return 'Sem subcategoria';
+  var sub=semGrupo(c, g);
+  return g && g!=='OUTROS' ? nomeBonito(g)+' - '+nomeBonito(sub) : nomeBonito(c);
 }
 function desenharMovimento(){
   var r=ST.mov, ent=ST.movLado==='E', comp=r.regime==='COMPETENCIA';
@@ -10933,7 +10970,8 @@ function desenharMovimento(){
   // as categorias que mais pesam
   var porG={}; lista.forEach(function(x){ var g=x.grupo||'OUTROS'; porG[g]=(porG[g]||0)+x.valor; });
   var gs=Object.keys(porG).sort(function(a,b){ return porG[b]-porG[a]; }), mx=gs.length?Math.abs(porG[gs[0]])||1:1;
-  var barras=gs.slice(0,4).map(function(g){
+  // todas as categorias; o bloco mostra ~4 e rola por dentro (25/10)
+  var barras=gs.map(function(g){
     return '<div class="mv-br"><span>'+iconeCat(g)+'</span><span>'+tx(nomeBonito(g))+'</span><b>'+moeda(porG[g])+'</b>'+
       '<span class="mv-tri"><i style="width:'+Math.max(3,Math.round(Math.abs(porG[g])/mx*100))+'%;background:'+cor+'"></i></span></div>';
   }).join('');
@@ -11803,6 +11841,33 @@ function montarPicker(busca){
       }).join('')
     : (limpar ? '' : '<div class="vazio" style="padding:26px">Nenhuma subcategoria com esse nome.</div>'));
 }
+/* Nome da subcategoria sem a categoria na frente ("SAÚDE - ACADEMIA" na
+   categoria SAUDE vira "ACADEMIA"; com ou sem acento, "PESSOAL- JUCA" também). */
+function semGrupo(nome, g){
+  nome=String(nome||''); if(!g) return nome;
+  var N=nome.normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase(),
+      G=String(g).normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().trim();
+  if(N.indexOf(G)!==0) return nome;
+  var m=N.slice(G.length).match(/^\s*-\s*/);
+  if(!m) return nome;
+  // anda letra a letra no nome original até cobrir a categoria e o " - " (acento não conta)
+  var alvo=G.length+m[0].length, k=0, n=0;
+  while(k<nome.length && n<alvo){ n+=nome[k].normalize('NFD').replace(/[\u0300-\u036f]/g,'').length; k++; }
+  return nome.slice(k).trim() || nome;
+}
+/* Nos lançamentos o nome vai sempre inteiro: categoria + subcategoria. */
+var _grupoDe=null, _grupoDeQtd=-1;
+function grupoDaCat(nome){
+  var l=ST.categorias||[];
+  if(!_grupoDe || _grupoDeQtd!==l.length){ _grupoDe={}; _grupoDeQtd=l.length; l.forEach(function(c){ _grupoDe[c.nome]=c.grupo; }); }
+  return _grupoDe[nome]||'';
+}
+function rotuloCat(nome, g){
+  if(!nome) return nome;
+  g=g||grupoDaCat(nome);
+  if(!g || g==='OUTROS') return nome;
+  return semGrupo(nome, g)===nome ? g+' - '+nome : nome;
+}
 function normaliza(s){
   return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
 }
@@ -12063,14 +12128,15 @@ function renderMes(){
       if(ST.abreCaixa){
         cx.itens.forEach(function(x,n){
           var podeReprog = !x.fatura && x.natureza!=='RECEITA';
-          h+='<div style="display:flex;align-items:center;gap:6px"><label class="lc" style="flex:1;min-width:0">'+
+          // grade fixa: marca · nome · valor · ↪ (a coluna da seta existe sempre, os valores alinham)
+          h+='<div class="cx-it"><label>'+
              '<input type="checkbox" onchange="'+(x.fatura ? 'baixarFatura(this)'
                : 'baixarPrevisto('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+',this)')+'">'+
              '<span class="t">'+tx(x.categoria)+'</span>'+
              '<span class="n '+(x.natureza==='RECEITA'?'pos':'neg')+'">'+
              (x.natureza==='RECEITA'?'+':'-')+moeda(x.falta)+'</span></label>'+
-             (podeReprog?'<button class="bt-x" title="reprogramar para os próximos meses" style="color:#93b8ff;font-size:15px" '+
-               'onclick="abrirReprog('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+',\'caixa\')">&#8618;</button>':'')+'</div>';
+             (podeReprog?'<button class="cx-rp" title="reprogramar para os próximos meses" '+
+               'onclick="abrirReprog('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+',\'caixa\')">&#8618;</button>':'<span class="cx-rp"></span>')+'</div>';
           if(podeReprog && ST.reprog===x.categoria && ST.reprogOnde==='caixa') h+=painelReprog(x);
         });
       }
@@ -12139,7 +12205,7 @@ function renderMes(){
      '<div class="cab-mob"><span>previsto</span><span>realizado</span><span>saldo</span></div>';
   lista.forEach(function(d,i){
     h+='<div class="ln tab" title="'+tx(d.grupo)+'">'+
-       '<div class="nm">'+ponto(d.grupo)+'<span>'+tx(d.categoria)+'</span>'+
+       '<div class="nm">'+ponto(d.grupo)+'<span>'+tx(rotuloCat(d.categoria, d.grupo))+'</span>'+
          (d.saldo>0.005 && !d.daVerba && d.categoria!=='CARTAO - A CLASSIFICAR'
            ? '<button class="bt-x" title="reprogramar a sobra para os próximos meses" style="color:#93b8ff;font-size:14px;flex:none;margin-left:4px" '+
              'onclick="abrirReprog('+JSON.stringify(d.categoria).replace(/"/g,'&quot;')+',\'linha\')">&#8618;</button>' : '')+
@@ -12167,7 +12233,7 @@ function renderMes(){
     var base=lista.length;
     rec.forEach(function(d,k){
       var j=base+k;
-      h+='<div class="ln tab"><div class="nm">'+ponto('RECEITA')+'<span>'+tx(d.categoria)+'</span></div>'+
+      h+='<div class="ln tab"><div class="nm">'+ponto('RECEITA')+'<span>'+tx(rotuloCat(d.categoria, d.grupo))+'</span></div>'+
          '<input id="pv'+j+'" value="'+(d.previsto>0.005?num(d.previsto):'')+'" '+
            'placeholder="0,00"'+(Number(d.padrao)>0.005&&d.previsto<=0.005?' title="sem previsto neste mês (o padrão da subcategoria é '+num(d.padrao)+')"':'')+' inputmode="decimal" '+
            'onfocus="this.select()" onblur="salvarPrevisto('+j+')" '+
@@ -12541,6 +12607,28 @@ function abrirNovaConta(){
   if(ST.criando){ var e=el('ncNome'); if(e) e.focus(); }
 }
 
+/* Quantidade: ponto no milhar, no milhão... e vírgula para a fração (cripto: até 6 casas) */
+function mascaraQtd(inp){
+  var v=String(inp.value).replace(/[^\d,]/g,''), k=v.indexOf(',');
+  var i=(k>=0?v.slice(0,k):v).replace(/^0+(?=\d)/,''), d=k>=0?','+v.slice(k+1).replace(/,/g,'').slice(0,6):'';
+  inp.value=(i?Number(i).toLocaleString('pt-BR'):(d?'0':''))+d;
+}
+/* Máscara em todo campo de valor (25/10: "padronize tudo"). O campo que já
+   tem a dele (oninput="mascara...") fica como está; os outros recebem por
+   aqui: dinheiro começa pelo centavo, percentual e quantidade como se fala.
+   data-mask="moeda|pct|qtd|nao" escolhe na mão. O cadastro inicial tem as
+   máscaras próprias (fica de fora). */
+var SEM_MASCARA_IDS=/^(iReajSal|iInfl|pRent|bRenda)$/, PCT_IDS=/^(cfReaj|pvTaxa)$/;
+document.addEventListener('input', function(e){
+  var t=e.target; if(!t || t.tagName!=='INPUT') return;
+  if(/mascara/.test(t.getAttribute('oninput')||'')) return;
+  var m=t.getAttribute('data-mask');
+  if(!m){
+    if(t.getAttribute('inputmode')!=='decimal' || SEM_MASCARA_IDS.test(t.id) || t.hasAttribute('data-bd') || t.hasAttribute('data-cv')) return;
+    m = PCT_IDS.test(t.id) ? 'pct' : 'moeda';
+  }
+  if(m==='moeda') mascaraMoeda(t); else if(m==='pct') mascaraPct(t); else if(m==='qtd') mascaraQtd(t);
+}, true);
 function mascaraMoeda(inp){
   var d=String(inp.value).replace(/\D/g,'');
   inp.value = d ? (Number(d)/100).toLocaleString('pt-BR',
@@ -14112,7 +14200,7 @@ function extratoConta(e){
        '<span class="d2">'+tx(x.fornecedor)+
          (x.status==='PENDENTE'?'<b class="pend">a confirmar</b>':'')+
          seloManual(x)+
-         '<i>'+(comp?(x.noCartao?IC_MEIO_CARTAO:IC_MEIO_CONTA):'')+origemIc(x)+tx(x.categoria||'sem categoria')+' · '+tx(x.cartao||x.conta)+'</i></span>'+
+         '<i>'+(comp?(x.noCartao?IC_MEIO_CARTAO:IC_MEIO_CONTA):'')+origemIc(x)+tx(rotuloCat(x.categoria)||'sem categoria')+' · '+tx(x.cartao||x.conta)+'</i></span>'+
        '<span class="d3 '+(x.credito?'pos':'neg')+'">'+(x.credito?'+':'-')+moeda(v)+
          '<i>'+(x.noCartao?(x.parcela?'parcela '+x.parcela:'no cartão'):x.semConta?'sem conta':x.foraDoSaldo&&x.status!=='IGNORADO'?'fora do saldo':moeda(x.saldo))+'</i></span>'+
        '<button class="bt-x" title="excluir" onclick="event.stopPropagation();excluirLanc('+x.linha+',this,\''+(x.id||'')+'\')">&times;</button>'+
@@ -14255,7 +14343,7 @@ function extratoCartao(e){
            : (/parcela\s*\d/i.test(x.obs||'')
                ? ' <b class="parc">'+String(x.obs).replace(/parcela\s*/i,'')+'</b>' : ''))+
          seloManual(x)+
-         '<i>'+origemIc(x)+tx(x.categoria||'sem categoria')+' · '+tx(x.cartao.replace('CARTAO ',''))+
+         '<i>'+origemIc(x)+tx(rotuloCat(x.categoria)||'sem categoria')+' · '+tx(x.cartao.replace('CARTAO ',''))+
          '</i></span>'+
        '<span class="d3">'+moeda(x.valor)+'<i>'+moeda(x.acumulado)+'</i></span>'+
        '<button class="bt-x" title="excluir" onclick="event.stopPropagation();excluirLanc('+x.linha+',this,\''+(x.id||'')+'\')">&times;</button>'+
@@ -15325,7 +15413,7 @@ function invForm(x, p){
     linha(campo('<span id="ifTaxaRot">'+invRotTaxa(idx)+'</span>', inp('ifTaxa', x.taxa!==''&&x.taxa!==undefined&&x.taxa!==null?pctTxt(x.taxa):'', '', 'decimal', ' oninput="mascaraPct(this)"'), 1, 'ifTaxaBox'),
           campo('Aplicado em', data('ifData', x.aplicadoEm)), campo('Vencimento', data('ifVenc', x.vencimento)))+
     '<div id="ifRV">'+linha(campo('Código', inp('ifAtivo', x.ativo, tipo==='CRIPTO'?'bitcoin':'PETR4', '', ' autocomplete="off" autocapitalize="characters" oninput="invSugerir(\'ativo\')"'), 1.4),
-          campo('Quantidade', inp('ifQtd', x.quantidade!==null&&x.quantidade!==undefined?String(x.quantidade).replace('.',','):'', '100', 'decimal', ' oninput="invCalc(\'qtd\')"')),
+          campo('Quantidade', inp('ifQtd', x.quantidade!==null&&x.quantidade!==undefined?String(x.quantidade).replace('.',','):'', '100', 'decimal', ' data-mask="qtd" oninput="invCalc(\'qtd\')"')),
           campo('Preço de compra', inp('ifPM', x.precoMedio?num(x.precoMedio):'', '0,00', 'decimal', ' oninput="mascaraMoeda(this);invCalc(\'pm\')"')))+
       '<div id="ifSugA" style="margin:-4px 0 8px"></div><div id="ifGanho" class="m" style="font-size:12px;margin:-2px 0 8px"></div></div>'+
     (novo?linha(campo('Valor aplicado (total)', inp('ifApl', x.aplicado?num(x.aplicado):'', '0,00', 'decimal', ' oninput="mascaraMoeda(this);invCalc(\'apl\')"')), campo('Valor hoje (extrato)', dinheiro('ifVM', x.valorManual, 'opcional')))+
@@ -15967,7 +16055,6 @@ function cfgContas(){
   Object.keys(fams).sort().forEach(function(g){
     var gj=JSON.stringify(g).replace(/"/g,'&quot;');
     var fixa=['RECEITA','EVENTO','INVESTIMENTO'].indexOf(g)>=0;
-    var pre=new RegExp('^'+g.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*-\\s*');
     h+='<div class="card cat-arv">';
     if(ST.cfgRenomeandoCat===g){
       h+='<div style="padding:8px 0">'+
@@ -15994,7 +16081,7 @@ function cfgContas(){
       var aberta = ST.cfgEditando===x.nome, nj=JSON.stringify(x.nome).replace(/"/g,'&quot;');
       h+='<div class="sub-ln'+(aberta?' aberta':'')+'" onclick="cfgEditar('+nj+')">'+
         '<span class="sub-pt"></span>'+
-        '<span class="sub-nm">'+tx(nomeBonito(x.nome.replace(pre,'')))+'</span>'+
+        '<span class="sub-nm">'+tx(nomeBonito(semGrupo(x.nome, g)))+'</span>'+
         '<span class="sub-v">'+(prev?moeda(prev):'')+'</span></div>';
       if(aberta){
         h+='<div class="sub-ed">'+cfgFormEditar(x)+
@@ -16016,7 +16103,7 @@ function cfgFormEditar(x){
   var fams=ST.config.familias, nj=JSON.stringify(x.nome).replace(/"/g,'&quot;');
   // compacto, em duas colunas (print de 24/10: campos soltos e espaçados demais)
   return '<div class="fm">'+
-    '<div class="fm-c fm-full"><span>Nome</span><input id="cfNome" value="'+tx(x.nome)+'"></div>'+
+    '<div class="fm-c fm-full"><span>Nome</span><input id="cfNome" value="'+tx(semGrupo(x.nome, x.grupo))+'" data-orig="'+tx(semGrupo(x.nome, x.grupo))+'"></div>'+
     '<div class="fm-c"><span>Categoria</span>'+
       botaoEscolha('cfFam', x.grupo, 'escolher…', 'categoria', fams, '', '+ criar categoria nova')+'</div>'+
     // o valor do mês: vale deste mês até dezembro (mês a mês fino: o 📅 embaixo)
@@ -16035,7 +16122,7 @@ function cfgFormEditar(x){
       'value="'+(x.ate||'')+'"></div>'+
   '</div>'+
   '<div class="fm-acoes">'+
-    '<button class="bt-no fm-ic" title="Excluir" aria-label="Excluir" onclick="cfgExcluir('+nj+')">'+
+    '<button class="bt-no fm-ic fm-del" title="Excluir" aria-label="Excluir" onclick="cfgExcluir('+nj+')">'+
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>'+
     '<button class="bt-no fm-ic" title="Previsto mês a mês" aria-label="Previsto mês a mês" onclick="cfgReplicar('+nj+')">'+
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></button>'+
@@ -16110,7 +16197,13 @@ function cfgSalvarConta(nome){
   var rj=parseFloat(String(el('cfReaj').value||'0').replace(',','.'))||0;
   var ate=(el('cfAte').value||'').trim();
   if(ate && !/^\d{4}-\d{2}$/.test(ate)){ toast('Em "até quando", use AAAA-MM'); return; }
-  var dados={ nome:(el('cfNome').value||'').trim(), grupo:fam.toUpperCase(),
+  /* no formulário o nome vem sem a categoria; gravado, volta a ser
+     "CATEGORIA - NOME". Sem mexer no nome nem na categoria, fica o de antes. */
+  var ent=el('cfNome'), suf=(ent.value||'').trim(), x0=(ST.config.contas||[]).filter(function(c){ return c.nome===nome; })[0]||{};
+  if(!suf){ toast('Dê um nome'); return; }
+  var novoNome = (suf===ent.getAttribute('data-orig') && fam.toUpperCase()===String(x0.grupo||'').toUpperCase())
+    ? nome : (fam.toUpperCase()+' - '+suf.toUpperCase());
+  var dados={ nome:novoNome, grupo:fam.toUpperCase(),
               natureza:el('cfNat').value, reajuste:rj/100,
               mesReajuste:Number(el('cfReajMes').value)||0, ate:ate };
   toast('Salvando...');
@@ -16227,10 +16320,15 @@ function cfgAplicarMeses(nome){
 }
 
 function cfgExcluir(nome){
-  if(!confirm('Excluir a subcategoria "'+nome+'"?\n\nEla sai do cadastro e da FC.')) return;
+  if(!confirm('Excluir a subcategoria "'+nomeBonito(nome)+'"?')) return;
   google.script.run.withSuccessHandler(function(r){
-    if(r && r.ok){ toast('Subcategoria excluída'); recarregarConfig(); return; }
-    if(r && r.precisaDestino){ cfgEscolherDestino(nome, r.lancamentos); return; }
+    if(r && r.ok){ toast('Subcategoria excluída'); ST.cfgEditando=null; recarregarConfig(); return; }
+    // com lançamentos não exclui (25/10): mude os lançamentos de subcategoria antes
+    if(r && r.precisaDestino){
+      alert('Não dá para excluir "'+nomeBonito(nome)+'": ela tem '+(r.lancamentos||'')+' lançamento'+(r.lancamentos===1?'':'s')+'.\n\n'+
+            'Mude esses lançamentos para outra subcategoria (no Extrato) e tente de novo.');
+      return;
+    }
     toast((r&&r.erro)||'Não consegui');
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
     .apiApagarConta(nome, '');
@@ -16370,6 +16468,7 @@ function cfgAjustes(){
         : '<div class="row" style="gap:6px">'+
           (a.tipo==='dinheiro'?'<span class="m" style="font-size:13px">R$</span>':'')+
           '<input id="aj'+i+'" inputmode="decimal" style="margin:0;flex:1" value="'+mostrar+'"'+
+            (a.tipo==='percent'?' data-mask="pct"':a.tipo==='inteiro'?' data-mask="qtd"':'')+
             (a.tipo==='dinheiro'?' placeholder="0,00" oninput="mascaraMoeda(this)"':'')+'>'+
           (a.tipo==='percent'?'<span class="m" style="font-size:12px;white-space:nowrap">% ao ano</span>':'')+
           '<button class="bt-no" style="padding:7px 12px;font-size:12.5px" '+
