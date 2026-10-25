@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.51.3 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.51.6 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -4961,7 +4961,8 @@ window.pedirTexto = function (o, feito) {
     ' font-weight:600!important;padding:4px 0 18px!important;text-align:left}' +
     '#entrar button:disabled{opacity:.5}' +
     '#entrar .gBt{display:flex!important;align-items:center;justify-content:center;gap:10px;background:#fff!important;' +
-    ' color:#1f1f1f!important;font-weight:600!important;margin-bottom:4px}#entrar .gBt[hidden],#entrar .ou[hidden]{display:none!important}' +
+    ' color:#1f1f1f!important;font-weight:600!important;margin-bottom:4px}#entrar .gBt svg{width:20px!important;height:20px!important;flex:none}#entrar .gBt[hidden],#entrar .ou[hidden]{display:none!important}' +
+    '#entrar .gGis{display:flex;justify-content:center;min-height:44px;margin-bottom:4px}#entrar .gGis[hidden]{display:none}' +
     '#entrar .ou{display:flex;align-items:center;gap:10px;color:#8b99b5;font-size:12.5px;margin:10px 0 12px}' +
     '#entrar .ou:before,#entrar .ou:after{content:"";flex:1;height:1px;background:#2a3548}' +
     '#boas{position:fixed;inset:0;z-index:9998;background:#0f1420;color:#e8edf7;overflow-y:auto;' +
@@ -6109,16 +6110,75 @@ window.pedirTexto = function (o, feito) {
   var googleOk = null;
   function botaoGoogle() {
     return '<button class="gBt" id="gBt"' + (googleOk ? '' : ' hidden') + '><svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Continuar com o Google</button>' +
+      '<div class="gGis" hidden></div>' +
       '<div class="ou"' + (googleOk ? '' : ' hidden') + '>ou com e-mail</div>';
+  }
+  /* No navegador, o botão oficial do Google (Google Identity Services): a
+     janela do Google abre em nome de easyappfinancial.com.br - antes ela
+     dizia "Prosseguir para nhngq...supabase.co", e o endereço estranho
+     assustava. O Google devolve a identidade (id_token) aqui mesmo e o
+     Supabase troca por uma sessão (grant_type=id_token, com nonce). No APK e
+     no iPhone instalado na tela de início a janela do Google nem sempre abre:
+     lá fica o caminho de antes (PKCE). Se o script do Google não carregar,
+     também. Precisa de https://easyappfinancial.com.br nas "Origens
+     JavaScript autorizadas" do ID do cliente no Google Cloud. */
+  var GOOGLE_CLIENTE = '333765211962-dsa5itg6q3e0h6mb5qpuvsmouqf8mg00.apps.googleusercontent.com';
+  var gis = null, gisNonce = '';
+  var usaGis = !NATIVO && !window.navigator.standalone && !(window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  function carregarGis() {
+    if (gis) return gis;
+    gis = new Promise(function (ok, falha) {
+      var r = new Uint8Array(24); crypto.getRandomValues(r); gisNonce = b64url(r);
+      crypto.subtle.digest('SHA-256', new TextEncoder().encode(gisNonce)).then(function (h) {
+        var hex = Array.prototype.map.call(new Uint8Array(h), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+        var sc = document.createElement('script');
+        sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true;
+        var tempo = setTimeout(function () { falha(new Error('sem o Google')); }, 8000);
+        sc.onload = function () {
+          clearTimeout(tempo);
+          if (!window.google || !google.accounts || !google.accounts.id) { falha(new Error('sem o Google')); return; }
+          google.accounts.id.initialize({ client_id: GOOGLE_CLIENTE, nonce: hex, callback: voltaDoGis,
+            ux_mode: 'popup', auto_select: false, cancel_on_tap_outside: true, itp_support: true, use_fedcm_for_button: true });
+          ok();
+        };
+        sc.onerror = function () { clearTimeout(tempo); falha(new Error('sem o Google')); };
+        document.head.appendChild(sc);
+      }, falha);
+    });
+    return gis;
+  }
+  // troca o nosso botão pelo do Google (a cada tela de entrar ou criar conta)
+  function botaoGis() {
+    carregarGis().then(function () {
+      var el = caixa.querySelector('.gGis'), b = $('gBt');
+      if (!el || !b || b.hidden) return;
+      el.innerHTML = '';
+      google.accounts.id.renderButton(el, { type: 'standard', theme: 'outline', size: 'large', shape: 'pill',
+        text: 'continue_with', logo_alignment: 'center', locale: 'pt-BR', width: Math.min(400, Math.max(200, b.offsetWidth || 320)) });
+      el.hidden = false; b.hidden = true;
+    }).catch(function () { /* fica o botão de antes */ });
+  }
+  function voltaDoGis(resp) {
+    if (!resp || !resp.credential) return;
+    msg('entrando com o Google...', true); ocupado(true);
+    fetch(CFG.url + '/auth/v1/token?grant_type=id_token', {
+      method: 'POST', headers: { 'apikey': CFG.anon, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: 'google', id_token: resp.credential, nonce: gisNonce })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.access_token) throw new Error(d.error_description || d.msg || d.message || 'o Google não confirmou');
+      P.usarSessao(d); ocupado(false); entrou();
+    }).catch(function (x) { ocupado(false); msg('não deu para entrar com o Google: ' + x.message); });
   }
   function ligarGoogle() {
     var b = $('gBt'); if (b) b.onclick = entrarComGoogle;
+    if (googleOk && usaGis) botaoGis();
     if (googleOk !== null) return;
     fetch(CFG.url + '/auth/v1/settings', { headers: { 'apikey': CFG.anon } })
       .then(function (r) { return r.json(); }).then(function (d) {
         googleOk = !!(d && d.external && d.external.google);
         if (!googleOk) return;
         Array.prototype.forEach.call(caixa.querySelectorAll('.gBt,.ou'), function (x) { x.hidden = false; });
+        if (usaGis) botaoGis();
       }).catch(function () { googleOk = false; });
   }
   function b64url(bytes) {
@@ -15747,7 +15807,18 @@ function carregarConfig(){
   }).apiConfiguracoes();
 }
 
-function recarregarConfig(){ ST.config=null; ST.cacheMes={}; ST.extras=null; ST.ano=null; carregarConfig(); }
+function recarregarConfig(){ ST.config=null; ST.cacheMes={}; ST.extras=null; ST.ano=null; carregarConfig(); atualizarCategorias(); }
+/* A lista de subcategorias do Classificar, do Lançar e do Extrato vinha só
+   da abertura do app: a subcategoria criada em Config não aparecia para
+   classificar até fechar e abrir (25/10, conta do Daniel). Mudou o cadastro,
+   ela é relida e as telas que a usam são redesenhadas. */
+function atualizarCategorias(){
+  google.script.run.withSuccessHandler(function(cs){
+    if(!cs || !cs.map) return;
+    ST.categorias=cs.map(function(c){ return { nome:c.nome, grupo:c.grupo, natureza:c.natureza }; });
+    try{ renderPendentes(); }catch(e){}
+  }).withFailureHandler(function(){}).apiCategorias();
+}
 
 function abasConfig(){
   var m=ST.modoCfg||'CONTAS';
@@ -16059,10 +16130,17 @@ function cfgContas(){
   // categoria nova: o nome e, em seguida, a primeira subcategoria dela (a categoria vive das subcategorias)
   if(ST.cfgNovaCat) h+='<div class="card" style="border-color:var(--acc)">'+
     '<div class="lbl" style="margin-bottom:8px">Categoria nova</div>'+
-    '<input id="cfgCatNova" placeholder="ex.: VIAGENS, PETS, IGREJA" onkeydown="if(event.key===\'Enter\')cfgCriarCategoria()">'+
-    '<div class="row" style="margin-top:10px;gap:8px">'+
+    // a categoria só existe com uma subcategoria dentro: as duas são criadas
+    // juntas, num toque (antes a categoria ficava na tela e sumia se a pessoa
+    // saísse sem criar a subcategoria - "criei Viagens e sumiu")
+    '<div class="fm">'+
+      '<div class="fm-c"><span>Categoria</span><input id="cfgCatNova" placeholder="ex.: Viagens"></div>'+
+      '<div class="fm-c"><span>Primeira subcategoria</span><input id="cfgCatSub" placeholder="ex.: Passagens" '+
+        'onkeydown="if(event.key===\'Enter\')cfgCriarCategoria()"></div>'+
+    '</div>'+
+    '<div class="fm-acoes">'+
       '<button class="bt-no" style="flex:1" onclick="ST.cfgNovaCat=false;renderConfig()">Cancelar</button>'+
-      '<button class="bt-ok" style="flex:2" onclick="cfgCriarCategoria()">Criar e pôr a primeira subcategoria</button></div></div>';
+      '<button class="bt-ok" style="flex:1.4" onclick="cfgCriarCategoria()">Criar</button></div></div>';
   // subcategoria nova numa categoria que já está na lista: o formulário abre dentro dela
   var nasCats=cf.contas.some(function(x){ return x.grupo===ST.cfgNovaFam && (x.natureza==='RECEITA')===rec; });
   if(ST.cfgCriando && !(ST.cfgNovaFam && nasCats)) h+=cfgFormNova();
@@ -16420,7 +16498,16 @@ function cfgNovaCategoria(){
 function cfgCriarCategoria(){
   var n=String((el('cfgCatNova')||{}).value||'').replace(/\s+/g,' ').trim().toUpperCase().slice(0,30);
   if(n.length<2){ toast('Dê um nome à categoria'); return; }
-  ST.cfgNovaCat=false; cfgContaNaCategoria(n);
+  var sub=String((el('cfgCatSub')||{}).value||'').replace(/\s+/g,' ').trim().toUpperCase().slice(0,40);
+  if(sub.length<2){ toast('Dê um nome à primeira subcategoria'); var e=el('cfgCatSub'); if(e) e.focus(); return; }
+  var nat=ST.cfgAba==='RECEITAS'?'RECEITA':'DESPESA';
+  toast('Criando...');
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok){ toast('Não criei: '+((r&&r.erro)||'')); return; }
+    toast('Categoria '+nomeBonito(n)+' criada');
+    ST.cfgNovaCat=false; recarregarConfig();
+  }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
+    .apiNovaCategoria(n+' - '+sub, n, nat, 0);
 }
 function cfgContaNaCategoria(g){
   ST.cfgNovaFam=g; ST.cfgCriando=true; ST.cfgRenomeandoCat=null; ST.cfgEditando=null; renderConfig();
