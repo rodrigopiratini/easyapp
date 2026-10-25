@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.51.0 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.51.2 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -8611,7 +8611,17 @@ window.pedirTexto = function (o, feito) {
     Promise.all([
       lerConta().catch(function () { return null; }),
       fn('openfinance', { acao: 'status' }).catch(function () { return null; }),
-      P.rest('/rest/v1/push_log?select=recebido,status,corpo&order=recebido.desc&limit=15').catch(function () { return []; }),
+      // com o lançamento que cada aviso virou: a loja e o final do cartão na lista
+      // (o título do aviso do Porto é só "Porto")
+      P.rest('/rest/v1/push_log?select=recebido,status,corpo,lancamento&order=recebido.desc&limit=15').then(function (av) {
+        var ids = (av || []).map(function (x) { return x.lancamento; }).filter(Boolean);
+        if (!ids.length) return av || [];
+        return P.rest('/rest/v1/lancamentos?select=id,descricao,dados&id=in.(' + ids.join(',') + ')').then(function (ls) {
+          var por = {}; (ls || []).forEach(function (l) { por[l.id] = l; });
+          av.forEach(function (x) { x.lanc = por[x.lancamento] || null; });
+          return av;
+        }, function () { return av; });
+      }).catch(function () { return []; }),
       token().catch(function () { return null; }),
       // o último aviso que chegou pelo e-mail (050: via = email): se chegou, está funcionando
       P.rest('/rest/v1/push_log?select=recebido&corpo->>via=eq.email&order=recebido.desc&limit=1').catch(function () { return []; }),
@@ -8844,6 +8854,13 @@ window.pedirTexto = function (o, feito) {
       h += '</div>';
 
       // os últimos avisos (recolhido) e o aviso de "para classificar"
+      // a linha de baixo: banco · loja · final do cartão (do lançamento que o aviso virou)
+      var resumoAviso = function (x) {
+        var c = x.corpo || {}, l = x.lanc || {}, d = l.dados || {};
+        var loja = l.descricao && !/^\d{2}\/\d{2}/.test(l.descricao) ? l.descricao : c.estabelecimento || '';
+        var banco = c.app || c.title || '';
+        return [banco, loja, d.cartao_final ? 'final ' + d.cartao_final : ''].filter(Boolean).join(' · ') || String(c.title || '');
+      };
       var ST_TXT = { CONFIRMADO: '✅ lançado', PENDENTE: '🆕 lançado, a classificar', DUPLICADA: '↺ repetido', 'JA VEIO DO BANCO': '🏦 já tinha vindo do banco' };
       h += '<details class="c-passo" style="margin-top:10px"><summary>🔎 Últimos avisos recebidos' +
         (av.length ? ' · ' + ('0' + new Date(av[0].recebido).getDate()).slice(-2) + '/' + ('0' + (new Date(av[0].recebido).getMonth() + 1)).slice(-2) + ' ' +
@@ -8867,7 +8884,7 @@ window.pedirTexto = function (o, feito) {
             ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + ' ' +
             ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) +
             (val ? ' · <b>' + (entrou ? '+' : '−') + reais(val) + '</b>' : '') +
-            '<br><small style="color:var(--dim)">' + esc(String(c.title || c.estabelecimento || c.app || '').slice(0, 40)) + ' ▾</small></span>' +
+            '<br><small style="color:var(--dim)">' + esc(resumoAviso(x).slice(0, 60)) + ' ▾</small></span>' +
             '<span style="text-align:right;font-size:12px">' + st + '</span></summary>' +
             '<div style="font-size:12px;color:var(--dim);padding:0 0 10px;line-height:1.45">' +
               (c.app ? '<b>' + esc(c.app) + '</b> · ' : '') + esc(txt || c.estabelecimento || '(sem texto)') +
@@ -9829,6 +9846,7 @@ window.pedirTexto = function (o, feito) {
   .pd-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:2px 4px 12px}
   .pd-topo h2{margin:0;font-size:20px;font-weight:800;letter-spacing:-.3px}
   .pd-topo small{display:block;font-size:12.5px;color:var(--dim);margin-top:2px}
+  .pd-sec{display:flex;align-items:center;justify-content:space-between;padding:14px 4px 8px;font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.4px;text-transform:uppercase}
   .pd-vazio{text-align:center;color:var(--dim);font-size:13.5px;padding:40px 0}
   .pd-vazio div{width:54px;height:54px;border-radius:50%;margin:0 auto 10px;display:grid;place-items:center;font-size:24px;
     background:rgba(52,211,153,.12);color:var(--ok)}
@@ -11335,13 +11353,16 @@ function renderPendentes(){
   var c=el('tela-pendentes');
   var h='';
   // topo no estilo do resto do app (a faixa marrom com o texto longo virou um "i")
-  var totP=ST.pendentes.reduce(function(a,p){ return a+(Number(p.valor)||0); },0);
+  // conta junto o que veio das faturas sem subcategoria (25/10: dizia "tudo em dia" com 2 esperando)
+  var sc=ST.semCategoria&&ST.semCategoria.fornecedores||[];
+  var totP=ST.pendentes.reduce(function(a,p){ return a+(Number(p.valor)||0); },0)+((ST.semCategoria&&ST.semCategoria.total)||0);
+  var qtdP=ST.pendentes.length+sc.length;
   var novos = ST.pendentes.filter(function(p){return p.novo;}).length;
   h+='<div class="pd-topo"><div><h2>Classificar</h2><small>'+
-     (ST.pendentes.length ? ST.pendentes.length+(ST.pendentes.length>1?' lançamentos':' lançamento')+' · '+moeda(totP)+
+     (qtdP ? qtdP+(qtdP>1?' esperando':' esperando')+' · '+moeda(totP)+
        (novos?' · '+novos+(novos>1?' fornecedores novos':' fornecedor novo'):'') : 'tudo em dia')+
      '</small></div>'+dica('Escolha a subcategoria e toque no ✓. Em "sempre", as próximas compras do mesmo fornecedor já vêm classificadas; em "só esta", vale só para este lançamento. Ignorar e Distribuir ficam no ⋯.')+'</div>';
-  if(!ST.pendentes.length){
+  if(!qtdP){
     h+='<div class="pd-vazio"><div>✓</div>Nenhum lançamento esperando você.</div>';
   }
   ST.pendentes.forEach(function(p,i){
@@ -11421,25 +11442,23 @@ function renderPendentes(){
 function filaSemCategoria(){
   var s=ST.semCategoria;
   if(!s || !s.fornecedores || !s.fornecedores.length) return '';
-  var h='<div class="pd-topo" style="margin-top:14px"><div><h2 style="font-size:17px">Das faturas</h2><small>'+
-    s.quantos+' fornecedores sem subcategoria · '+moeda(s.total)+'</small></div>'+
-    dica('Vieram das faturas. Classifique o fornecedor uma vez e todas as compras dele entram na subcategoria certa.')+'</div>';
-
+  // seção dentro do Classificar, no mesmo cartão dos outros lançamentos
+  var h='<div class="pd-sec"><span>Das faturas do cartão</span>'+
+    dica('Compras que vieram das faturas sem subcategoria. Classifique o fornecedor uma vez e todas as compras dele entram na subcategoria certa.')+'</div>';
   s.fornecedores.forEach(function(f,i){
-    h+='<div class="card pd" style="padding:12px 14px"><div class="forn" style="border:0;padding:0">'+
-       '<div class="row"><div style="min-width:0">'+
-       '<div class="d" style="font-size:13.5px;line-height:1.25">'+tx(f.exemplo)+'</div>'+
-       '<div class="m" style="font-size:11px">'+f.vezes+'x · '+f.qtdMeses+' '+(f.qtdMeses>1?'meses':'mês')+
-       (f.ultima?' · última '+f.ultima:'')+
-       (f.chave&&f.chave!==f.exemplo?' · vira a regra <b>'+tx(f.chave)+'</b>':'')+'</div></div>'+
-       '<div class="big" style="font-size:16px;white-space:nowrap;padding-left:8px">'+
-       moeda(f.valor)+'</div></div>'+
-       botaoConta('sc'+i, '', f.natureza||'DESPESA', 'mudouFila('+i+')')+
+    h+='<div class="card pd">'+
+       '<div class="pd-cab"><span class="pd-ic des">'+IC_CARTAO_PD+'</span>'+
+         '<div class="pd-tx"><b>'+tx(f.exemplo)+'</b>'+
+         '<small>'+(f.vezes>1?f.vezes+' compras · ':'')+(f.qtdMeses>1?f.qtdMeses+' meses · ':'')+(f.ultima?'última '+f.ultima:'')+
+           (f.chave&&f.chave!==f.exemplo?' · regra '+tx(f.chave):'')+'</small></div>'+
+         '<div class="pd-v">'+moeda(f.valor)+'</div></div>'+
+       '<div class="pd-acoes">'+
+         '<div style="flex:1;min-width:0" class="pd-conta">'+botaoConta('sc'+i, '', f.natureza||'DESPESA', 'mudouFila('+i+')')+'</div>'+
+         '<button class="bt-ok pd-bt pd-ok" id="sb'+i+'" disabled title="'+(f.vezes>1?'classificar as '+f.vezes+' compras':'classificar')+'" '+
+           'onclick="classificarFornecedor('+i+')">✓</button>'+
+       '</div>'+
        '<div id="nf'+i+'"></div>'+
-       '<button class="bt-ok" style="width:100%;margin-top:7px;padding:8px;font-size:13px" '+
-       'id="sb'+i+'" disabled '+
-       'onclick="classificarFornecedor('+i+')">Classificar as '+f.vezes+'</button>'+
-       '</div></div>';
+       '</div>';
   });
   setTimeout(function(){ reaplicarCriada(); },0);
   return h;
@@ -11470,10 +11489,10 @@ function reaplicarCriada(){
 function classificarFornecedor(i){
   var f=ST.semCategoria.fornecedores[i], cat=el('sc'+i).value;
   if(!cat) return;
-  var bt=el('sb'+i); bt.disabled=true; bt.textContent='Classificando...';
+  var bt=el('sb'+i); bt.disabled=true; bt.textContent='…';   // o botão agora é redondo (✓)
   google.script.run.withSuccessHandler(function(r){
     if(!r || r.ok===false){
-      bt.disabled=false; bt.textContent='Erro, tentar de novo';
+      bt.disabled=false; bt.textContent='↻';
       return toast('Falhou: '+((r&&r.erro)||'sem resposta'));
     }
     var q=r.atualizadas!=null ? r.atualizadas : r.quantos;
@@ -11481,7 +11500,7 @@ function classificarFornecedor(i){
     ST.ano=null;
     carregar(ST.mes);
   }).withFailureHandler(function(e){
-    bt.disabled=false; bt.textContent='Erro, tentar de novo';
+    bt.disabled=false; bt.textContent='↻';
     toast('Falhou: '+((e&&e.message)||e));
   }).apiClassificarFornecedor(f.chave, cat);
 }
