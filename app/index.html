@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.49.0 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.50.0 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10148,7 +10148,18 @@ window.pedirTexto = function (o, feito) {
   .hr-chip small{display:block;font-size:11.5px;color:var(--dim)}
   .hr-chip b{font-size:15.5px;font-weight:700;white-space:nowrap}
   .hr-chip i{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--dim);font-size:18px}
-  #linhaFamilia{margin-top:14px}
+  /* filtro de categoria dentro da lista */
+  .fam-chips{display:flex;gap:7px;overflow-x:auto;margin:10px -14px 4px;padding:0 14px 2px;scrollbar-width:none}
+  .fam-chips::-webkit-scrollbar{display:none}
+  .fam-chips .fc{flex:none;display:flex;align-items:center;gap:6px;padding:6px 12px 6px 6px!important;border-radius:999px!important;
+    border:0!important;background:rgba(255,255,255,.07)!important;color:var(--txt)!important;font-size:13px;font-weight:500;cursor:pointer;height:auto!important}
+  .fam-chips .fc i{font-style:normal;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:12px;color:#fff}
+  .fam-chips .fc.on{background:var(--acc)!important;color:#fff!important}
+  .fam-chips .fc.on i{background:rgba(255,255,255,.22)!important}
+  .desp-tot{font-size:12px;color:var(--dim);white-space:nowrap}
+  .fam-res{display:flex;justify-content:space-between;gap:8px;margin:8px 0 4px;padding:10px 12px;border-radius:14px;background:rgba(var(--accr,59,130,246),.1)}
+  .fam-res small{display:block;font-size:11px;color:var(--dim)}.fam-res b{font-size:14px;white-space:nowrap}
+  .fam-res div:last-child{text-align:right}
   /* sininho do classificar */
   #badge{position:relative}
   #badge .sino-n{position:absolute;top:-4px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;
@@ -10310,7 +10321,6 @@ window.pedirTexto = function (o, feito) {
     <div class="filtros"><span class="rot">ANO</span><span id="anos"></span></div>
     <div class="filtros"><span id="meses"></span></div>
   </div>
-  <div class="filtros" id="linhaFamilia"><span id="familias"></span></div>
 </div>
 <div id="ptr" aria-hidden="true">&#8635;</div>
 
@@ -11008,17 +11018,20 @@ function renderCabecalho(){
   }
   el('meses').innerHTML=b;
 
-  var fams=((ST.resumo&&ST.resumo.familias)||[]);
-  el('familias').innerHTML =
-    '<button class="'+(ST.familia==='TUDO'?'on':'')+'" onclick="mudarFamilia(\'TUDO\')">Todas</button>'+
-    fams.map(function(f){
-      return '<button class="'+(ST.familia===f?'on':'')+'" onclick="mudarFamilia(\''+f+'\')" '+
-             'style="border-left:3px solid '+cor(f)+'">'+f+'</button>';
-    }).join('');
-
   renderMesNav();
 }
 
+/* O filtro de categoria fica dentro da lista que ele filtra (25/10): no
+   cartão Despesas do Mês e na lista de verbas do Cartão. */
+function chipsFamilia(fams){
+  if(!fams || fams.length<2) return '';
+  var b=function(f, rot, ic, c){
+    return '<button class="fc'+(ST.familia===f?' on':'')+'" onclick="mudarFamilia('+JSON.stringify(f).replace(/"/g,'&quot;')+')">'+
+      '<i style="background:'+c+'">'+ic+'</i>'+tx(rot)+'</button>';
+  };
+  return '<div class="fam-chips">'+b('TUDO','Todas','&#10003;','rgba(255,255,255,.12)')+
+    fams.map(function(f){ return b(f, nomeBonito(f), iconeCat(f), cor(f)); }).join('')+'</div>';
+}
 function mudarFiltro(f){
   if(ST.filtro===f) return;
   ST.filtro=f; ST.ano=null; carregar(ST.mes);
@@ -12104,11 +12117,20 @@ function renderMes(){
     return a.categoria<b.categoria?-1:1;
   });
 
-  h+='<div class="card"><div class="row" style="margin-bottom:8px">'+
-     '<div class="lbl">Despesas'+(ST.familia!=='TUDO'?' · '+ST.familia:'')+(r.regime==='COMPETENCIA'?' <span class="pill" style="font-size:10.5px;padding:1px 8px;vertical-align:1px">competência</span>':'')+
+  var lPrev=0, lReal=0;
+  lista.forEach(function(d){ lPrev+=d.previsto||0; lReal+=d.realizado||0; });
+  h+='<div class="card"><div class="row" style="margin-bottom:2px">'+
+     '<div class="lbl">Despesas'+(r.regime==='COMPETENCIA'?' <span class="pill" style="font-size:10.5px;padding:1px 8px;vertical-align:1px">competência</span>':'')+
      ' <span style="opacity:.6">('+lista.length+')</span>'+
      dica('O previsto é editável direto na linha. Subcategorias sem movimento no mês ficam ocultas.')+'</div>'+
+     '<div class="desp-tot">'+moeda(lReal)+' de '+moeda(lPrev)+'</div>'+
      '</div>'+
+     chipsFamilia((r.grupos||[]).map(function(g){ return g.grupo; }).sort())+
+     (ST.familia!=='TUDO'
+       ? '<div class="fam-res"><div><small>previsto</small><b>'+moeda(lPrev)+'</b></div>'+
+         '<div><small>realizado</small><b>'+moeda(lReal)+'</b></div>'+
+         '<div><small>'+(lPrev-lReal>=0?'sobra':'passou')+'</small><b class="'+(lPrev-lReal>=0?'pos':'neg')+'">'+moeda(Math.abs(lPrev-lReal))+'</b></div></div>'
+       : '')+
      '<div class="cab-ln"><span>subcategoria</span><span>previsto</span><span>realizado</span><span>diferença</span></div>'+
      '<div class="cab-mob"><span>previsto</span><span>realizado</span><span>saldo</span></div>';
   lista.forEach(function(d,i){
@@ -13637,7 +13659,9 @@ function renderCartao(){
     var estouradas = cats.filter(estourou).sort(porGasto);
     var comSaldo   = cats.filter(function(x){return x.meta>0 && !estourou(x);}).sort(porGasto);
     var semMeta    = cats.filter(function(x){return !(x.meta>0);}).sort(porGasto);
-    h+='<div class="card"><div class="lbl" style="margin-bottom:4px">Por tipo de gasto</div>';
+    h+='<div class="card"><div class="lbl" style="margin-bottom:4px">Por tipo de gasto</div>'+
+       chipsFamilia(Object.keys((k.porCategoria||[]).reduce(function(o,x){
+         if(x.gasto>0||x.meta>0) o[x.grupo||familiaDe(x.categoria)]=1; return o; },{})).sort());
     var desenha=function(x){
       var temMeta=x.meta>0;
       // a verba inteira: cartao + o que saiu pela conta + (verba livre) o que pagou das contas sem meta
