@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.51.7 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.52.0 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6509,6 +6509,11 @@ window.pedirTexto = function (o, feito) {
 
     $('iaFecha').onclick = function () { $('ia').hidden = true; IA.aberto = false; };
     $('iaVerFecha').onclick = fecharModulo;
+    // o + da tela abre o assistente já com um pedido escrito (o módulo aberto fica em foco)
+    window.iaAbrirCom = function (txt, semFoco) {
+      abrir(); aba('chat'); if (semFoco) focar(null);
+      var c = $('iaTxt'); if (c) { c.value = txt || ''; c.focus(); try { c.setSelectionRange(c.value.length, c.value.length); } catch (e) {} }
+    };
     $('iaVoz').onclick = ditar;
     $('iaEnvia').onclick = enviar;
     $('iaClip').onclick = function () { $('iaArq').click(); };
@@ -10283,7 +10288,7 @@ window.pedirTexto = function (o, feito) {
   #fabMais{position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:900;width:56px;height:56px;
     border-radius:50%;border:0;padding:0;background:linear-gradient(135deg,var(--acc),var(--acc2,#8b5cf6));color:#fff;
     font-size:32px;font-weight:300;line-height:56px;box-shadow:0 8px 22px rgba(0,0,0,.45);cursor:pointer}
-  body.em-modulo #fabMais,body.em-novo #fabMais{display:none}
+  body.em-novo #fabMais{display:none}
   /* o + some quando uma janela de editar está aberta ou o teclado está em uso:
      no print de 24/10 ele cobria o Salvar da janela de corrigir o lançamento */
   body.fab-off #fabMais,body:has(#edForm:not(.hide)) #fabMais,body:has(#rcForm:not(:empty)) #fabMais,
@@ -10439,12 +10444,7 @@ window.pedirTexto = function (o, feito) {
 </nav>
 <!-- lançar: o + flutuante e o menu (Transferência, Receita, Despesa, Despesa cartão) -->
 <button id="fabMais" onclick="abrirMenuMais()" aria-label="Lançar">+</button>
-<div id="menuMais" class="hide" onclick="if(event.target===this)fecharMenuMais()"><div class="mm-caixa">
-  <button onclick="lancarComo('TRANSFERENCIA')"><b class="mi" style="color:#fbbf24">&#8645;</b>Transferência</button>
-  <button onclick="lancarComo('RECEITA')"><b class="mi" style="color:#22c55e">+</b>Receita</button>
-  <button onclick="lancarComo('DESPESA')"><b class="mi" style="color:#ef4444">&minus;</b>Despesa</button>
-  <button onclick="lancarComo('DESPESA', true)"><b class="mi" style="color:#60a5fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:19px;height:19px;display:block;margin:0 auto"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg></b>Despesa cartão</button>
-</div></div>
+<div id="menuMais" class="hide" onclick="if(event.target===this)fecharMenuMais()"><div class="mm-caixa" id="mmCaixa"></div></div>
 <div id="movFolha" class="hide"><div class="mv-fundo" onclick="fecharMovimento()"></div><div class="mv-caixa">
   <div class="mv-alca"></div><div class="mv-topo" id="movTopo"></div><div class="mv-lista" id="movLista"></div>
 </div></div>
@@ -10573,6 +10573,15 @@ function irParaTela(t){
   document.body.classList.remove('em-novo');
   document.querySelectorAll('nav a').forEach(function(x){
     x.classList.toggle('on', x.dataset.t===t); });
+  // o caminho das telas, para o voltar do celular refazer ao contrário
+  ST.pilha=ST.pilha||[];
+  if(t==='mes') ST.pilha=[];
+  else if(!ST.voltando && ST.telaAtual && ST.telaAtual!==t){
+    var k=ST.pilha.indexOf(t);
+    if(k>=0) ST.pilha=ST.pilha.slice(0,k); else ST.pilha.push(ST.telaAtual);
+    if(ST.pilha.length>20) ST.pilha.shift();
+  }
+  if(!ST.voltando && ST.telaAtual!==t && !window.EASYAPP_NATIVO_VOLTAR) try{ history.pushState({ tela:t }, ''); }catch(e){}
   ST.telaAtual=t;
   document.body.dataset.tela=t; fecharMovimento(); setTimeout(ajustarCabMini, 0);
 
@@ -11089,7 +11098,115 @@ document.addEventListener('focusout', function(){
     if(!a || !/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) document.body.classList.remove('fab-off');
   }, 120);
 });
-function abrirMenuMais(){ var m=el('menuMais'); if(m) m.classList.remove('hide'); }
+/* O + muda com a tela (25/10): no Mês lança; no Cartão, compra e cartão
+   novo; no Patrimônio, bem, aplicação, dívida e reserva; no Config, o que
+   se cadastra lá; num módulo, o assistente mexe nele ou cria outro. */
+var IC_MM={
+  cartao:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:19px;height:19px;display:block;margin:0 auto"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>'
+};
+function itensMais(){
+  var t=ST.telaAtual||'mes', mod=document.body.classList.contains('em-modulo');
+  var LANCAR=[
+    ['&#8645;','#fbbf24','Transferência',"lancarComo('TRANSFERENCIA')"],
+    ['+','#22c55e','Receita',"lancarComo('RECEITA')"],
+    ['&minus;','#ef4444','Despesa',"lancarComo('DESPESA')"],
+    [IC_MM.cartao,'#60a5fa','Despesa cartão',"lancarComo('DESPESA', true)"]];
+  if(mod) return [
+    ['✦','#a78bfa','Pedir uma mudança neste módulo',"maisIA('')"],
+    ['🧩','#60a5fa','Criar outro módulo',"maisIA('Quero criar um módulo para ', true)"],
+    ['&minus;','#ef4444','Lançar despesa',"irParaTela('mes');lancarComo('DESPESA')"]];
+  if(t==='cartao') return [
+    [IC_MM.cartao,'#60a5fa','Compra no cartão',"lancarComo('DESPESA', true)"],
+    ['💳','#a78bfa','Cadastrar cartão de crédito',"novoCartao()"],
+    ['✦','#a78bfa','Quanto ainda posso gastar?',"maisIA('Quanto ainda posso gastar no cartão este mês sem passar do previsto? Me mostre por subcategoria.')"]];
+  if(t==='analise') return LANCAR.slice(1,3).concat([
+    ['✦','#a78bfa','Onde posso economizar?',"maisIA('Olhe os meus gastos dos últimos 3 meses e me diga onde posso economizar, com valores.')"],
+    ['📄','#60a5fa','Relatório do mês em PDF',"maisIA('Monte um relatório do mês em PDF: entradas, saídas, maiores gastos por categoria e comparação com o previsto.')"]]);
+  if(t==='patrimonio') return [
+    ['🏠','#60a5fa','Bem',"maisPat('BEM')"],
+    ['📈','#22c55e','Aplicação',"maisPat('APL')"],
+    ['🎯','#fbbf24','Reserva',"maisPat('RESERVA')"],
+    ['📄','#ef4444','Dívida',"maisPat('DIVIDA')"]];
+  if(t==='config') return [
+    ['🗂️','#a78bfa','Categoria',"maisCfg('CAT')"],
+    ['↳','#60a5fa','Subcategoria',"maisCfg('SUB')"],
+    ['🏦','#22c55e','Conta corrente',"maisCfg('CONTA')"],
+    ['💳','#fbbf24','Cartão de crédito',"novoCartao()"]];
+  return LANCAR;
+}
+function abrirMenuMais(){
+  var m=el('menuMais'), c=el('mmCaixa'); if(!m||!c) return;
+  c.innerHTML=itensMais().map(function(x){
+    return '<button onclick="'+x[3].replace(/"/g,'&quot;')+'"><b class="mi" style="color:'+x[1]+'">'+x[0]+'</b>'+x[2]+'</button>';
+  }).join('');
+  m.classList.remove('hide');
+}
+function maisIA(txt, outro){
+  fecharMenuMais();
+  if(typeof window.iaAbrirCom==='function') window.iaAbrirCom(txt, outro);
+  else { var b=el('iaBt'); if(b) b.click(); }
+}
+function maisPat(t){
+  fecharMenuMais();
+  if(t==='BEM'||t==='DIVIDA'){ ST.abrePatBens=true; ST.abrePatInv=false; ST.patNovo={ tipo:t }; }
+  else if(t==='RESERVA'){ ST.abrePatInv=true; ST.abrePatBens=false; ST.invAba='RES'; ST.patNovo={ tipo:'RESERVA' }; }
+  else { ST.abrePatInv=true; ST.abrePatBens=false; ST.invAba='APL'; ST.invEdit='novo'; ST.invNovo=null; ST.patNovo=null; }
+  ST.patContaNova=false; renderPatrimonio();
+  setTimeout(function(){
+    var e=document.querySelector('#tela-patrimonio #pfNome, #tela-patrimonio #ifNome, #tela-patrimonio #ifAtivo');
+    if(e) try{ e.scrollIntoView({ block:'center', behavior:'smooth' }); }catch(x){}
+  }, 80);
+}
+function maisCfg(o){
+  fecharMenuMais();
+  if(o==='CONTA'){ ST.modoCfg='BANCOS'; ST.bancoNovo=true; ST.cartaoNovo=false; renderConfig(); window.scrollTo(0,0); return; }
+  ST.modoCfg='CONTAS';
+  if(o==='CAT'){ ST.cfgNovaCat=true; ST.cfgCriando=false; }
+  else { ST.cfgCriando=true; ST.cfgNovaFam=null; ST.cfgNovaCat=false; }
+  renderConfig(); window.scrollTo(0,0);
+  setTimeout(function(){ var e=el(o==='CAT'?'cfgCatNova':'cnNome'); if(e) e.focus(); }, 60);
+}
+function novoCartao(){
+  fecharMenuMais();
+  ST.modoCfg='BANCOS'; ST.cartaoNovo=true; ST.bancoNovo=false;
+  if(ST.telaAtual!=='config') irParaTela('config'); else renderConfig();
+  setTimeout(function(){ var c=el('cartaoNovoCard'); if(c) try{ c.scrollIntoView({ block:'center', behavior:'smooth' }); }catch(x){} var e=el('ckBanco'); if(e) e.focus(); }, 400);
+}
+/* Voltar do celular (25/10): fecha primeiro o que estiver aberto por cima
+   (menu do +, folhas, janelas, assistente, módulo), depois volta as telas
+   pelo caminho feito até chegar no Mês. No Mês, sai do app. */
+function voltarApp(){
+  var vis=function(id){ var e=el(id); return e && !e.classList.contains('hide') && !e.hidden; };
+  var d=el('pedirTxt'); if(d){ var no=el('pedirTxtNo'); if(no) no.click(); else d.remove(); return true; }
+  if(vis('menuMais')){ fecharMenuMais(); return true; }
+  if(vis('movFolha')){ fecharMovimento(); return true; }
+  if(vis('picker')){ fecharPicker(); return true; }
+  if(vis('edForm')){ fecharEditar(); return true; }
+  var rc=el('rcForm'); if(rc && rc.innerHTML.trim()){ rc.innerHTML=''; return true; }
+  var iv=el('iaVer'); if(iv && !iv.hidden){ var f=el('iaVerFecha'); if(f) f.click(); return true; }
+  var ia=el('ia'); if(ia && !ia.hidden){ var x=el('iaFecha'); if(x) x.click(); return true; }
+  if(vis('mnSel')){ el('mnSel').classList.add('hide'); return true; }
+  if(document.body.classList.contains('em-modulo')){ irParaTela(ST.telaAtual||'mes'); return true; }
+  if(document.body.classList.contains('em-novo')){ irParaTela(ST.telaAnterior||'mes'); return true; }
+  if(ST.telaAtual && ST.telaAtual!=='mes'){
+    var ant=(ST.pilha&&ST.pilha.length)?ST.pilha.pop():'mes';
+    ST.voltando=true; try{ irParaTela(ant||'mes'); } finally { ST.voltando=false; }
+    return true;
+  }
+  return false;   // no Mês, sem nada aberto: quem chamou decide (no app, sai)
+}
+(function(){
+  var cap=window.Capacitor, nativo=!!(cap && cap.isNativePlatform && cap.isNativePlatform());
+  if(nativo && cap.Plugins && cap.Plugins.App && cap.Plugins.App.addListener){
+    window.EASYAPP_NATIVO_VOLTAR=true;
+    cap.Plugins.App.addListener('backButton', function(){
+      if(!voltarApp()) cap.Plugins.App.exitApp();
+    });
+  } else {
+    // no navegador (site instalado na tela inicial): o voltar do celular anda pelo histórico
+    window.addEventListener('popstate', function(){ voltarApp(); });
+  }
+})();
 function fecharMenuMais(){ var m=el('menuMais'); if(m) m.classList.add('hide'); }
 /* Lançar já no tipo certo; "Despesa cartão" já vem com o primeiro cartão em "Saiu de" */
 function lancarComo(tipo, cartao){
@@ -15951,7 +16068,10 @@ function bancosHtml(){
   h+='<div class="row" style="gap:6px;margin-bottom:6px">'+
      '<div class="m" style="font-size:11.5px;flex:1">🔗 Open Finance &nbsp;·&nbsp; ✍️ manual</div>'+
      '<button class="bt-no" style="padding:7px 11px;font-size:12.5px;background:var(--acc);color:#fff;flex:none" onclick="ST.bancoNovo=!ST.bancoNovo;ST.bancoEd=null;ST.bancoAberto=null;bancosCarregar()">'+(ST.bancoNovo?'Fechar':'+&nbsp;conta manual')+'</button></div>'+
-     (ST.bancoNovo?'<div class="card" style="padding:8px 10px;border-color:var(--acc)">'+bancoForm(null)+'</div>':'');
+     (ST.bancoNovo?'<div class="card" style="padding:8px 10px;border-color:var(--acc)">'+bancoForm(null)+'</div>':'')+
+     // cartão de crédito à mão (25/10): antes só vinha pelo Open Finance
+     (ST.cartaoNovo?'<div class="card" style="padding:10px 12px;border-color:var(--acc)" id="cartaoNovoCard">'+cartaoForm()+'</div>'
+                   :'<button class="bt-no" style="width:100%;margin:0 0 10px;font-size:13px" onclick="ST.cartaoNovo=true;ST.bancoNovo=false;bancosCarregar()">💳 + cartão de crédito</button>');
   /* 3) um cartão por banco, uma linha por conta/cartão. Toque na linha para
      ver o que dá para fazer com ela - as opções não ficam todas abertas. */
   var porBanco={};
@@ -16020,6 +16140,43 @@ function bancoForm(c){
     }).join('')+'</div>'+
     '<div class="row" style="margin-top:10px;gap:8px">'+
       '<button class="bt-ok" style="flex:1" onclick="bancoSalvar('+(c?'\''+c.id+'\'':'null')+')">'+(c?'Salvar':'Criar conta')+'</button></div></div>';
+}
+/* Cartão de crédito cadastrado à mão: banco, final, de quem é, dia em que a
+   fatura fecha e o limite. Vira uma conta do tipo CARTAO, como as que vêm do
+   Open Finance, e aparece no "Saiu de" do lançar. */
+function cartaoForm(){
+  return '<div class="lbl" style="margin-bottom:8px">Cartão de crédito novo</div>'+
+    '<div class="fm">'+
+      '<div class="fm-c"><span>Banco</span><input id="ckBanco" list="bkLista" placeholder="ex.: Nubank">'+
+        '<datalist id="bkLista">'+BANCOS_LISTA.map(function(b){ return '<option value="'+b+'">'; }).join('')+'</datalist></div>'+
+      '<div class="fm-c"><span>Final do cartão</span><input id="ckFinal" inputmode="numeric" maxlength="4" placeholder="1234"></div>'+
+      '<div class="fm-c"><span>Fatura fecha dia</span><input id="ckFecha" inputmode="numeric" maxlength="2" placeholder="o do Ajustes"></div>'+
+      '<div class="fm-c"><span>Limite</span><input id="ckLimite" inputmode="decimal" placeholder="0,00" oninput="mascaraMoeda(this)"></div>'+
+      '<div class="fm-c fm-full"><span>É de</span>'+segEscolha('ckTit','PF',['PF','PJ'],{PF:'Pessoa física',PJ:'Empresa'})+'</div>'+
+    '</div>'+
+    '<div class="fm-acoes">'+
+      '<button class="bt-no" style="flex:1" onclick="ST.cartaoNovo=false;bancosCarregar()">Cancelar</button>'+
+      '<button class="bt-ok" style="flex:1.4" onclick="cartaoSalvar()">Criar cartão</button></div>';
+}
+function cartaoSalvar(){
+  var banco=(el('ckBanco').value||'').trim(), fim=(el('ckFinal').value||'').replace(/\D/g,'').slice(-4);
+  var fecha=parseInt(String(el('ckFecha').value||'').replace(/\D/g,''),10)||null;
+  var lim=parseFloat(String(el('ckLimite').value||'').replace(/\./g,'').replace(',','.'))||null;
+  var tit=el('ckTit').value||'PF';
+  if(!banco){ toast('Diga o banco do cartão'); el('ckBanco').focus(); return; }
+  if(fecha!==null && (fecha<1||fecha>31)){ toast('O dia do fechamento vai de 1 a 31'); return; }
+  var base=(normaliza(banco).toUpperCase()+' CARTAO '+(fim||tit)).slice(0,56), nome=base, k=2;
+  var usados=(ST.bancos||[]).map(function(c){ return c.nome; });
+  while(usados.indexOf(nome)>=0) nome=base+' '+(k++);
+  ponteRest('/rest/v1/contas', { metodo:'POST', prefer:'return=minimal', corpo:{
+    user_id:window.EASYAPP_PONTE.sessao().user_id, nome:nome, tipo:'CARTAO', instituicao:banco, titular:tit,
+    final:fim||null, fechamento:fecha, limite:lim, saldo_inicial:0 } })
+  .then(function(){
+    toast('Cartão criado'); ST.cartaoNovo=false; ST.bancos=null; ST.cacheMes={}; ST.extras=null; ST.saldos=null;
+    bancosCarregar();
+    // o "Saiu de" do lançar e as telas do cartão leem os cartões de novo
+    google.script.run.withSuccessHandler(function(){ carregar(ST.mes, true); }).withFailureHandler(function(){}).apiLimparCache();
+  }).catch(function(e){ toast('Não criei: '+e.message); });
 }
 // a máscara de dinheiro, aceitando o sinal de menos (cheque especial)
 function mascaraMoedaSinal(inp){
