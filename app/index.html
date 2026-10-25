@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.56.0 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.56.1 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10378,6 +10378,7 @@ window.pedirTexto = function (o, feito) {
   #menuMais button{display:flex;align-items:center;gap:16px;width:100%;padding:14px 16px;background:none;border:0;
     color:var(--txt);font-size:15.5px;text-align:left;border-radius:14px;cursor:pointer}
   #menuMais button:active{background:rgba(255,255,255,.07)}
+  #menuMais .mm-tit{font-size:12px;font-weight:700;color:var(--dim);padding:10px 16px 4px;letter-spacing:.3px}
   #menuMais .mi{width:22px;text-align:center;font-size:20px;line-height:1}
   /* Config → Categorias em árvore */
   .cat-arv{padding:2px 12px 6px}
@@ -11197,6 +11198,7 @@ function itensMais(){
     ['&minus;','#ef4444','Lançar despesa',"irParaTela('mes');lancarComo('DESPESA')"]];
   if(t==='cartao') return [
     [IC_MM.cartao,'#60a5fa','Compra no cartão',"lancarComo('DESPESA', true)"],
+    ['✎','#fbbf24','Editar cartão',"maisEditarCartao()"],
     ['💳','#a78bfa','Cadastrar cartão de crédito',"novoCartao()"],
     ['✦','#a78bfa','Quanto ainda posso gastar?',"maisIA('Quanto ainda posso gastar no cartão este mês sem passar do previsto? Me mostre por subcategoria.')"]];
   if(t==='analise') return LANCAR.slice(1,3).concat([
@@ -11245,6 +11247,26 @@ function maisCfg(o){
   else { ST.cfgCriando=true; ST.cfgNovaFam=null; ST.cfgNovaCat=false; }
   renderConfig(); window.scrollTo(0,0);
   setTimeout(function(){ var e=el(o==='CAT'?'cfgCatNova':'cnNome'); if(e) e.focus(); }, 60);
+}
+/* Editar cartão pelo + da aba Cartão: um só, abre direto; vários, o menu
+   vira a lista deles (logo e bandeira) para escolher. */
+function maisEditarCartao(){
+  var info=ST.contasInfo||{};
+  var l=Object.keys(info).map(function(n){ return info[n]; }).filter(function(c){ return c.tipo==='CARTAO' && c.id; })
+    .sort(function(a,b){ return a.nome.localeCompare(b.nome,'pt-BR'); });
+  if(!l.length){ if(!ST.contasInfo) toast('Carregando os cartões…'); else novoCartao(); return; }
+  if(l.length===1){ editarCartao(l[0].id); return; }
+  var c=el('mmCaixa'); if(!c) return;
+  c.innerHTML='<div class="mm-tit">Qual cartão?</div>'+l.map(function(k){
+    return '<button onclick="editarCartao(\''+k.id+'\')">'+icConta(k.nome, 20)+
+      tx(nomeBonito(k.nome.replace(/\s*CARTAO\s*/,' ').trim()))+(k.final?' <small style="color:var(--dim)">·'+tx(k.final)+'</small>':'')+'</button>';
+  }).join('');
+}
+function editarCartao(id){
+  fecharMenuMais();
+  ST.modoCfg='BANCOS'; ST.cartaoEd=id; ST.bancoAberto=id; ST.cartaoNovo=false; ST.bancoNovo=false;
+  if(ST.telaAtual!=='config') irParaTela('config'); else renderConfig();
+  setTimeout(function(){ var e=el('ckFecha')||el('ckBanco'); if(e) try{ e.scrollIntoView({ block:'center', behavior:'smooth' }); }catch(x){} }, 450);
 }
 function novoCartao(){
   fecharMenuMais();
