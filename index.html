@@ -325,6 +325,50 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
 .passos3 li:before{content:counter(p);grid-row:span 2;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:var(--grad);color:#06110a;font-family:Sora;font-weight:800}
 .passos3 b{font-family:Sora;font-size:19px}
 .passos3 span{color:var(--tx2);font-size:15.5px}
+/* ---------- as telas do app: fotos do app de verdade (site/fotos-landing.js) ---------- */
+.phone.foto .screen{background:#11172c}
+.phone.foto .tela{position:absolute;left:0;right:0;top:27px;aspect-ratio:390/790}
+.phone.foto .tela img{position:absolute;inset:0;width:100%;height:100%;display:block}
+.phone.foto .tela img.depois{opacity:0;transition:opacity .45s ease}
+.phone.foto .tela img.depois.on{opacity:1}
+.phone.foto .flash{position:absolute;left:3%;right:3%;border-radius:12px;background:rgba(34,197,94,.3);opacity:0;pointer-events:none}
+.phone.foto .flash.on{animation:flash 1.6s ease}
+@keyframes flash{0%{opacity:0}20%{opacity:1}100%{opacity:0}}
+.phone.foto .notif{top:40px}
+
+/* ---------- moldura do app novo nos módulos (cabeçalho e menu de baixo) ---------- */
+.nk .screen,.vmod{background:radial-gradient(130% 45% at 50% 0%,#232a5c 0%,transparent 70%),#0d1222}
+.nkh{display:flex;align-items:center;justify-content:space-between;padding:4px 12px 9px;flex:none}
+.nkh .t{display:flex;align-items:center;gap:6px;font-weight:800;font-size:13.5px;letter-spacing:-.01em;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bars{display:inline-flex;align-items:flex-end;gap:2px;height:13px;flex:none}
+.bars i{width:3.5px;border-radius:2px;background:#3b82f6}.bars i:nth-child(1){height:6px}.bars i:nth-child(2){height:9px;background:#38bdf8}.bars i:nth-child(3){height:13px;background:#22c55e}
+.nkh .ia{width:24px;height:24px;border-radius:50%;flex:none;display:grid;place-items:center;color:#fff;font-size:11px;background:linear-gradient(135deg,var(--k,#6d7cff),#8b5cf6);box-shadow:0 0 12px -2px var(--k,#6d7cff)}
+.nknav{flex:none;display:flex;justify-content:space-around;margin:4px 8px 9px;padding:4px;border-radius:20px;background:rgba(18,25,42,.96);border:1px solid #263049}
+.nknav span{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:7.5px;color:#8b99b5;padding:5px 0 4px;border-radius:15px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.nknav span svg{width:15px;height:15px}
+.nknav span.on{background:#1e2a48;color:#fff}
+.nknav span.on svg{color:var(--k,#fff)}
+.nknav span.novo{animation:pisca 1.2s ease 2}
+.nk .body{padding-top:4px}
+
+/* ---------- o assistente, como no app ---------- */
+.ach{display:flex;align-items:center;justify-content:space-between;padding:2px 13px 8px;flex:none}
+.ach b{font-size:14px}.ach .x{color:var(--tx2);font-size:16px}
+.cred{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:0 11px 7px;flex:none}
+.cred div{background:#141b2c;border:1px solid #263049;border-radius:10px;padding:5px 7px}
+.cred span{display:block;font-size:6.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx2)}
+.cred b{font-size:10.5px}
+.motores{display:flex;margin:0 11px;border-bottom:1px solid #222b3e;flex:none}
+.motores span{flex:1;text-align:center;font-size:9px;font-weight:700;color:var(--tx2);padding:5px 0 6px}
+.motores span.on{color:#facc15;border-bottom:2px solid #facc15}
+.segc{display:flex;margin:7px 11px 0;padding:3px;background:#141b2c;border-radius:12px;flex:none}
+.segc span{flex:1;text-align:center;font-size:9.5px;font-weight:600;color:var(--tx2);padding:5px 0;border-radius:9px}
+.segc span.on{background:#26365f;color:#fff}
+.inpc{flex:none;display:flex;align-items:center;gap:5px;margin:0 9px 10px}
+.inpc span{flex:1;background:#141b2c;border-radius:999px;padding:8px 10px;font-size:9.5px;color:var(--tx3)}
+.inpc i{font-style:normal;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:11px;color:#fff;background:linear-gradient(135deg,#6d7cff,#8b5cf6);flex:none}
+.chat .msg.eu{background:linear-gradient(135deg,#5b7cfa,#7c5cf6)}
+.chat .msg.ia{background:#161d30;border-color:#2a3450}
 </style>
 </head>
 
@@ -363,51 +407,8 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
       <small id="heroS">E quando quiser mais, ele vira o que você pedir. <a href="#monte">Veja ↓</a></small>
     </div>
     <div class="phones rv">
-      <div class="phone-slot p1" id="heroA"><div class="phone"><div class="screen"><div class="notch"></div><div class="sbar"></div>
-          <div class="notif" id="notif"><div class="ic">B</div><div><b>Seu Banco · agora</b><span>Compra aprovada de R$ 38,90 em PADARIA CENTRAL no cartão final 0000.</span></div></div>
-          <div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>
-          <div class="body">
-            <div class="seg"><span>Conta corrente</span><span class="on">Cartão</span></div>
-            <div class="c"><div style="display:flex;justify-content:space-between;align-items:end"><div><div class="lbl">Fatura de outubro</div><div class="big" id="fat">R$ 3.103,90</div></div><div style="text-align:right"><div class="lbl">Compras</div><b id="nc" style="font-size:15px">86</b></div></div></div>
-            <div class="c" id="lista" style="padding:4px 12px">
-              <div class="row lanc" id="novo" style="display:none"><span><b>PADARIA CENTRAL</b> <span class="tag">novo</span><br><span class="sub">Padaria e café · Cartão PF</span></span><b>R$ 38,90</b></div>
-              <div class="row"><span><b>SUPERMERCADO BOM PREÇO</b><br><span class="sub">Mercado · Cartão PF</span></span><b>R$ 214,37</b></div>
-              <div class="row"><span><b>POSTO AVENIDA</b><br><span class="sub">Combustível · Cartão PF</span></span><b>R$ 180,00</b></div>
-              <div class="row"><span><b>FARMÁCIA SAÚDE</b><br><span class="sub">Farmácia · Cartão PF</span></span><b>R$ 47,80</b></div>
-              <div class="row"><span><b>CINEMA DO CENTRO</b><br><span class="sub">Lazer · Cartão PF</span></span><b>R$ 62,00</b></div>
-              <div class="row"><span><b>LOJA DE ROUPAS</b> <span class="tag" style="background:rgba(59,130,246,.15);color:var(--azul)">02/05</span><br><span class="sub">Vestuário · Cartão PF</span></span><b>R$ 89,90</b></div>
-              <div class="row"><span><b>APP DE TRANSPORTE</b><br><span class="sub">Transporte · Cartão PF</span></span><b>R$ 23,45</b></div>
-            </div>
-          </div>
-          <div class="tabbar"><span>Mês</span><span>Cartão</span><span class="on">Extrato</span><span>Config</span></div>
-        </div></div></div>
-      <div class="phone-slot p2" id="heroB"><div class="phone"><div class="screen"><div class="notch"></div><div class="sbar"></div>
-        <div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>
-        <div class="months"><span>JUL</span><span>AGO</span><span>SET</span><span class="on">OUT</span><span class="off">NOV</span><span class="off">DEZ</span></div>
-        <div class="body">
-          <div class="c bl">
-            <div class="lbl">Caixa — o que bate com o banco</div>
-            <div class="row" style="margin-top:4px"><span>Saldo em conta hoje</span><b>R$ 4.218,40</b></div>
-            <div class="row"><span>Ainda entra no mês</span><b class="g">R$ 2.500,00</b></div>
-            <div class="row"><span>Ainda sai (sem cartão)</span><b class="r">R$ 1.932,15</b></div>
-            <div class="lbl" style="margin-top:8px">Saldo projetado no fim do mês</div>
-            <div class="big g">R$ 4.786,25</div>
-          </div>
-          <div class="c">
-            <div style="display:flex;justify-content:space-between"><div><div class="lbl">Entrou</div><div class="g" style="font-weight:800;font-size:15px">R$ 12.400</div></div><div style="text-align:right"><div class="lbl">Saiu</div><div class="r" style="font-weight:800;font-size:15px">R$ 9.870</div></div></div>
-            <div class="bar"><i style="width:80%;background:var(--verde)"></i></div>
-            <div class="sub" style="margin-top:5px">gastou 80% do que entrou · sobrou R$ 2.530</div>
-          </div>
-          <div class="c">
-            <div class="lbl">Despesas (24)</div>
-            <div class="row"><span><i class="dot" style="background:var(--azul)"></i>Moradia · Aluguel</span><b>R$ 2.100,00</b></div>
-            <div class="row"><span><i class="dot" style="background:var(--azul)"></i>Moradia · Energia</span><b>R$ 186,30</b></div>
-            <div class="row"><span><i class="dot" style="background:var(--roxo)"></i>Mercado</span><b>R$ 1.240,55</b></div>
-            <div class="row"><span><i class="dot" style="background:var(--amar)"></i>Combustível</span><b>R$ 420,00</b></div>
-          </div>
-        </div>
-        <div class="tabbar"><span class="on">Mês</span><span>Cartão</span><span>Extrato</span><span>Config</span></div>
-      </div></div></div>
+      <div class="phone-slot p1" id="heroA"><div class="phone foto" id="fotoAviso"><div class="screen"><div class="notch"></div><div class="notif" id="notif"><div class="ic">B</div><div><b>Seu Banco · agora</b><span>Compra aprovada de R$ 38,90 em PADARIA CENTRAL no cartão final 0000.</span></div></div><div class="tela"><img src="img/telas/extrato-cartao-antes.jpg" alt="Extrato do cartão no EasyAPP" width="585" height="1185"><img class="depois" id="novo" src="img/telas/extrato-cartao.jpg" alt="" width="585" height="1185"><i class="flash" id="flash" style="top:38.3%;height:7.6%"></i></div></div></div></div>
+      <div class="phone-slot p2" id="heroB"><div class="phone foto"><div class="screen"><div class="notch"></div><div class="tela"><img src="img/telas/mes.jpg" alt="Tela Mês do EasyAPP" width="585" height="1185" loading="lazy"></div></div></div></div>
     </div>
   </div>
 </header>
@@ -417,7 +418,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
     <div class="it rv"><b class="grad">0</b><span>lançamentos à mão</span></div>
     <div class="it rv"><b class="grad">3 telas</b><span>para começar</span></div>
     <div class="it rv"><b class="grad">∞</b><span>telas que você pode criar</span></div>
-    <div class="it rv"><b class="grad">R$ 19,90</b><span>por mês, IA incluída</span></div>
+    <div class="it rv"><b class="grad">R$ 19,90</b><span>por mês. A IA, só o que usar</span></div>
   </div>
 </div>
 
@@ -430,82 +431,12 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
         <h2 class="h2">Três telas.<br><span class="grad">Zero planilha.</span></h2>
         <div class="tour-l" id="tourL">
           <button type="button" class="on"><b>Mês</b><span>Quanto entrou, quanto sai e com quanto você fecha.</span></button>
-          <button type="button"><b>Cartão</b><span>Cada categoria com verba, e quanto ainda dá por dia.</span></button>
-          <button type="button"><b>Metas</b><span>Avisa antes do mês fechar no vermelho, e onde frear.</span></button>
+          <button type="button"><b>Cartão</b><span>Onde você está, onde deveria estar e quanto ainda dá por dia.</span></button>
+          <button type="button"><b>Extrato</b><span>Conta e cartão, tudo lançado sozinho, com busca.</span></button>
         </div>
-        <p class="nota">Aposentadoria, patrimônio e Open Finance ficam guardados até você querer.</p>
+        <p class="nota">Análise, patrimônio e Open Finance ficam guardados até você querer.</p>
       </div>
-      <div class="tour-r rv" id="tourR"><div class="phone"><div class="screen"><div class="notch"></div><div class="sbar"></div>
-        <div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>
-        <div class="months"><span>JUL</span><span>AGO</span><span>SET</span><span class="on">OUT</span><span class="off">NOV</span><span class="off">DEZ</span></div>
-        <div class="body">
-          <div class="c bl">
-            <div class="lbl">Caixa — o que bate com o banco</div>
-            <div class="row" style="margin-top:4px"><span>Saldo em conta hoje</span><b>R$ 4.218,40</b></div>
-            <div class="row"><span>Ainda entra no mês</span><b class="g">R$ 2.500,00</b></div>
-            <div class="row"><span>Ainda sai (sem cartão)</span><b class="r">R$ 1.932,15</b></div>
-            <div class="lbl" style="margin-top:8px">Saldo projetado no fim do mês</div>
-            <div class="big g">R$ 4.786,25</div>
-          </div>
-          <div class="c">
-            <div style="display:flex;justify-content:space-between"><div><div class="lbl">Entrou</div><div class="g" style="font-weight:800;font-size:15px">R$ 12.400</div></div><div style="text-align:right"><div class="lbl">Saiu</div><div class="r" style="font-weight:800;font-size:15px">R$ 9.870</div></div></div>
-            <div class="bar"><i style="width:80%;background:var(--verde)"></i></div>
-            <div class="sub" style="margin-top:5px">gastou 80% do que entrou · sobrou R$ 2.530</div>
-          </div>
-          <div class="c">
-            <div class="lbl">Despesas (24)</div>
-            <div class="row"><span><i class="dot" style="background:var(--azul)"></i>Moradia · Aluguel</span><b>R$ 2.100,00</b></div>
-            <div class="row"><span><i class="dot" style="background:var(--azul)"></i>Moradia · Energia</span><b>R$ 186,30</b></div>
-            <div class="row"><span><i class="dot" style="background:var(--roxo)"></i>Mercado</span><b>R$ 1.240,55</b></div>
-            <div class="row"><span><i class="dot" style="background:var(--amar)"></i>Combustível</span><b>R$ 420,00</b></div>
-          </div>
-        </div>
-        <div class="tabbar"><span class="on">Mês</span><span>Cartão</span><span>Extrato</span><span>Config</span></div>
-      </div></div><div class="phone"><div class="screen"><div class="notch"></div><div class="sbar"></div>
-          <div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>
-          <div class="months"><span>AGO</span><span>SET</span><span class="on">OUT</span><span class="off">NOV</span><span class="off">DEZ</span></div>
-          <div class="body">
-            <div class="c"><div class="lbl">Por tipo de gasto</div><div class="sub" style="margin-top:2px">gasto no mês · quanto ainda posso gastar por dia</div></div>
-            <div class="c">
-              <div class="lbl r">Estourou — R$ 212,40 acima no total</div>
-              <div class="row"><span><i class="dot" style="background:var(--roxo)"></i>Restaurantes<br><span class="sub">&nbsp;&nbsp;&nbsp;verba R$ 600 · gastou R$ 742</span></span><b class="r">+R$ 142,00</b></div>
-              <div class="bar"><i style="width:100%;background:var(--verm)"></i></div>
-              <div class="row" style="margin-top:4px"><span><i class="dot" style="background:var(--amar)"></i>Combustível<br><span class="sub">&nbsp;&nbsp;&nbsp;verba R$ 450 · gastou R$ 520</span></span><b class="r">+R$ 70,40</b></div>
-              <div class="bar"><i style="width:100%;background:var(--verm)"></i></div>
-            </div>
-            <div class="c">
-              <div class="lbl g">Ainda tem saldo</div>
-              <div class="row"><span><i class="dot" style="background:var(--roxo)"></i>Mercado<br><span class="sub">&nbsp;&nbsp;&nbsp;verba R$ 1.500</span></span><span style="text-align:right"><b class="g">R$ 12,40</b><br><span class="sub">por dia</span></span></div>
-              <div class="bar"><i style="width:72%;background:var(--verde)"></i></div>
-              <div class="row" style="margin-top:4px"><span><i class="dot" style="background:var(--verde)"></i>Farmácia<br><span class="sub">&nbsp;&nbsp;&nbsp;verba R$ 250</span></span><span style="text-align:right"><b class="g">R$ 4,10</b><br><span class="sub">por dia</span></span></div>
-              <div class="bar"><i style="width:55%;background:var(--verde)"></i></div>
-              <div class="row" style="margin-top:4px"><span><i class="dot" style="background:var(--rosa)"></i>Lazer<br><span class="sub">&nbsp;&nbsp;&nbsp;verba R$ 400</span></span><span style="text-align:right"><b class="g">R$ 8,60</b><br><span class="sub">por dia</span></span></div>
-              <div class="bar"><i style="width:40%;background:var(--verde)"></i></div>
-            </div>
-          </div>
-          <div class="tabbar"><span>Mês</span><span class="on">Cartão</span><span>Extrato</span><span>Config</span></div>
-        </div></div><div class="phone"><div class="screen"><div class="notch"></div><div class="sbar"></div>
-          <div class="ahead"><div class="t">EasyAPP <b>Financial</b></div><div class="pill"><span>Tudo</span><span>PF</span><span>PJ</span></div></div>
-          <div class="body">
-            <div class="seg"><span>Painel</span><span>Plano</span><span class="on">Metas</span><span>Patrimônio</span></div>
-            <div class="c bb"><div style="display:flex;justify-content:space-between"><div class="lbl">Meta deste mês</div><span class="sub">dia 18 de 31</span></div><div class="big">R$ 1.500,00</div></div>
-            <div class="c br">
-              <div class="lbl">Do jeito que está indo, vai sobrar</div>
-              <div class="big r">R$ 980,00</div>
-              <div class="bar"><i style="width:65%;background:var(--verm)"></i></div>
-              <div class="row" style="margin-top:4px"><span>Entra no mês</span><b class="g">R$ 12.400</b></div>
-              <div class="row"><span>Sai no mês</span><b class="r">R$ 11.420</b></div>
-            </div>
-            <div class="lbl" style="padding-left:2px">Onde dá para frear</div>
-            <div class="c" style="padding:4px 12px">
-              <div class="row"><span><i class="dot" style="background:var(--roxo)"></i>Restaurantes<br><span class="sub">&nbsp;&nbsp;&nbsp;estourou a verba</span></span><b class="r">R$ 142,00</b></div>
-              <div class="row"><span><i class="dot" style="background:var(--rosa)"></i>Compras online<br><span class="sub">&nbsp;&nbsp;&nbsp;sem verba</span></span><b class="r">R$ 310,00</b></div>
-              <div class="row"><span><i class="dot" style="background:var(--amar)"></i>Combustível<br><span class="sub">&nbsp;&nbsp;&nbsp;estourou a verba</span></span><b class="r">R$ 70,40</b></div>
-              <div class="row"><span class="sub">cortar R$ 520 nestas contas fecha a meta do mês</span></div>
-            </div>
-          </div>
-          <div class="tabbar"><span>Mês</span><span>Cartão</span><span>Extrato</span><span class="on">Análise</span><span>Config</span></div>
-        </div></div></div>
+      <div class="tour-r rv" id="tourR"><div class="phone foto"><div class="screen"><div class="notch"></div><div class="tela"><img src="img/telas/mes.jpg" alt="Tela Mês do EasyAPP" width="585" height="1185" loading="lazy"></div></div></div><div class="phone foto"><div class="screen"><div class="notch"></div><div class="tela"><img src="img/telas/cartao.jpg" alt="Tela Cartão do EasyAPP" width="585" height="1185" loading="lazy"></div></div></div><div class="phone foto"><div class="screen"><div class="notch"></div><div class="tela"><img src="img/telas/extrato.jpg" alt="Tela Extrato do EasyAPP" width="585" height="1185" loading="lazy"></div></div></div></div>
     </div>
   </div>
 </section>
@@ -557,12 +488,14 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
       <div class="rv" style="display:flex;justify-content:center">
         <div class="phone chat"><div class="screen"><div class="notch"></div><div class="sbar"></div>
           <div class="vchat" id="vchat">
-            <div class="ahead"><div class="t">Assistente</div><span class="x">×</span></div>
-            <div class="iabas"><span class="on">Chat</span><span>Histórico</span><span>Módulos</span></div>
+            <div class="ach"><b>Assistente</b><span class="x">×</span></div>
+            <div class="cred"><div><span>💳 Créditos</span><b>R$ 20,00</b></div><div><span>✦ Gasto</span><b id="gastoIA">R$ 1,16</b></div><div><span>Saldo</span><b class="g" id="saldoIA">R$ 18,84</b></div></div>
+            <div class="motores"><span>⚡ Ágil</span><span class="on">◆ Padrão</span><span>★ Profundo</span></div>
+            <div class="segc"><span class="on">Chat</span><span>Alterações</span><span>Módulos</span></div>
             <div class="body" id="chat"></div>
-            <div class="inp">Peça algo ou anexe 📎<i>↑</i></div>
+            <div class="inpc"><i>📎</i><span>Peça algo ou anexe</span><i>🎤</i><i>↑</i></div>
           </div>
-          <div class="vmod" id="vmod" hidden><div class="ahead"><div class="t" id="vmodT"></div><span class="x">✦</span></div><div class="body" id="vmodB"></div><div class="tabbar" id="vmodTab"></div></div>
+          <div class="vmod" id="vmod" hidden></div>
         </div></div>
       </div>
       <div class="rv">
@@ -587,13 +520,13 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
     </div>
     <div class="planos">
       <div class="plano rv"><span class="tag-p">Para começar</span><h4>Teste grátis</h4><div class="preco">R$ 0<small> · 14 dias</small></div>
-        <ul><li>Tudo liberado</li><li>Sem cartão de crédito</li><li>Assistente incluído</li></ul></div>
+        <ul><li>Tudo liberado</li><li>Sem cartão de crédito</li><li>Um saldo para experimentar o assistente</li></ul></div>
       <div class="plano rv"><span class="tag-p">Mais flexível</span><h4>Mensal</h4><div class="preco">R$ 19,90<small> /mês</small></div>
-        <ul><li>Financeiro completo</li><li>Assistente incluído todo mês</li><li>Cancele pelo app</li></ul></div>
+        <ul><li>Financeiro completo</li><li>Lançamentos automáticos</li><li>Cancele pelo app</li></ul></div>
       <div class="plano destaque rv"><span class="tag-p">2 meses grátis</span><h4>Anual</h4><div class="preco">R$ 199<small> /ano</small></div>
-        <ul><li>Sai por R$ 16,58 por mês</li><li>Pix, cartão ou boleto</li><li>Assistente incluído todo mês</li></ul></div>
+        <ul><li>Sai por R$ 16,58 por mês</li><li>Pix, cartão ou boleto</li><li>Financeiro completo</li></ul></div>
     </div>
-    <p class="nota-planos rv">Vai construir muita coisa? Créditos extras do assistente a partir de R$ 20, que não vencem. Desistiu em até 7 dias depois de pagar? Devolvemos o valor.</p>
+    <p class="nota-planos rv"><b>O assistente de IA é à parte, pelo uso:</b> você compra créditos (a partir de R$ 10, não vencem) e cada pedido mostra quanto custou antes de sair do saldo. Desistiu em até 7 dias depois de pagar? Devolvemos o valor.</p>
   </div>
 </section>
 
@@ -651,7 +584,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
       <details><summary>O que dá para criar com o assistente?</summary><p>Quase tudo que hoje mora numa planilha ou num caderno: o controle do carro, do treino, de uma viagem, de uma obra, do time, do rebanho, ou do seu negócio (agenda, pedidos, estoque, fiado, comissão, orçamento em PDF). Também muda cores, nomes do menu e esconde o que você não usa. Você pede, vê a prévia e aplica.</p></details>
       <details><summary>Serve para o meu negócio?</summary><p>Se você consegue explicar como ele funciona, serve: lava-jato, salão, marmitaria, oficina, loja, pet shop, obras, corridas. O que o módulo recebe pode cair direto no caixa do app, com a empresa (PJ) separada da casa (PF). Hoje o app é de uma pessoa, numa conta só: ainda não há acesso para a equipe.</p></details>
       <details><summary>Tem para iPhone?</summary><p>Tem: no iPhone o EasyAPP roda pelo Safari e vira um ícone na tela inicial, em tela cheia como um app (veja acima). Os lançamentos entram pelo e-mail do banco, pelo Apple Pay (app Atalhos) e pelo Open Finance.</p></details>
-      <details><summary>Quanto custa?</summary><p>14 dias grátis, sem cartão. Depois, R$ 19,90 por mês ou R$ 199 por ano. Cada plano inclui um valor mensal de uso do assistente; para construir mais, há créditos pré-pagos. O app mostra o custo de cada pedido: sem surpresa na fatura.</p></details>
+      <details><summary>Quanto custa?</summary><p>14 dias grátis, sem cartão, com um saldo para experimentar o assistente. Depois, R$ 19,90 por mês ou R$ 199 por ano pelo app. O assistente de IA é cobrado à parte, pelo que você usar: créditos pré-pagos a partir de R$ 10, que não vencem, e o app mostra o custo de cada pedido. Sem surpresa na fatura.</p></details>
       <details><summary>Meus dados ficam seguros?</summary><p>Cada pessoa só enxerga os próprios dados, com a trava no banco de dados, não só na tela. O app abre com digital ou rosto e, no Android, não vai para o backup do Google; o assistente não tem acesso a senha, login nem ao funcionamento interno do sistema. Nada é vendido nem usado para propaganda. Detalhes na <a href="privacidade.html">Política de Privacidade</a>.</p></details>
       <details><summary>Preciso dar a senha do meu banco?</summary><p>Não. O app nunca pede senha de banco. O Open Finance é opcional e a autorização é feita na janela oficial da Pluggy, e pode ser revogada quando quiser.</p></details>
       <details><summary>E se eu estragar alguma coisa pedindo mudança?</summary><p>Não estraga. Toda mudança tem prévia, cada módulo guarda as versões e dá para desligar qualquer um ou voltar a aparência ao padrão com um toque.</p></details>
@@ -943,12 +876,35 @@ var NICHOS = [
     ] }
 ];
 
+var ICO = {
+  'Mês': '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  'Cartão': '<rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M2.5 9.5h19M6 14.5h4"/>',
+  'Extrato': '<path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z"/><path d="M9 8h6M9 11.5h6M9 15h4"/>',
+  'Config': '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
+  'Caixa': '<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M16 12.5h2M3 9.5h18"/>',
+  'pessoas': '<circle cx="9" cy="9" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"/><circle cx="17" cy="9.5" r="2.4"/><path d="M16 14.6c2.3.1 3.9 1.5 4.5 4.4"/>',
+  'lista': '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/>',
+  'modulo': '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><path d="M17 13.5v7M13.5 17h7"/>'
+};
+var PESSOAS = ['Clientes', 'Equipe', 'Pets'], LISTAS = ['Preços', 'Orçam.', 'Comissão', 'Fiado', 'Crediário', 'Pacotes', 'Semana', 'Carro', 'Cozinha', 'Estoque'];
+function icone(a) {
+  var d = ICO[a] || ICO[PESSOAS.indexOf(a) >= 0 ? 'pessoas' : LISTAS.indexOf(a) >= 0 ? 'lista' : 'modulo'];
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+}
+function menuDeBaixo(abas, on, novo) {
+  return '<div class="nknav">' + abas.map(function (a, j) {
+    return '<span class="' + (j === on ? 'on' : '') + (j === on && novo ? ' novo' : '') + '">' + icone(a) + a + '</span>';
+  }).join('') + '</div>';
+}
+/* a moldura do app novo: o cabeçalho (barrinhas + nome) e o menu de baixo flutuante */
+function moldura(titulo, k, corpo, abas, on, novo) {
+  return '<div class="nkh"><div class="t"><span class="bars"><i></i><i></i><i></i></span>' + titulo + '</div><span class="ia">✦</span></div>' +
+    '<div class="body">' + corpo + '</div>' + menuDeBaixo(abas, on, novo);
+}
 /* o celular de um negócio: o nome, a cor e o menu dele */
 function celular(n, i) {
-  return '<div class="phone nk" style="--k:' + n.k + '"><div class="screen"><div class="notch"></div><div class="sbar"></div>' +
-    '<div class="ahead"><div class="t"><span class="lg">' + n.em + '</span>' + n.marca + '</div><span class="ia">✦</span></div>' +
-    '<div class="body">' + n.telas[i] + '</div>' +
-    '<div class="tabbar">' + n.abas.map(function (a, j) { return '<span' + (j === n.on[i] ? ' class="on"' : '') + '>' + a + '</span>'; }).join('') + '</div></div></div>';
+  return '<div class="phone nk" style="--k:' + n.k + '"><div class="screen"><div class="notch"></div><div class="sbar" style="height:30px"></div>' +
+    moldura(n.marca, n.k, n.telas[i], n.abas, n.on[i]) + '</div></div>';
 }
 
 function copiar(bt, texto) {
@@ -1104,7 +1060,7 @@ if (PEDIDO_URL) {
     palco.innerHTML = celular(n, tela);
     var ph = palco.firstChild;
     if (anima) ph.classList.add('morph');
-    ph.querySelectorAll('.tabbar span').forEach(function (s, j) {
+    ph.querySelectorAll('.nknav span').forEach(function (s, j) {
       var t = atual.on.indexOf(j);
       s.onclick = function () { if (t >= 0 && t !== tela) { tela = t; desenha(true); } else if (t < 0) { ph.classList.remove('morph'); void ph.offsetWidth; ph.classList.add('morph'); } };
     });
@@ -1140,19 +1096,16 @@ if (PEDIDO_URL) {
   grupo(PEDIDO_URL ? PEDIDO_URL.g : 'vida', PEDIDO_URL);
 })();
 
-/* aviso do banco -> lançamento */
+/* aviso do banco -> lançamento: o aviso cai e a compra aparece no extrato do cartão
+   (duas fotos do app, antes e depois da compra) */
 (function () {
-  var notif = document.getElementById('notif'), novo = document.getElementById('novo'),
-      fat = document.getElementById('fat'), nc = document.getElementById('nc'), rodando = false;
+  var notif = document.getElementById('notif'), novo = document.getElementById('novo'), flash = document.getElementById('flash'), rodando = false;
   if (!notif) return;  // com ?app=, o topo mostra o app do anúncio
   function ciclo() {
-    novo.style.display = 'none'; fat.textContent = 'R$ 3.103,90'; nc.textContent = '86';
+    novo.classList.remove('on'); flash.classList.remove('on');
     setTimeout(function () { notif.classList.add('show'); }, 600);
     setTimeout(function () { notif.classList.remove('show'); }, 3400);
-    setTimeout(function () {
-      novo.style.display = ''; novo.classList.remove('novo'); void novo.offsetWidth; novo.classList.add('novo');
-      fat.textContent = 'R$ 3.142,80'; nc.textContent = '87';
-    }, 3900);
+    setTimeout(function () { novo.classList.add('on'); void flash.offsetWidth; flash.classList.add('on'); }, 3900);
   }
   new IntersectionObserver(function (es) {
     if (es[0].isIntersecting && !rodando) { rodando = true; ciclo(); setInterval(ciclo, 8000); }
@@ -1191,10 +1144,8 @@ if (PEDIDO_URL) {
       cartao.querySelector('.acts').innerHTML = '<span class="ok">Abrir</span><span>Desfazer</span>';
     }, t); t += 1600;
     setTimeout(function () {
-      document.getElementById('vmodT').textContent = e.ic + ' ' + e.nome;
-      document.getElementById('vmodB').innerHTML = e.tela;
       vmod.style.setProperty('--k', e.k || '#3b82f6');
-      document.getElementById('vmodTab').innerHTML = '<span>Mês</span><span>Cartão</span><span>Extrato</span><span class="on novo">' + e.aba + '</span><span>Config</span>';
+      vmod.innerHTML = moldura(e.ic + ' ' + e.nome, e.k, e.tela, ['Mês', 'Cartão', 'Extrato', e.aba, 'Config'], 3, true);
       vchat.hidden = true; vmod.hidden = false;
     }, t); t += 5200;
     setTimeout(roda, t);
