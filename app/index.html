@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.56.7 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.57.0 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10003,7 +10003,7 @@ window.pedirTexto = function (o, feito) {
 
   /* ---------- CELULAR: nome em cima, numeros embaixo ---------- */
   @media (max-width:700px){
-    .ln.tab{grid-template-columns:1fr 1fr 1fr;gap:4px 8px;padding:10px 0}
+  .ln.tab{grid-template-columns:1fr 1fr 1fr;gap:4px 8px;padding:10px 0}
     .ln.tab .nm{grid-column:1/-1}
     .ln .nm span{white-space:normal;overflow:visible;font-size:13.5px;font-weight:500}
     .ln .n{font-size:12.5px}
@@ -10299,6 +10299,7 @@ window.pedirTexto = function (o, feito) {
   .hr-chip b{font-size:15.5px;font-weight:700;white-space:nowrap}
   .hr-chip i{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--dim);font-size:18px}
   /* filtro de categoria dentro da lista */
+  .ln-toque{cursor:pointer}
   .fam-chips{display:flex;gap:7px;overflow-x:auto;margin:10px -14px 4px;padding:0 14px 2px;scrollbar-width:none}
   .fam-chips::-webkit-scrollbar{display:none}
   .fam-chips .fc{flex:none;display:flex;align-items:center;gap:6px;padding:6px 12px 6px 6px!important;border-radius:999px!important;
@@ -10320,6 +10321,9 @@ window.pedirTexto = function (o, feito) {
   .cx-it .t{font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .cx-it .n{font-size:13px;font-weight:600;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
   .cx-it input:checked~.t,.cx-it input:checked~.n{opacity:.4;text-decoration:line-through}
+  .cx-info{font-size:11.5px;color:var(--dim);line-height:1.4;padding:6px 2px 8px}
+  .cx-info b{color:var(--txt);font-weight:600}
+  .cx-acao{display:flex;gap:8px;margin-top:8px}.cx-acao button{height:40px;padding:0 14px!important;font-size:13.5px}.cx-acao .bt-ok{flex:1}
   .cx-rp{width:28px;flex:none;background:none!important;border:0!important;color:var(--dim);font-size:15px;padding:0!important;cursor:pointer;text-align:center}
   button.cx-rp{color:#93b8ff}
   /* sininho do classificar */
@@ -12530,14 +12534,17 @@ function renderMes(){
       h+='<div style="margin-top:2px">'+
          '<div class="kv" style="cursor:pointer;color:var(--dim)" onclick="ST.abreCaixa=!ST.abreCaixa;renderMes()">'+
          '<span>'+icoCx('lista')+'De onde vêm ('+cx.itens.length+(cx.itens.length===1?' conta)':' contas)')+setaAbre(ST.abreCaixa)+
-         (ST.abreCaixa?dica('Marque o que já resolveu ou não vai acontecer: o previsto fica no que já foi pago.'):'')+'</span></div>';
+         '</span></div>';
       if(ST.abreCaixa){
+        ST.cxSel=ST.cxSel||{};
+        // marcar só seleciona; o botão embaixo retira da previsão, com confirmação (25/10)
+        h+='<div class="cx-info">&#10003; Marque o que <b>não vai acontecer</b> neste mês e toque em <b>Retirar</b>: sai do “Ainda entra / Ainda sai” (o previsto fica igual ao que já foi pago). A fatura marcada é registrada como paga.</div>';
         cx.itens.forEach(function(x,n){
           var podeReprog = !x.fatura && x.natureza!=='RECEITA';
           // grade fixa: marca · nome · valor · ↪ (a coluna da seta existe sempre, os valores alinham)
           h+='<div class="cx-it"><label>'+
-             '<input type="checkbox" onchange="'+(x.fatura ? 'baixarFatura(this)'
-               : 'baixarPrevisto('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+',this)')+'">'+
+             '<input type="checkbox"'+(!x.fatura&&ST.cxSel[x.categoria]?' checked':'')+' onchange="'+(x.fatura ? 'pagarFaturaPerguntando(this)'
+               : 'cxMarcar('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+',this.checked)')+'">'+
              '<span class="t">'+tx(x.categoria)+'</span>'+
              '<span class="n '+(x.natureza==='RECEITA'?'pos':'neg')+'">'+
              (x.natureza==='RECEITA'?'+':'-')+moeda(x.falta)+'</span></label>'+
@@ -12545,6 +12552,11 @@ function renderMes(){
                'onclick="abrirReprog('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+',\'caixa\')">&#8618;</button>':'<span class="cx-rp"></span>')+'</div>';
           if(podeReprog && ST.reprog===x.categoria && ST.reprogOnde==='caixa') h+=painelReprog(x);
         });
+        var sel=cx.itens.filter(function(x){ return !x.fatura && ST.cxSel[x.categoria]; });
+        if(sel.length){
+          h+='<div class="cx-acao"><button class="bt-no" onclick="ST.cxSel={};renderMes()">Limpar</button>'+
+             '<button class="bt-ok" onclick="cxRetirar()">Retirar '+sel.length+' da previsão</button></div>';
+        }
       }
       h+='</div>';
     }
@@ -12610,7 +12622,8 @@ function renderMes(){
      '<div class="cab-ln"><span>subcategoria</span><span>previsto</span><span>realizado</span><span>diferença</span></div>'+
      '<div class="cab-mob"><span>previsto</span><span>realizado</span><span>saldo</span></div>';
   lista.forEach(function(d,i){
-    h+='<div class="ln tab" title="'+tx(d.grupo)+'">'+
+    // tocar na linha (fora do previsto e dos botões) abre o Extrato só desta subcategoria
+    h+='<div class="ln tab ln-toque" title="'+tx(d.grupo)+'" onclick="if(!event.target.closest(\'input,button\'))verNoExtrato('+JSON.stringify(d.categoria).replace(/"/g,'&quot;')+',\''+(d.pagaPor||'')+'\')">'+
        '<div class="nm">'+ponto(d.grupo)+'<span>'+tx(rotuloCat(d.categoria, d.grupo))+'</span>'+
          (d.saldo>0.005 && !d.daVerba && d.categoria!=='CARTAO - A CLASSIFICAR'
            ? '<button class="bt-x" title="reprogramar a sobra para os próximos meses" style="color:#93b8ff;font-size:14px;flex:none;margin-left:4px" '+
@@ -12925,6 +12938,25 @@ function reprogramar(cat){
     .apiReprogramarPrevisto(ST.mes, cat, v, modo, alvo, vezes);
 }
 
+function cxMarcar(cat, on){ ST.cxSel=ST.cxSel||{}; if(on) ST.cxSel[cat]=true; else delete ST.cxSel[cat]; renderMes(); }
+/* Retira da previsão as contas marcadas no "De onde vêm" (o previsto fica no
+   que já foi pago), depois de confirmar quais são. */
+function cxRetirar(){
+  var cats=Object.keys(ST.cxSel||{}); if(!cats.length) return;
+  var mesNome=NOMES_MES[Number(ST.mes.split('-')[1])];
+  if(!confirm('Retirar da previsão de '+mesNome+'?\n\n'+cats.map(function(c){ return '• '+c; }).join('\n')+
+              '\n\nElas saem do "Ainda entra / Ainda sai" deste mês. O previsto fica igual ao que já foi pago.')) return;
+  toast('Retirando '+cats.length+'...');
+  var vai=function(k){
+    if(k>=cats.length){ ST.cxSel={}; toast(cats.length+(cats.length===1?' conta retirada':' contas retiradas')+' da previsão'); ST.ano=null; carregar(ST.mes); return; }
+    google.script.run.withSuccessHandler(function(){ vai(k+1); }).withFailureHandler(function(){ vai(k+1); }).apiBaixarPrevisto(ST.mes, cats[k]);
+  };
+  vai(0);
+}
+function pagarFaturaPerguntando(box){
+  if(!confirm('Marcar a fatura do cartão de '+NOMES_MES[Number(ST.mes.split('-')[1])]+' como paga?\n\nO app lança o pagamento saindo da conta padrão do cartão.')){ box.checked=false; return; }
+  baixarFatura(box);
+}
 function baixarPrevisto(cat, box){
   box.disabled=true;
   google.script.run.withSuccessHandler(function(r){
@@ -14394,7 +14426,16 @@ function pintarExtrato(c, abas, busca, corpo){
 function trocarExtrato(m){ ST.modoEx=m; ST.extrato=null; mesDoExtrato(); renderExtrato(); }
 
 /* Conta corrente mostra o mes corrente; cartao mostra a fatura que esta correndo. */
+/* Do Mês para o Extrato: o que compõe o realizado de uma subcategoria. No
+   cartão (pago pela fatura) abre o Extrato do cartão; senão, a conta. O mês
+   continua o da tela (no cartão o extrato iria para a fatura aberta). */
+function verNoExtrato(cat, pagaPor){
+  ST.modoEx = (pagaPor==='CARTAO' && ST.regime!=='COMPETENCIA') ? 'CARTAO' : 'CONTA';
+  ST.busca = cat; ST.cartaoSel='TUDO'; ST.extrato=null; ST.manterMes=true;
+  irParaTela('extrato');
+}
 function mesDoExtrato(){
+  if(ST.manterMes){ ST.manterMes=false; return; }
   var alvo = (ST.modoEx==='CARTAO' && ST.regime!=='COMPETENCIA' && ST.saldos && ST.saldos.cartoes && ST.saldos.cartoes.mes)
     ? ST.saldos.cartoes.mes : mesDeHoje();
   if(ST.mes!==alvo){ ST.extrato=null; carregar(alvo, true); }
