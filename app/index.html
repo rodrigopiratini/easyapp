@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.53.1 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.53.2 \u00b7 25/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -11574,7 +11574,7 @@ function renderPendentes(){
     h+='<div class="card pd'+(p.novo?' novo':'')+'" id="p'+i+'">'+
        '<div class="pd-cab"><span class="pd-ic '+(rec?'rec':'des')+'">'+(p.meio==='CARTAO_CREDITO'?IC_CARTAO_PD:(rec?'&#8595;':'&#8593;'))+'</span>'+
          '<div class="pd-tx"><b>'+(p.novo?'<i class="pd-novo">novo</i>':'')+tx(p.descricao)+'</b>'+
-         '<small>'+p.dataHora+' · '+icConta(p.conta)+tx(p.conta||'sem conta')+' · '+meioTxt+'</small></div>'+
+         '<small>'+icConta(p.conta)+p.dataHora+' · '+tx(p.conta||'sem conta')+' · '+meioTxt+'</small></div>'+
          '<div class="pd-v '+(rec?'pos':'')+'">'+(rec?'+ ':'')+moeda(p.valor)+'</div></div>'+
        '<div class="m" style="font-size:11.5px;margin-top:1px">'+
          (p.moeda?' · <b style="color:var(--warn)">'+p.moeda+' '+num(p.valorOriginal)+'</b> × '+num(p.cotacao)+(p.cotacaoAprox?' (aprox.)':''):'')+
@@ -14422,7 +14422,7 @@ function extratoConta(e){
        '<span class="d2">'+tx(x.fornecedor)+
          (x.status==='PENDENTE'?'<b class="pend">a confirmar</b>':'')+
          seloManual(x)+
-         '<i>'+(comp?(x.noCartao?IC_MEIO_CARTAO:IC_MEIO_CONTA):'')+origemIc(x)+tx(rotuloCat(x.categoria)||'sem categoria')+' · '+icConta(x.cartao||x.conta)+tx(x.cartao||x.conta)+'</i></span>'+
+         '<i>'+(comp?(x.noCartao?IC_MEIO_CARTAO:IC_MEIO_CONTA):'')+origemIc(x)+icConta(x.cartao||x.conta)+tx(rotuloCat(x.categoria)||'sem categoria')+' · '+tx(x.cartao||x.conta)+'</i></span>'+
        '<span class="d3 '+(x.credito?'pos':'neg')+'">'+(x.credito?'+':'-')+moeda(v)+
          '<i>'+(x.noCartao?(x.parcela?'parcela '+x.parcela:'no cartão'):x.semConta?'sem conta':x.foraDoSaldo&&x.status!=='IGNORADO'?'fora do saldo':moeda(x.saldo))+'</i></span>'+
        '<button class="bt-x" title="excluir" onclick="event.stopPropagation();excluirLanc('+x.linha+',this,\''+(x.id||'')+'\')">&times;</button>'+
@@ -14566,7 +14566,7 @@ function extratoCartao(e){
            : (/parcela\s*\d/i.test(x.obs||'')
                ? ' <b class="parc">'+String(x.obs).replace(/parcela\s*/i,'')+'</b>' : ''))+
          seloManual(x)+
-         '<i>'+origemIc(x)+tx(rotuloCat(x.categoria)||'sem categoria')+' · '+icConta(x.cartao)+tx(x.cartao.replace('CARTAO ',''))+
+         '<i>'+origemIc(x)+icConta(x.cartao)+tx(rotuloCat(x.categoria)||'sem categoria')+' · '+tx(x.cartao.replace('CARTAO ',''))+
          '</i></span>'+
        '<span class="d3">'+moeda(x.valor)+'<i>'+moeda(x.acumulado)+'</i></span>'+
        '<button class="bt-x" title="excluir" onclick="event.stopPropagation();excluirLanc('+x.linha+',this,\''+(x.id||'')+'\')">&times;</button>'+
