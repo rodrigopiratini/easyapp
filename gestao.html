@@ -175,7 +175,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.13.0 · 25/10/2026';
+var VERSAO_PAINEL = '1.14.0 · 26/10/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -794,24 +794,44 @@ function blocoApi(a) {
   return h;
 }
 // o preço do assistente: o cliente paga o custo na Anthropic × o multiplicador
-// (a função assistente lê no começo de cada pedido; 058)
+// (a função assistente lê no começo de cada pedido; 058). Cada motor pode ter
+// o seu; vazio = vale o geral.
+var MOTORES_IA = [['agil', '⚡ Ágil'], ['padrao', '● Padrão'], ['profundo', '★ Profundo']];
 function blocoMultiplicador() {
   var m = DADOS.ia_multiplicador || { valor: 4, padrao: true, sem_tabela: true };
-  var ex = function (usd) { return brl(usd * 5.5 * m.valor); };   // a função assistente usa US$ 1 = R$ 5,50
+  var mo = m.motores || {};
+  var vale = function (k) { return mo[k] ? mo[k].valor : m.valor; };
+  var fmt = function (v) { return String(v).replace('.', ','); };
+  var ex = function (usd, k) { return brl(usd * 5.5 * vale(k)); };   // a função assistente usa US$ 1 = R$ 5,50
+  var linhas = MOTORES_IA.map(function (x) {
+    var k = x[0], p = mo[k];
+    return '<tr><td>' + x[1] + '</td><td><b>' + fmt(vale(k)) + '×</b> ' + (p ? '<span class="sub2">próprio, desde ' + dt(p.desde) + '</span>' : '<span class="sub2">o geral</span>') + '</td>' +
+      '<td><form onsubmit="mudarMultiplicador(\'' + k + '\');return false" style="display:flex;gap:6px">' +
+      '<input id="iaMult_' + k + '" inputmode="decimal" placeholder="geral" value="' + (p ? fmt(p.valor) : '') + '" style="width:70px">' +
+      '<button class="mini">Salvar</button></form></td></tr>';
+  }).join('');
   return '<h2>Preço do assistente</h2><div class="heroi"><div>' +
-    '<div class="rot">O cliente paga</div><div class="num v">' + String(m.valor).replace('.', ',') + '× o custo</div>' +
-    '<div class="sub2">um pedido simples (US$ 0,01) sai por ' + ex(0.01) + ' · um módulo grande (US$ 0,10) por ' + ex(0.1) + '</div>' +
+    '<div class="rot">O cliente paga (geral)</div><div class="num v">' + fmt(m.valor) + '× o custo</div>' +
+    '<div class="sub2">um pedido simples (US$ 0,01) sai por ' + ex(0.01, 'padrao') + ' no Padrão · um módulo grande (US$ 0,10) por ' + ex(0.1, 'padrao') + '</div>' +
     '<div class="sub2">' + (m.sem_tabela ? '⚠️ falta rodar a migração 058: até lá o assistente cobra 4×'
       : m.padrao ? 'valor padrão (nunca foi mudado)' : 'mudado em ' + dt(m.desde)) + '</div>' +
-    '</div><div class="acoes"><form onsubmit="mudarMultiplicador();return false"><label class="sub2">Novo multiplicador (de 1 a 50)</label>' +
-    '<input id="iaMult" inputmode="decimal" value="' + String(m.valor).replace('.', ',') + '"><button>Salvar</button></form>' +
-    '<div class="sub2">Vale para os próximos pedidos. O custo do dólar e o saldo de cada cliente não mudam.</div></div></div>';
+    '</div><div class="acoes"><form onsubmit="mudarMultiplicador(\'\');return false"><label class="sub2">Multiplicador geral (de 1 a 50)</label>' +
+    '<input id="iaMult" inputmode="decimal" value="' + fmt(m.valor) + '"><button>Salvar</button></form>' +
+    '<div class="sub2">Vale para os próximos pedidos. O custo do dólar e o saldo de cada cliente não mudam.</div></div></div>' +
+    '<div class="tab" style="margin-top:10px"><table><thead><tr><th>Motor</th><th>Multiplicador</th><th>Próprio (vazio = o geral)</th></tr></thead>' +
+    '<tbody>' + linhas + '</tbody></table></div>';
 }
-function mudarMultiplicador() {
-  var v = Number(String(document.getElementById('iaMult').value || '').replace(',', '.'));
+function mudarMultiplicador(motor) {
+  var t = String(document.getElementById(motor ? 'iaMult_' + motor : 'iaMult').value || '').trim();
+  var nome = motor ? (MOTORES_IA.filter(function (x) { return x[0] === motor; })[0] || [0, motor])[1] : '';
+  if (motor && !t) {
+    if (!confirm('Tirar o multiplicador próprio do ' + nome + '? Ele volta a usar o geral.')) return;
+    acao({ acao: 'ia_multiplicador', motor: motor, valor: '' }); return;
+  }
+  var v = Number(t.replace(',', '.'));
   if (!(v >= 1 && v <= 50)) { alert('O multiplicador vai de 1 a 50'); return; }
-  if (!confirm('Cobrar ' + String(v).replace('.', ',') + '× o custo da IA nos próximos pedidos?')) return;
-  acao({ acao: 'ia_multiplicador', valor: v });
+  if (!confirm('Cobrar ' + String(v).replace('.', ',') + '× o custo da IA ' + (motor ? 'no ' + nome : 'nos motores sem multiplicador próprio') + ' nos próximos pedidos?')) return;
+  acao(motor ? { acao: 'ia_multiplicador', motor: motor, valor: v } : { acao: 'ia_multiplicador', valor: v });
 }
 function informarSaldo() {
   var v = Number(String(document.getElementById('apiSaldo').value || '').replace(/\./g, '').replace(',', '.'));
