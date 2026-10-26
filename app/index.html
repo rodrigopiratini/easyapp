@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.58.6 \u00b7 25/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.59.0 \u00b7 26/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -975,10 +975,7 @@ window.pedirTexto = function (o, feito) {
     // em competência (055) entram também as compras no cartão feitas no mês
     return config().then(function (c0) { var comp = competencia(c0);
     return Promise.all([lerTudo(q), saldoAberturaDoMes(mes, filtro),
-                        // filtro de uma subcategoria (busca entre aspas): entram também as
-                        // compras dela no cartão - a Escola paga pela conta E pelo cartão
-                        // somava R$ 2.518 no Mês e o Extrato mostrava só os R$ 2.133 da conta
-                        (comp || /^\s*["“].+["”]\s*$/.test(busca || '')) ? extratoCartaoDe(mes, '', 'TUDO', comp) : null]).then(function (r) {
+                        comp ? extratoCartaoDe(mes, '', 'TUDO', true) : null]).then(function (r) {
       // o mais recente em cima; no mesmo dia, o que entrou por último
       var itens = r[0].map(function (l) { return paraItem(l); }).sort(maisNovoPrimeiro);
       var inicial = r[1].inicial, vale = r[1].vale;
@@ -4714,6 +4711,31 @@ window.pedirTexto = function (o, feito) {
         });
     });
   }
+  /* O que forma o realizado de uma subcategoria no mês, separado em conta
+     corrente e cartão (a despesa paga pelos dois: tocar nela no Mês). */
+  function composicaoDaCategoria(mes, cat) {
+    return Promise.all([config(), idDaCategoria(cat)]).then(function (r0) {
+      var comp = competencia(r0[0]), id = r0[1];
+      if (!id) return { mes: mes, conta: [], cartao: [] };
+      var q = comp
+        ? '/rest/v1/lancamentos_comp?select=id,data,valor,natureza,descricao,fornecedor,meio,conta,categoria,categoria_grupo'
+          + '&mes_comp=eq.' + mes + '&categoria_id=eq.' + id + '&status=neq.IGNORADO'
+        : '/rest/v1/lancamentos?select=id,data,valor,natureza,descricao,fornecedor,meio,contas(nome),categorias(nome,grupo)'
+          + '&mes_ref=eq.' + mes + '&categoria_id=eq.' + id + '&status=neq.IGNORADO';
+      return lerTudo(q).then(function (L) {
+        var conta = [], cartao = [];
+        L.forEach(function (l) {
+          var c = l.categorias || {};
+          var x = comp ? itemMov(l, l.categoria, l.categoria_grupo, l.conta) : itemMov(l, c.nome, c.grupo, (l.contas || {}).nome);
+          // entrada na despesa (estorno, reembolso) desconta
+          if (l.natureza === 'RECEITA') x.valor = -Math.abs(x.valor);
+          (l.meio === 'CARTAO_CREDITO' ? cartao : conta).push(x);
+        });
+        var ord = function (a, b) { return String(b.data || '').localeCompare(String(a.data || '')); };
+        return { mes: mes, conta: conta.sort(ord), cartao: cartao.sort(ord) };
+      });
+    });
+  }
   /* Um lançamento no formato do Extrato (para abrir a edição de fora dele:
      a folha do Entrada/Saída). */
   function lancamentoItem(uuid) {
@@ -4763,6 +4785,7 @@ window.pedirTexto = function (o, feito) {
     apiExtratoConta: extratoConta,
     apiLancamentoItem: lancamentoItem,
     apiMovimentoDoMes: movimentoDoMes,
+    apiComposicaoDaCategoria: composicaoDaCategoria,
     apiExtratoCartao: extratoCartao,
     apiCategorias: categorias,
     apiLimparCache: function () { _cfgCache = null; _projCache = {}; _aberturaCache = {}; return Promise.resolve({ ok: true }); },
@@ -10429,6 +10452,11 @@ window.pedirTexto = function (o, feito) {
   #movFolha .mv-tx b{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #movFolha .mv-tx small{display:block;font-size:11.5px;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #movFolha .mv-v{font-size:14px;font-weight:700;white-space:nowrap}
+  #movFolha .mv-cp-cab{display:flex;justify-content:space-between;align-items:baseline;margin:14px 4px 8px;font-weight:700}
+  #movFolha .mv-cp-cab span{display:inline-flex;align-items:center;gap:6px}
+  #movFolha .mv-cp-cab i{font-style:normal}
+  #movFolha .mv-cp-cab small{color:var(--dim);font-weight:600;margin-left:4px}
+  #movFolha .mv-cp-ver{display:block;margin:2px 0 8px auto;background:none;border:0;color:var(--acc);font-weight:700;font-size:13px;padding:6px 4px}
   #movFolha .mv-vazio{text-align:center;color:var(--dim);padding:30px 0}
   #menuMais{position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.35)}
   #menuMais.hide{display:none}
@@ -14501,9 +14529,50 @@ function trocarExtrato(m){ ST.modoEx=m; ST.extrato=null; mesDoExtrato(); renderE
    cartão (pago pela fatura) abre o Extrato do cartão; senão, a conta. O mês
    continua o da tela (no cartão o extrato iria para a fatura aberta). */
 function verNoExtrato(cat, pagaPor){
+  // paga pela conta E pelo cartão: a folha com as duas partes (o cartão não
+  // entra no extrato da conta)
+  if(pagaPor==='AMBOS'){ abrirComposicao(cat); return; }
   ST.modoEx = (pagaPor==='CARTAO' && ST.regime!=='COMPETENCIA') ? 'CARTAO' : 'CONTA';
   ST.busca = '"'+cat+'"'; ST.cartaoSel='TUDO'; ST.extrato=null; ST.manterMes=true;
   irParaTela('extrato');
+}
+function abrirExtratoDe(cat, modo){
+  fecharMovimento();
+  ST.modoEx=modo; ST.busca='"'+cat+'"'; ST.cartaoSel='TUDO'; ST.familia='TUDO'; ST.extrato=null; ST.manterMes=true;
+  irParaTela('extrato');
+}
+/* A despesa paga pelos dois: o realizado em dois blocos, conta corrente e
+   cartão, cada um com o seu total e o atalho para o Extrato certo. */
+function abrirComposicao(cat){
+  var f=el('movFolha'); if(!f || !ST.mes) return;
+  ST.movLado='C'; f.classList.remove('hide');
+  var linha=(ST.linhasMes||[]).filter(function(d){ return d.categoria===cat; })[0]||{};
+  var p=ST.mes.split('-'), cj=JSON.stringify(cat).replace(/"/g,'&quot;');
+  el('movTopo').innerHTML='<div class="mv-tot"><small>'+tx(nomeBonito(rotuloCat(cat, linha.grupo)))+' · '+NOMES_MES[Number(p[1])].toLowerCase()+'</small>'+
+    '<b style="color:var(--bad)">'+moeda(linha.realizado||0)+'</b></div>';
+  el('movLista').innerHTML='<div class="mv-vazio">Carregando...</div>';
+  var mes=ST.mes;
+  google.script.run.withSuccessHandler(function(r){
+    if(mes!==ST.mes || ST.movLado!=='C') return;
+    var MEIO={PIX:'Pix',DEBITO:'Débito',BOLETO:'Boleto',DINHEIRO:'Dinheiro',CARTAO_CREDITO:'Cartão',PAGAMENTO_FATURA:'Fatura',TED:'TED',TRANSFERENCIA:'Transferência'};
+    var bloco=function(rot, ic, lista, modo){
+      if(!lista.length) return '';
+      var tot=lista.reduce(function(a,x){ return a+x.valor; },0);
+      return '<div class="mv-cp-cab"><span>'+ic+'<i>'+rot+'</i> <small>'+lista.length+'</small></span><b>'+moeda(tot)+'</b></div>'+
+        lista.map(function(x){
+          var d=String(x.data||'').split('-'), sub=[d[2]+'/'+d[1], x.conta, MEIO[x.meio]||''].filter(Boolean).join(' · ');
+          return '<div class="mv-ln" onclick="abrirLancMov(\''+x.id+'\')"><div class="mv-ic">'+iconeCat(x.grupo||x.categoria)+'</div>'+
+            '<div class="mv-tx"><b>'+tx(x.descricao||nomeSub(x.categoria,x.grupo))+'</b><small>'+icConta(x.conta)+tx(sub)+'</small></div>'+
+            '<div class="mv-v" style="color:var(--bad)">'+(x.valor<0?'+ ':'− ')+moeda(Math.abs(x.valor))+'</div></div>';
+        }).join('')+
+        '<button class="mv-cp-ver" onclick="abrirExtratoDe('+cj+',\''+modo+'\')">ver no Extrato '+(modo==='CARTAO'?'do cartão':'da conta')+' &#8250;</button>';
+    };
+    var h=bloco('Na conta corrente',IC_BANCO,r.conta,'CONTA')+bloco('No cartão',IC_CARTAO,r.cartao,'CARTAO');
+    el('movLista').innerHTML=h||'<div class="mv-vazio">Nada neste mês.</div>';
+    el('movLista').scrollTop=0;
+  }).withFailureHandler(function(e){
+    el('movLista').innerHTML='<div class="mv-vazio">Não consegui carregar: '+tx((e&&e.message)||e)+'</div>';
+  }).apiComposicaoDaCategoria(mes, cat);
 }
 function mesDoExtrato(){
   if(ST.manterMes){ ST.manterMes=false; return; }
@@ -14770,7 +14839,7 @@ function extratoConta(e){
   // os quatro numa linha só, num cartão (22/10: os quatro cartões ocupavam meia tela)
   // competência: no lugar do "inicial", quanto foi no cartão (já somado no "saiu")
   var h='<div class="mini resumo4">'+
-    ((comp || e.cartao>0.005) ? miniCard('no cartão', num(e.cartao||0), 'neg') : miniCard('inicial', num(e.saldoInicial), e.saldoInicial>=0?'':'neg'))+
+    (comp ? miniCard('no cartão', num(e.cartao||0), 'neg') : miniCard('inicial', num(e.saldoInicial), e.saldoInicial>=0?'':'neg'))+
     miniCard('entrou', num(e.creditos), 'pos')+
     miniCard('saiu', num(e.debitos), 'neg')+
     miniCard('final', num(e.saldoFinal), e.saldoFinal>=0?'pos':'neg')+
