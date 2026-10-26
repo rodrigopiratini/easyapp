@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.59.1 \u00b7 26/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.59.2 \u00b7 26/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10418,7 +10418,10 @@ window.pedirTexto = function (o, feito) {
   .mn-resumo .mn-bt{cursor:pointer;border-radius:12px;padding:2px 0;-webkit-tap-highlight-color:transparent}
   .mn-resumo .mn-bt:active{background:rgba(255,255,255,.06)}
   /* folha dos lançamentos do Entrada / Saída */
-  #movFolha{position:fixed;inset:0;z-index:960;display:flex;align-items:flex-end}
+  #movFolha{position:fixed;inset:0;z-index:960;display:flex;align-items:flex-end;overscroll-behavior:contain}
+  /* folha aberta: a tela de trás não rola junto (puxar a folha rolava o Mês) */
+  html:has(#movFolha:not(.hide)),body:has(#movFolha:not(.hide)){overflow:hidden;overscroll-behavior:none}
+  #movFolha .mv-fundo,#movFolha .mv-alca{touch-action:none}
   #movFolha.hide{display:none}
   #movFolha .mv-fundo{position:absolute;inset:0;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
   #movFolha .mv-caixa{position:relative;width:100%;max-width:560px;margin:0 auto;max-height:86vh;display:flex;flex-direction:column;
@@ -10443,7 +10446,7 @@ window.pedirTexto = function (o, feito) {
   #movFolha .mv-br.on span:nth-child(2){font-weight:700}
   #movFolha .mv-tira{display:table;margin:6px auto 0;border:0!important;border-radius:999px!important;padding:4px 12px!important;font-size:12px;
     background:rgba(var(--accr),.2)!important;color:var(--txt)!important;cursor:pointer}
-  #movFolha .mv-lista{overflow-y:auto;padding:6px 14px 18px;-webkit-overflow-scrolling:touch}
+  #movFolha .mv-lista{overflow-y:auto;padding:6px 14px 18px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
   #movFolha .mv-dia{font-size:11.5px;font-weight:700;color:var(--dim);letter-spacing:.4px;text-transform:uppercase;
     display:flex;justify-content:space-between;padding:14px 4px 6px}
   #movFolha .mv-ln{cursor:pointer;display:flex;align-items:center;gap:12px;padding:10px;border-radius:14px;background:rgba(255,255,255,.035);margin-bottom:6px}
@@ -11217,7 +11220,9 @@ function fecharMovimento(){ var f=el('movFolha'); if(f){ f.classList.add('hide')
     if(y0===null || !cx) return;
     dy=Math.max(0, e.touches[0].clientY-y0);
     cx.style.transform = dy ? 'translateY('+dy+'px)' : '';
-  }, { passive:true });
+    // puxando a folha: o toque é dela, a tela de trás não rola
+    if(dy>0 && e.cancelable) e.preventDefault();
+  }, { passive:false });
   document.addEventListener('touchend', function(){
     if(y0===null || !cx) return;
     y0=null; cx.style.transition='transform .22s ease';
