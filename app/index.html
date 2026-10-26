@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.59.0 \u00b7 26/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.59.1 \u00b7 26/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -12822,7 +12822,7 @@ function notaDaVerba(d){
 
 /* Linha compacta do Mês (25/10): nome e realizado em cima; embaixo a barra
    do previsto usado, o "de R$ previsto" (toque muda o previsto) e quanto
-   sobra ou passou. Tocar na linha abre o Extrato dela; arrastar para a
+   sobra ou passou. Tocar na linha abre a folha conta/cartão dela; arrastar para a
    esquerda mostra ↪ (reprogramar a sobra) e × (tirar do mês). */
 function linhaCompacta(d, i, nat){
   var rec=nat==='RECEITA', cj=JSON.stringify(d.categoria).replace(/"/g,'&quot;');
@@ -12845,7 +12845,7 @@ function linhaCompacta(d, i, nat){
       (podeReprog?'<button class="lc-rp" onclick="abrirReprog('+cj+',\'linha\')">&#8618;<small>reprogramar</small></button>':'')+
       (temX?x.replace('class="bt-x"','class="lc-x"').replace('&times;</button>','&times;<small>tirar</small></button>'):'')+
     '</div>'+
-    '<div class="lc-fr" onclick="if(!lcArrastou&&!event.target.closest(\'.lc-prev\'))verNoExtrato('+cj+',\''+(d.pagaPor||'')+'\')">'+
+    '<div class="lc-fr" onclick="if(!lcArrastou&&!event.target.closest(\'.lc-prev\'))abrirComposicao('+cj+',\''+nat+'\')">'+
       '<div class="lc-l1">'+ponto(rec?'RECEITA':d.grupo)+'<span class="lc-nm">'+tx(nomeBonito(rotuloCat(d.categoria, d.grupo)))+'</span>'+
         (rec?'':iconePagaPor(d.pagaPor))+'<b>'+moeda(real)+'</b></div>'+
       '<div class="lc-l2"><span class="lc-bar"><u style="width:'+pct+'%;background:'+corBar+'"></u></span>'+
@@ -14528,42 +14528,38 @@ function trocarExtrato(m){ ST.modoEx=m; ST.extrato=null; mesDoExtrato(); renderE
 /* Do Mês para o Extrato: o que compõe o realizado de uma subcategoria. No
    cartão (pago pela fatura) abre o Extrato do cartão; senão, a conta. O mês
    continua o da tela (no cartão o extrato iria para a fatura aberta). */
-function verNoExtrato(cat, pagaPor){
-  // paga pela conta E pelo cartão: a folha com as duas partes (o cartão não
-  // entra no extrato da conta)
-  if(pagaPor==='AMBOS'){ abrirComposicao(cat); return; }
-  ST.modoEx = (pagaPor==='CARTAO' && ST.regime!=='COMPETENCIA') ? 'CARTAO' : 'CONTA';
-  ST.busca = '"'+cat+'"'; ST.cartaoSel='TUDO'; ST.extrato=null; ST.manterMes=true;
-  irParaTela('extrato');
-}
 function abrirExtratoDe(cat, modo){
   fecharMovimento();
   ST.modoEx=modo; ST.busca='"'+cat+'"'; ST.cartaoSel='TUDO'; ST.familia='TUDO'; ST.extrato=null; ST.manterMes=true;
   irParaTela('extrato');
 }
-/* A despesa paga pelos dois: o realizado em dois blocos, conta corrente e
-   cartão, cada um com o seu total e o atalho para o Extrato certo. */
-function abrirComposicao(cat){
+/* Toque numa linha do Mês (26/10: sempre aqui, não mais direto no Extrato):
+   o realizado em blocos, conta corrente e cartão, cada um com o seu total e
+   o atalho para o Extrato certo - o cartão não entra no extrato da conta. */
+function abrirComposicao(cat, nat){
+  var rec=nat==='RECEITA', cor=rec?'var(--ok)':'var(--bad)';
   var f=el('movFolha'); if(!f || !ST.mes) return;
-  ST.movLado='C'; f.classList.remove('hide');
+  ST.movLado='C'; ST.compCat=cat; f.classList.remove('hide');
   var linha=(ST.linhasMes||[]).filter(function(d){ return d.categoria===cat; })[0]||{};
   var p=ST.mes.split('-'), cj=JSON.stringify(cat).replace(/"/g,'&quot;');
   el('movTopo').innerHTML='<div class="mv-tot"><small>'+tx(nomeBonito(rotuloCat(cat, linha.grupo)))+' · '+NOMES_MES[Number(p[1])].toLowerCase()+'</small>'+
-    '<b style="color:var(--bad)">'+moeda(linha.realizado||0)+'</b></div>';
+    '<b style="color:'+cor+'">'+moeda(linha.realizado||0)+'</b></div>';
   el('movLista').innerHTML='<div class="mv-vazio">Carregando...</div>';
   var mes=ST.mes;
   google.script.run.withSuccessHandler(function(r){
-    if(mes!==ST.mes || ST.movLado!=='C') return;
+    if(mes!==ST.mes || ST.movLado!=='C' || ST.compCat!==cat) return;
     var MEIO={PIX:'Pix',DEBITO:'Débito',BOLETO:'Boleto',DINHEIRO:'Dinheiro',CARTAO_CREDITO:'Cartão',PAGAMENTO_FATURA:'Fatura',TED:'TED',TRANSFERENCIA:'Transferência'};
     var bloco=function(rot, ic, lista, modo){
       if(!lista.length) return '';
-      var tot=lista.reduce(function(a,x){ return a+x.valor; },0);
+      // o valor vem no sentido da despesa; na receita, ao contrário
+      var val=function(x){ return rec?-x.valor:x.valor; };
+      var tot=lista.reduce(function(a,x){ return a+val(x); },0);
       return '<div class="mv-cp-cab"><span>'+ic+'<i>'+rot+'</i> <small>'+lista.length+'</small></span><b>'+moeda(tot)+'</b></div>'+
         lista.map(function(x){
           var d=String(x.data||'').split('-'), sub=[d[2]+'/'+d[1], x.conta, MEIO[x.meio]||''].filter(Boolean).join(' · ');
           return '<div class="mv-ln" onclick="abrirLancMov(\''+x.id+'\')"><div class="mv-ic">'+iconeCat(x.grupo||x.categoria)+'</div>'+
             '<div class="mv-tx"><b>'+tx(x.descricao||nomeSub(x.categoria,x.grupo))+'</b><small>'+icConta(x.conta)+tx(sub)+'</small></div>'+
-            '<div class="mv-v" style="color:var(--bad)">'+(x.valor<0?'+ ':'− ')+moeda(Math.abs(x.valor))+'</div></div>';
+            '<div class="mv-v" style="color:'+cor+'">'+((val(x)<0)!==rec?'+ ':'− ')+moeda(Math.abs(x.valor))+'</div></div>';
         }).join('')+
         '<button class="mv-cp-ver" onclick="abrirExtratoDe('+cj+',\''+modo+'\')">ver no Extrato '+(modo==='CARTAO'?'do cartão':'da conta')+' &#8250;</button>';
     };
