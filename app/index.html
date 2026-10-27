@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.59.3 \u00b7 27/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.59.4 \u00b7 27/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -2609,7 +2609,8 @@ window.pedirTexto = function (o, feito) {
       NOMES_DOWNLOAD[link] = 'EasyAPP-Consolidado-' + d.refs[0].ref + '-a-'
                              + d.refs[d.refs.length - 1].ref + '.csv';
       return { ok: true, linhas: linhas.length, meses: d.refs.length, abas: 1,
-               de: d.refs[0].ref, ate: d.refs[d.refs.length - 1].ref, link: link };
+               de: d.refs[0].ref, ate: d.refs[d.refs.length - 1].ref, link: link,
+               nome: NOMES_DOWNLOAD[link], texto: csv };
     });
   }
 
@@ -15044,9 +15045,13 @@ function exportarPlanilha(alvo){
         ((r&&r.erro)||'Não consegui gerar a planilha.')+'</div>';
       return;
     }
+    // no app (Android) o link blob: não faz nada: o arquivo vai pelo compartilhar
+    ST.planilha=r;
+    var nat=window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() && !/iP(hone|ad|od)/.test(navigator.userAgent);
     cx.innerHTML='<a class="bt-ac" href="'+r.link+'" target="_blank" rel="noopener" '+
+      (nat?'onclick="event.preventDefault();compartilharPlanilha()" ':'')+
       'style="display:block;width:100%;text-align:center;text-decoration:none;'+
-      'box-sizing:border-box">Baixar a planilha (.xlsx)</a>'+
+      'box-sizing:border-box">'+(nat?'Salvar ou abrir a planilha':'Baixar a planilha')+' (Excel)</a>'+
       '<div class="m" style="font-size:11px;margin-top:6px">'+
       (r.abas===1?'uma aba só':(r.abas||'?')+' abas')+' · '+(r.linhas||'?')+' linhas · '+
       (r.meses||'?')+' meses · '+(r.de||'')+' a '+(r.ate||'')+
@@ -15057,6 +15062,13 @@ function exportarPlanilha(alvo){
   }).apiGerarConsolidado(3);
 }
 
+function compartilharPlanilha(){
+  var r=ST.planilha; if(!r) return;
+  window.Capacitor.nativePromise('Pdf','compartilhar',{ nome:r.nome, texto:r.texto, mime:'text/csv' }).catch(function(e){
+    var m=String((e&&e.message)||e||'');
+    toast(/not implemented|UNIMPLEMENTED|não implementado/i.test(m) ? 'Atualize o app para salvar a planilha' : 'Não consegui: '+m);
+  });
+}
 function catNatureza(nome){
   for(var i=0;i<ST.categorias.length;i++) if(ST.categorias[i].nome===nome) return ST.categorias[i].natureza;
   return 'DESPESA';
