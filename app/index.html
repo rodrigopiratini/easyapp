@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.59.2 \u00b7 26/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.59.3 \u00b7 27/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10213,6 +10213,7 @@ window.pedirTexto = function (o, feito) {
   /* Movimento (Aparência, ligado por padrão): a tela entra deslizando de leve
      e o toque afunda o botão. Só na troca de tela - atualizar os dados não
      anima de novo. Desliga sozinho com "reduzir movimento" do celular. */
+  #exCorpo.ex-buscando{opacity:.55;pointer-events:none;transition:opacity .15s}
   body.anim .wrap:not(.hide){animation:telaEntra .26s cubic-bezier(.2,.7,.2,1)}
   @keyframes telaEntra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   body.anim button,body.anim nav a,body.anim .c-tile{transition:transform .12s ease,background-color .2s ease,color .2s ease}
@@ -11025,7 +11026,7 @@ function escolherFundo(f){ gravarLocal('easyapp:fundo', f==='azul'?null:f); apli
 /* 23/10/2026: o arredondado (estilo iPhone) virou o visual do app para todos.
    O antigo só com ?classico=1 no endereço (para comparar). */
 function visualArredondado(){ return !/[?&]classico=1(&|$)/.test(location.search); }
-var obsVisual=null, tVisual=null;
+var obsVisual=null;
 function aplicarVisual(){
   var on=visualNovo();
   document.body.classList.toggle('v2', on);
@@ -11034,7 +11035,9 @@ function aplicarVisual(){
   var f=lerLocal('easyapp:fundo'); if(f) document.body.setAttribute('data-fundo', f); else document.body.removeAttribute('data-fundo');
   // as explicações viram "i" em qualquer visual (20/10: "muito texto nas telas")
   if(!obsVisual && window.MutationObserver){
-    obsVisual=new MutationObserver(function(){ clearTimeout(tVisual); tVisual=setTimeout(dicasViramI,60); });
+    // na hora (o observador roda antes da tela ser pintada): com 60 ms de
+    // atraso o texto aparecia e sumia - a tela piscava a cada redesenho
+    obsVisual=new MutationObserver(function(){ dicasViramI(); });
     document.querySelectorAll('.wrap').forEach(function(w){ obsVisual.observe(w,{childList:true,subtree:true}); });
   }
   dicasViramI();
@@ -14504,9 +14507,16 @@ function renderExtrato(){
     if(pronto){ ST.extrato=pronto; }
   }
   if(!ST.extrato){
-    pintarExtrato(c, abas, busca, '<div class="load">Buscando...</div>');
-    var ok=function(e){ ST.extrato=e; renderExtrato(); };
-    var erro=function(err){ pintarExtrato(c, abas, busca, '<div class="vazio">Erro: '+
+    /* Trocar um filtro (cartão, categoria) com a lista já na tela: ela fica,
+       só apagada, até a nova chegar. Antes virava "Buscando...", a página
+       encolhia e voltava - a tela piscava a cada toque (27/10). */
+    var k0=el('exCorpo');
+    if(k0 && c.contains(k0) && ST.exPintado===ST.modoEx+'|'+ST.mes) k0.classList.add('ex-buscando');
+    else pintarExtrato(c, abas, busca, '<div class="load">Buscando...</div>');
+    // toques seguidos: vale só a resposta do último
+    var seq=ST.exSeq=(ST.exSeq||0)+1;
+    var ok=function(e){ if(seq!==ST.exSeq) return; ST.extrato=e; renderExtrato(); };
+    var erro=function(err){ if(seq!==ST.exSeq) return; ST.exPintado=''; pintarExtrato(c, abas, busca, '<div class="vazio">Erro: '+
       ((err&&err.message)||err)+'</div>'); };
     if(ST.modoEx==='CONTA')
       google.script.run.withSuccessHandler(ok).withFailureHandler(erro)
@@ -14518,12 +14528,14 @@ function renderExtrato(){
   }
   pintarExtrato(c, abas, busca,
     ST.modoEx==='CONTA' ? extratoConta(ST.extrato) : extratoCartao(ST.extrato));
+  ST.exPintado=ST.modoEx+'|'+ST.mes;
 }
 /* Com o campo de busca em uso, troca só a lista: refazer o campo tirava o
    foco dele e o Android fechava o teclado a cada letra. */
 function pintarExtrato(c, abas, busca, corpo){
   var b=el('busca'), k=el('exCorpo');
-  if(b && k && document.activeElement===b && c.contains(b)){ k.innerHTML=corpo; return; }
+  if(b && k && document.activeElement===b && c.contains(b)){ k.innerHTML=corpo; k.classList.remove('ex-buscando'); return; }
+  ST.exPintado='';
   c.innerHTML=abas+busca+'<div id="exCorpo">'+corpo+'</div>';
 }
 
