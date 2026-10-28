@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.60.1 \u00b7 28/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.61.0 \u00b7 28/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1345,6 +1345,55 @@ window.pedirTexto = function (o, feito) {
             return x.mes_ref !== mes && Number(x.valor) >= (minimo || 0);
           }).map(function (x) { return { ref: x.mes_ref, valor: n(x.valor) }; }) };
         });
+    });
+  }
+
+  /* Janela do previsto: os meses deste em diante (até o último mês com
+     previsto gravado, no mínimo 12) com o valor de hoje, e o reajuste da conta. */
+  function infoPrevisto(mes, categoria) {
+    return rest('/rest/v1/categorias?select=id,reajuste,mes_reajuste&nome=eq.' + encodeURIComponent(categoria) + '&limit=1')
+      .then(function (cs) {
+        if (!cs.length) return { ok: false, erro: 'não achei a subcategoria ' + categoria };
+        var c = cs[0];
+        return Promise.all([
+          rest('/rest/v1/previstos?select=mes_ref,valor&categoria_id=eq.' + c.id + '&mes_ref=gte.' + mes + '&order=mes_ref'),
+          rest('/rest/v1/previstos?select=mes_ref&order=mes_ref.desc&limit=1')
+        ]).then(function (R) {
+          var tem = {}, fim = mes;
+          R[0].forEach(function (x) { tem[x.mes_ref] = n(x.valor); });
+          for (var i = 0; i < 11; i++) fim = mesSeguinte(fim);
+          if (R[1][0] && R[1][0].mes_ref > fim) fim = R[1][0].mes_ref;
+          var meses = [];
+          for (var m = mes; m <= fim; m = mesSeguinte(m)) meses.push({ ref: m, valor: tem[m] || 0 });
+          var rj = Number(c.reajuste) || 0;
+          return { ok: true, meses: meses, reajuste: rj > 1 ? rj / 100 : rj, mesReajuste: Number(c.mes_reajuste) || 0 };
+        });
+      });
+  }
+
+  /* Grava o previsto de `mes` até op.ate. op.pular: não cria valor nos meses
+     que hoje estão zerados (IPVA, IPTU, seguro...). op.reajuste (0,045) no
+     mês op.mesReajuste: cada virada desse mês depois de `mes` corrige o valor.
+     op.gravarReajuste: o reajuste fica na conta (a projeção usa nos anos sem
+     previsto gravado). */
+  function aplicarPrevisto(mes, categoria, valor, op) {
+    op = op || {};
+    var ate = /^\d{4}-\d{2}$/.test(op.ate || '') && op.ate > mes ? op.ate : mes;
+    var rj = Number(op.reajuste) || 0, mr = Number(op.mesReajuste) || 0;
+    if (rj > 1) rj = rj / 100;
+    return infoPrevisto(mes, categoria).then(function (info) {
+      if (!info.ok) return info;
+      var atual = {};
+      info.meses.forEach(function (x) { atual[x.ref] = x.valor; });
+      var linhas = [], v = n(valor);
+      for (var m = mes; m <= ate; m = mesSeguinte(m)) {
+        if (m !== mes && rj && mr && Number(m.slice(5, 7)) === mr) v = n(v * (1 + rj));
+        if (m !== mes && op.pular && !(atual[m] > 0.005)) continue;
+        linhas.push({ mes: m, categoria: categoria, valor: v });
+      }
+      var antes = op.gravarReajuste ? salvarConta(categoria, { reajuste: rj, mesReajuste: rj ? mr : 0 }) : Promise.resolve();
+      return antes.then(function () { return salvarPrevistoEmVarios(linhas); })
+        .then(function (r) { _projCache = {}; return r && r.ok ? { ok: true, quantos: linhas.length } : r; });
     });
   }
 
@@ -4903,6 +4952,8 @@ window.pedirTexto = function (o, feito) {
     apiUsarSugestoes: usarSugestoes,
     apiRemoverDoMes: removerDoMes,
     apiMesesComPrevisto: mesesComPrevisto,
+    apiInfoPrevisto: infoPrevisto,
+    apiAplicarPrevisto: aplicarPrevisto,
     apiNovaCategoria: novaCategoria,
     apiApagarConta: apagarConta,
     apiConfirmar: confirmar,
@@ -12969,9 +13020,96 @@ function linhaCompacta(d, i, nat){
 }
 function editarPrevistoLinha(i){
   var d=(ST.linhasMes||[])[i]; if(!d) return;
-  pedirTexto({ titulo:'Previsto em '+NOMES_MES[Number(ST.mes.split('-')[1])], dica:nomeBonito(rotuloCat(d.categoria, d.grupo)),
-               valor:d.previsto>0.005?num(d.previsto):'', tipo:'valor', ok:'Salvar' },
-    function(v){ salvarPrevistoTexto(d.categoria, v); });
+  dialogoPrevisto(d.categoria, d.previsto, nomeBonito(rotuloCat(d.categoria, d.grupo)));
+}
+/* Editar o previsto (28/10): o valor, até que mês vale, pular os meses que
+   hoje estão sem previsto (IPVA, IPTU...) e o reajuste anual da conta, com a
+   prévia do que vai ser gravado. Só neste mês = como era antes. */
+function dialogoPrevisto(categoria, atual, rotulo){
+  var mesNome=function(ref){ return NOMES_MES[Number(ref.slice(5,7))].substring(0,3)+'/'+ref.slice(2,4); };
+  var velho=el('pvDlg'); if(velho) velho.remove();
+  if(!el('pvDlgCss')){
+    var st=document.createElement('style'); st.id='pvDlgCss';
+    st.textContent='#pvDlg{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:9vh 14px 0;overflow-y:auto}'+
+      '#pvDlg .px{width:min(440px,100%);background:#161d2c;border:1px solid #2a3548;border-radius:16px;padding:18px;color:#e8edf7;box-shadow:0 16px 40px #000a;margin-bottom:20px}'+
+      '#pvDlg h3{margin:0 0 4px;font-size:17px}#pvDlg .dc{margin:0 0 12px;color:#8b99b5;font-size:13px}'+
+      '#pvDlg input,#pvDlg select{box-sizing:border-box;background:#0f1420;color:#e8edf7;border:1px solid #2a3548;border-radius:10px;padding:11px;font-size:16px;outline:none}'+
+      '#pvDlg input:focus,#pvDlg select:focus{border-color:#3b82f6}#pvDlg #pvV{width:100%}'+
+      '#pvDlg label.t{display:block;margin:14px 0 6px;font-size:13px;color:#8b99b5}#pvDlg #pvAte{width:100%}'+
+      '#pvDlg .ck{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px}#pvDlg .ck input{width:18px;height:18px;padding:0}'+
+      '#pvDlg .rj{display:flex;gap:8px;margin-top:8px}#pvDlg .rj input{width:90px}#pvDlg .rj select{flex:1}'+
+      '#pvDlg .pv{margin-top:12px;font-size:12.5px;color:#8b99b5;line-height:1.5;max-height:120px;overflow-y:auto}'+
+      '#pvDlg .pb{display:flex;gap:8px;margin-top:14px}#pvDlg button{flex:1;padding:12px;border-radius:10px;border:0;font-size:15px;font-weight:600;cursor:pointer}'+
+      '#pvDlg .no{background:#0f1420;color:#e8edf7;border:1px solid #2a3548}#pvDlg .ok{flex:2;background:#3b82f6;color:#fff}';
+    document.head.appendChild(st);
+  }
+  var d=document.createElement('div'); d.id='pvDlg';
+  d.innerHTML='<div class="px"><h3>Previsto a partir de '+NOMES_MES[Number(ST.mes.split('-')[1])]+'</h3><div class="dc">'+tx(rotulo||categoria)+'</div>'+
+    '<input id="pvV" inputmode="decimal" autocomplete="off" value="'+(atual>0.005?num(atual):'')+'">'+
+    '<label class="t">Aplicar em</label><select id="pvAte"><option value="">Só em '+mesNome(ST.mes)+'</option></select>'+
+    '<label class="ck" id="pvPulaL" style="display:none"><input type="checkbox" id="pvPula"> Pular os meses que hoje estão sem previsto</label>'+
+    '<label class="ck"><input type="checkbox" id="pvRj"> Reajuste anual</label>'+
+    '<div class="rj" id="pvRjBox" style="display:none"><input id="pvRjP" inputmode="decimal" data-mask="pct" placeholder="%"><select id="pvRjM">'+
+      [1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){ return '<option value="'+m+'">em '+NOMES_MES[m]+'</option>'; }).join('')+'</select></div>'+
+    '<div class="pv" id="pvPrev"></div>'+
+    '<div class="pb"><button class="no" id="pvNo">Cancelar</button><button class="ok" id="pvOk">Salvar</button></div></div>';
+  document.body.appendChild(d);
+  var info={ meses:[{ref:ST.mes, valor:atual||0}] };
+  var val=function(){ var v=parseFloat(String(el('pvV').value).replace(/\./g,'').replace(',','.')); return isNaN(v)?null:v; };
+  var pctRj=function(){ var p=parseFloat(String(el('pvRjP').value).replace(',','.')); return el('pvRj').checked && p>0 ? p/100 : 0; };
+  /* os meses que vão ser gravados, com o valor de cada um - a mesma conta do servidor */
+  var plano=function(){
+    var v=val(), ate=el('pvAte').value||ST.mes, rj=pctRj(), mr=Number(el('pvRjM').value), pula=el('pvPula').checked, l=[];
+    if(v===null) return l;
+    info.meses.forEach(function(x){
+      if(x.ref>ate) return;
+      if(x.ref!==ST.mes && rj && Number(x.ref.slice(5,7))===mr) v=Math.round(v*(1+rj)*100)/100;
+      if(x.ref!==ST.mes && pula && !(x.valor>0.005)) return;
+      l.push({ref:x.ref, valor:v});
+    });
+    return l;
+  };
+  var prever=function(){
+    var l=plano(), ate=el('pvAte').value;
+    el('pvRjBox').style.display=el('pvRj').checked?'':'none';
+    if(!ate){ el('pvPrev').innerHTML=''; return; }
+    var dentro=info.meses.filter(function(x){ return x.ref>ST.mes && x.ref<=ate; });
+    el('pvPulaL').style.display=dentro.some(function(x){ return !(x.valor>0.005); })?'':'none';
+    el('pvPrev').innerHTML=l.length+' '+(l.length>1?'meses':'mês')+': '+
+      l.map(function(x){ return mesNome(x.ref)+' '+num(x.valor); }).join(' · ');
+  };
+  var fim=function(){ d.remove(); };
+  el('pvNo').onclick=fim;
+  d.onclick=function(e){ if(e.target===d) fim(); };
+  ['pvV','pvRjP'].forEach(function(id){ el(id).oninput=prever; });
+  ['pvAte','pvPula','pvRj','pvRjM'].forEach(function(id){ el(id).onchange=prever; });
+  el('pvOk').onclick=function(){
+    var v=val(); if(v===null){ toast('Valor inválido'); return; }
+    var ate=el('pvAte').value, rj=pctRj();
+    var mr=Number(el('pvRjM').value), pula=el('pvPula').checked && el('pvPulaL').style.display!=='none';
+    var mudouRj=el('pvRj').checked ? (Math.abs(rj-(info.reajuste||0))>0.00001 || mr!==info.mesReajuste) : (info.reajuste>0);
+    fim();
+    if(!ate && !mudouRj){ salvarPrevistoTexto(categoria, String(v).replace('.',',')); return; }
+    toast('Salvando...');
+    google.script.run.withSuccessHandler(function(r){
+      toast(r && r.ok ? (r.quantos>1?'Previsto gravado em '+r.quantos+' meses':'Previsto atualizado')+(mudouRj?' · reajuste da conta salvo':'') : ((r&&r.erro)||'Não consegui salvar'));
+      ST.cacheMes={}; ST.extras=null; ST.ano=null; carregar(ST.mes);
+    }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
+      .apiAplicarPrevisto(ST.mes, categoria, v, { ate:ate, pular:pula, reajuste:rj, mesReajuste:mr, gravarReajuste:mudouRj });
+  };
+  setTimeout(function(){ var i=el('pvV'); i.focus(); try{ i.select(); }catch(e){} }, 60);
+  google.script.run.withSuccessHandler(function(r){
+    if(!r || !r.ok || !el('pvDlg')) return;
+    info=r;
+    el('pvAte').innerHTML='<option value="">Só em '+mesNome(ST.mes)+'</option>'+
+      r.meses.slice(1).map(function(x){ return '<option value="'+x.ref+'">De '+mesNome(ST.mes)+' até '+mesNome(x.ref)+'</option>'; }).join('');
+    // a conta que não cai todo mês (tem mês zerado no caminho) já vem com "pular" marcado
+    el('pvPula').checked=r.meses.some(function(x){ return !(x.valor>0.005); }) && r.meses.some(function(x,i){ return i>0 && x.valor>0.005; });
+    if(r.reajuste>0){ el('pvRj').checked=true; el('pvRjP').value=String(Math.round(r.reajuste*10000)/100).replace('.',','); }
+    else el('pvRjP').value='4,5';
+    el('pvRjM').value=String(r.mesReajuste||1);
+    prever();
+  }).apiInfoPrevisto(ST.mes, categoria);
 }
 /* arrastar a linha para a esquerda mostra as ações; tocar fora fecha */
 var lcArrastou=false;
@@ -12979,6 +13117,10 @@ var lcArrastou=false;
   var x0=null, y0=null, fr=null, dx=0, horiz=null;
   document.addEventListener('touchstart', function(e){
     var f=e.target.closest && e.target.closest('.lc-fr');
+    /* tocar num botão da linha aberta: ela fica aberta até o clique - fechar
+       já no toque escondia o botão debaixo do dedo e o clique se perdia */
+    var ac=e.target.closest && e.target.closest('.lcp.aberta .lc-acoes');
+    if(ac){ fr=null; return; }
     document.querySelectorAll('.lcp.aberta').forEach(function(l){ if(!f || l!==f.parentNode) l.classList.remove('aberta'); });
     lcArrastou=false;
     if(!f){ fr=null; return; }
@@ -13311,8 +13453,7 @@ function mudouFamilia(){
 }
 
 function editarPrevisto(categoria, atual){
-  pedirTexto({ titulo:'Previsto em ' + NOMES_MES[Number(ST.mes.split('-')[1])], dica:categoria, valor:atual, tipo:'valor', ok:'Salvar' },
-    function(v){ salvarPrevistoTexto(categoria, v); });
+  dialogoPrevisto(categoria, parseFloat(String(atual==null?'':atual).replace(/\./g,'').replace(',','.'))||0, categoria);
 }
 function salvarPrevistoTexto(categoria, v){
   v = parseFloat(String(v).replace(/\./g,'').replace(',','.'));
