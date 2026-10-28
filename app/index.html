@@ -819,7 +819,7 @@ window.pedirTexto = function (o, feito) {
       var t = comp ? { compras: r[3].length, total: r[3].reduce(function (a, l) { return a + (Number(l.valor) || 0); }, 0) }
                    : (r[0][0] || { compras: 0, total: 0 });
       var cfg = r[2] || {};
-      var meta = Number(cfg.META_CARTAO) || 0;
+      var meta = metaCartaoDe(cfg, mes);   // META_CARTAO_MES muda a meta a partir de um mês
       // o cartao anda pelo CICLO da fatura (29/09 a 28/10), nao pelo mes - em competência, pelo mês
       var ciclo = comp ? cicloDoMes(mes) : cicloDaFatura(cfg, mes);
       var dias = ciclo.dias, dia = ciclo.hoje;
@@ -1189,6 +1189,7 @@ window.pedirTexto = function (o, feito) {
       if (!cid) return { ok: false, erro: 'não achei a subcategoria ' + categoria };
       return gravar('previstos', [{ categoria_id: cid, mes_ref: mes, valor: n(valor) }],
                     'user_id,categoria_id,mes_ref')
+        .then(aplicarRegras)
         .then(function () { return { ok: true, mes: mes, categoria: categoria, valor: n(valor) }; });
     });
   }
@@ -1207,6 +1208,7 @@ window.pedirTexto = function (o, feito) {
           });
         if (!fora.length) return { ok: false, erro: 'nenhuma subcategoria reconhecida' };
         return gravar('previstos', fora, 'user_id,categoria_id,mes_ref')
+          .then(aplicarRegras)
           .then(function () { return { ok: true, quantos: fora.length }; });
       });
   }
@@ -2019,10 +2021,95 @@ window.pedirTexto = function (o, feito) {
      naquele mês - o que você ou o chat gravaram não é tocado. Um mês conta
      como aberto quando tem ao menos metade das contas do mês de hoje (uma
      parcela gravada até 2030 sozinha não "abre" 2030). Uma vez por sessão. */
+  /* Previstos que são FÓRMULA de outros previstos (na config):
+     SIMPLES = 'IMPOSTO|FATURAMENTO|AAAA-MM; ...' - o DAS pago no mês é o
+       faturamento do mês anterior × a alíquota efetiva do Anexo III, que sai
+       da receita dos 12 meses antes dele (RBT12). Vale a partir de AAAA-MM;
+       antes disso fica o que foi gravado (a análise do contador).
+     META_CARTAO_MES = 'AAAA-MM:valor,...' - a meta do cartão muda nesses
+       meses, e a verba livre (CARTAO - A CLASSIFICAR) passa a ser a meta
+       menos o previsto das outras contas que caem no cartão, nunca negativa.
+     Mudou o faturamento ou uma conta do cartão, o imposto e a verba seguem. */
+  var ANEXO_III = [[180000, 0.06, 0], [360000, 0.112, 9360], [720000, 0.135, 17640],
+                   [1800000, 0.16, 35640], [3600000, 0.21, 125640], [4800000, 0.33, 648000]];
+  function dasSimples(fat, rbt12) {
+    if (!(fat > 0)) return 0;
+    var f = ANEXO_III[ANEXO_III.length - 1];
+    for (var i = 0; i < ANEXO_III.length; i++) if (rbt12 <= ANEXO_III[i][0]) { f = ANEXO_III[i]; break; }
+    return n(fat * (rbt12 > 0 ? (rbt12 * f[1] - f[2]) / rbt12 : f[1]));
+  }
+  function lerSimples(c) {
+    return String(c.SIMPLES || '').split(';').map(function (p) {
+      var x = p.split('|');
+      return { imposto: String(x[0] || '').trim(), fat: String(x[1] || '').trim(), desde: String(x[2] || '').trim() };
+    }).filter(function (s) { return s.imposto && s.fat; });
+  }
+  function metasDoCartao(c) { return porMesDaCfg({ M: 'M|' + (c.META_CARTAO_MES || '') }, 'M').M || {}; }
+  function metaCartaoDe(c, ref) {
+    var meta = cfgNum(c, 'META_CARTAO', 0), d = metasDoCartao(c);
+    Object.keys(d).sort().forEach(function (k) { if (k <= ref) meta = d[k]; });
+    return meta;
+  }
+  /** O que as regras dizem para o mês. val(conta, ref) = previsto daquela
+      conta; cats = [{nome, natureza, sai_por}]. Só volta as contas da regra. */
+  function previstosPorRegra(c, ref, val, cats) {
+    var o = {};
+    lerSimples(c).forEach(function (s) {
+      if (s.desde && ref < s.desde) return;
+      var m = mesAnterior(ref), fat = val(s.fat, m), rbt = 0;
+      for (var k = 0; k < 12; k++) { m = mesAnterior(m); rbt += val(s.fat, m); }
+      o[s.imposto] = dasSimples(fat, rbt);
+    });
+    var inicio = Object.keys(metasDoCartao(c)).sort()[0];
+    if (inicio && ref >= inicio) {
+      var outras = 0;
+      cats.forEach(function (x) {
+        if (x.natureza === 'DESPESA' && x.sai_por === 'CARTAO' && x.nome !== CAT_VERBA_CARTAO)
+          outras += o[x.nome] !== undefined ? o[x.nome] : val(x.nome, ref);
+      });
+      o[CAT_VERBA_CARTAO] = n(Math.max(0, metaCartaoDe(c, ref) - outras));
+    }
+    return o;
+  }
+  /* Regrava, nos meses que vêm, o previsto que é fórmula - só onde mudou. */
+  function aplicarRegras() {
+    return config().then(function (c) {
+      if (!lerSimples(c).length && !Object.keys(metasDoCartao(c)).length) return 0;
+      var hoje = hojeRef(), de = hoje;
+      for (var i = 0; i < 13; i++) de = mesAnterior(de);
+      return Promise.all([
+        rest('/rest/v1/categorias?select=id,nome,natureza,sai_por&ativa=is.true'),
+        lerTudo('/rest/v1/previstos?select=mes_ref,valor,categoria_id&mes_ref=gte.' + de + '&order=mes_ref')
+      ]).then(function (R) {
+        var nomeDe = {}, idDe = {}, prev = {};
+        R[0].forEach(function (x) { nomeDe[x.id] = x.nome; idDe[x.nome] = x.id; });
+        R[1].forEach(function (p) { (prev[p.mes_ref] = prev[p.mes_ref] || {})[nomeDe[p.categoria_id]] = Number(p.valor) || 0; });
+        var val = function (nome, ref) { return (prev[ref] && prev[ref][nome]) || 0; };
+        var linhas = [];
+        Object.keys(prev).sort().forEach(function (ref) {
+          if (ref <= hoje) return;
+          var o = previstosPorRegra(c, ref, val, R[0]);
+          Object.keys(o).forEach(function (nome) {
+            var tinha = prev[ref][nome];
+            if (!idDe[nome] || (tinha === undefined ? !o[nome] : Math.abs(tinha - o[nome]) < 0.005)) return;
+            prev[ref][nome] = o[nome];
+            linhas.push({ categoria_id: idDe[nome], mes_ref: ref, valor: o[nome] });
+          });
+        });
+        if (!linhas.length) return 0;
+        return gravar('previstos', linhas, 'user_id,categoria_id,mes_ref')
+          .then(function () { _projCache = {}; return linhas.length; });
+      });
+    }).catch(function () { return 0; });
+  }
+
   var _horizonteFeito = false;
   function garantirHorizonte() {
     if (_horizonteFeito) return Promise.resolve(0);
     _horizonteFeito = true;
+    return preencherHorizonte().then(function (k) { return aplicarRegras().then(function (j) { return k + j; }); });
+  }
+  function preencherHorizonte() {
     var hoje = hojeRef(), alvo = hoje;
     for (var i = 0; i < 12; i++) alvo = mesSeguinte(alvo);
     return lerTudo('/rest/v1/previstos?select=mes_ref,categoria_id&mes_ref=gte.' + hoje + '&mes_ref=lte.' + alvo)
@@ -2187,7 +2274,9 @@ window.pedirTexto = function (o, feito) {
       if (r === 'contrato' || r === 'inflacao' || r === 'inflação') {
         reaj = (r === 'contrato') ? 'contrato' : 'inflacao';
       } else if (r) { var v = Number(r.replace(',', '.')); if (v) reaj = v > 1 ? v / 100 : v; }
-      m[nome] = { meses: meses, valor: numeroCfg(x[2]), reajuste: reaj };
+      // 5º campo (opcional): o ano daquele valor - sem ele, é o ano corrente
+      var anoSz = Number(String(x[4] || '').trim()) || 0;
+      m[nome] = { meses: meses, valor: numeroCfg(x[2]), reajuste: reaj, ano: anoSz };
     });
     return m;
   }
@@ -2294,7 +2383,7 @@ window.pedirTexto = function (o, feito) {
 
   function montarProjecao(anos, c) {
     return Promise.all([
-      rest('/rest/v1/categorias?select=nome,grupo,natureza,reajuste,mes_reajuste,ate'
+      rest('/rest/v1/categorias?select=nome,grupo,natureza,sai_por,reajuste,mes_reajuste,ate'
            + '&ativa=is.true&order=nome'),
       lerTudo('/rest/v1/previstos?select=mes_ref,valor,categorias(nome)&order=mes_ref'),
       lerTudo('/rest/v1/resumo_mes?select=mes_ref,categoria,realizado&order=mes_ref'),
@@ -2413,7 +2502,7 @@ window.pedirTexto = function (o, feito) {
             if (sz.meses.indexOf(r.mes) < 0) return 0;
             // O valor informado já é o daquele mês no ano corrente: de
             // Nov/2026 para Nov/2027 passa UM reajuste, não dois.
-            var anosSz = r.ano - a0;
+            var anosSz = r.ano - (sz.ano || a0);
             if (sz.reajuste === 'contrato') return n(sz.valor * Math.pow(1 + reajSal, anosSz));
             if (sz.reajuste === 'inflacao') return n(sz.valor * Math.pow(1 + inflacao, anosSz));
             if (typeof sz.reajuste === 'number') return n(sz.valor * Math.pow(1 + sz.reajuste, anosSz));
@@ -2421,7 +2510,7 @@ window.pedirTexto = function (o, feito) {
           }
           if (nome === 'OUTROS CREDITOS - PLU') return pluxeeDe(serie, r.ref, base);
           var passados = Math.max(0, r.ano - anoBase);
-          if (nome === 'SALARIO MENSAL') {
+          if (/^SALARIO MENSAL\b/.test(nome)) {   // também SALARIO MENSAL - AZR, - ROR...
             // a base é dezembro deste ano, que já tem o reajuste deste ano:
             // conta só os reajustes DEPOIS dela (antes contava um a mais por ano)
             return n(base * Math.pow(1 + reajSal, Math.max(0, passados - 1 + (r.mes >= mesReaj ? 1 : 0))));
@@ -2445,6 +2534,22 @@ window.pedirTexto = function (o, feito) {
         });
         return { conta: nome, grupo: info[nome].grupo, natureza: info[nome].natureza,
                  previsto: valores, realizado: reais };
+      });
+
+      /* Imposto do Simples e verba do cartão são fórmula: nos meses que
+         saem da projeção (sem previsto gravado), recalcula pelos outros. */
+      var linhaDe = {}, idxDe = {};
+      linhas.forEach(function (l) { linhaDe[l.conta] = l; });
+      refs.forEach(function (r, i) { idxDe[r.ref] = i; });
+      var valProj = function (nome, ref) {
+        if (idxDe[ref] !== undefined) return linhaDe[nome] ? linhaDe[nome].previsto[idxDe[ref]] : 0;
+        return n(prevDe(ref)[nome] || 0);
+      };
+      var catsRegra = cats.map(function (x) { return { nome: x.nome, natureza: x.natureza, sai_por: x.sai_por }; });
+      refs.forEach(function (r, i) {
+        if ((r.ano === a0 || anosAbertos[r.ano]) && prevPorMes[r.ref]) return;
+        var o = previstosPorRegra(c, r.ref, valProj, catsRegra);
+        Object.keys(o).forEach(function (nome) { if (linhaDe[nome]) linhaDe[nome].previsto[i] = o[nome]; });
       });
 
       var porEvento = {};
@@ -2902,7 +3007,7 @@ window.pedirTexto = function (o, feito) {
       }
 
       var cartaoProj = Math.round(cartaoMes);
-      var metaCartao = cfgNum(c, 'META_CARTAO', 0) || cartaoProj;   // sem meta = sem folga
+      var metaCartao = metaCartaoDe(c, hojeRef()) || cartaoProj;   // sem meta = sem folga
       var folgaCartao = Math.max(0, cartaoProj - metaCartao);
       var base = Math.max(0, sobraReal);
 
