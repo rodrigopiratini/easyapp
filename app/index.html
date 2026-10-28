@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.61.0 \u00b7 28/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.62.0 \u00b7 28/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1270,9 +1270,16 @@ window.pedirTexto = function (o, feito) {
 
   /* Tirar do mês é zerar a verba, não apagar a conta - a conta continua
      existindo nos outros meses. */
+  /* Tirar do mês APAGA o previsto (antes gravava zero): o Mês mostra toda conta
+     que tem previsto gravado, mesmo zero, então ela continuava lá. Sem
+     lançamento no mês, agora ela sai; com lançamento, fica só o realizado. */
   function removerDoMes(mes, categoria) {
-    return salvarPrevisto(mes, categoria, 0)
-      .then(function (r) { return r.ok ? { ok: true, categoria: categoria } : r; });
+    return idDaCategoria(categoria).then(function (cid) {
+      if (!cid) return { ok: false, erro: 'não achei a subcategoria ' + categoria };
+      return rest('/rest/v1/previstos?categoria_id=eq.' + cid + '&mes_ref=eq.' + mes, { metodo: 'DELETE' })
+        .then(function () { _projCache = {}; return aplicarRegras(); })
+        .then(function () { return { ok: true, categoria: categoria }; });
+    });
   }
 
   /* "Já resolvi" (lista de onde vêm os valores, na tela Mês): o previsto do
