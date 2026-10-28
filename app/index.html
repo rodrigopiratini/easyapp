@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.60.0 \u00b7 28/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.60.1 \u00b7 28/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -2195,11 +2195,12 @@ window.pedirTexto = function (o, feito) {
         if (s.temDados) comDados++;
       });
 
-      /* Do primeiro ao último ano com lançamento, mais o ano escolhido e o de
-         hoje - todos os do meio também (antes só as pontas: indo para 2025, o
-         2026 sumia do filtro). */
+      /* Do primeiro ao último ano com lançamento ou previsto, mais o ano
+         escolhido e o de hoje - todos os do meio também (antes só as pontas:
+         indo para 2025, o 2026 sumia do filtro; e ano só com previsto, como um
+         replanejamento até 2029, ficava fora e nem aparecia para abrir). */
       var anos = {}, ys = [Number(a), new Date().getFullYear()];
-      [r[2][0], r[3][0]].forEach(function (x) { if (x) ys.push(Number(x.mes_ref.slice(0, 4))); });
+      [r[2][0], r[3][0], r[4][0]].forEach(function (x) { if (x) ys.push(Number(x.mes_ref.slice(0, 4))); });
       for (var y = Math.min.apply(null, ys); y <= Math.max.apply(null, ys); y++) anos[String(y)] = true;
 
       return {
