@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.63.3 \u00b7 29/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.63.4 \u00b7 29/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10517,7 +10517,8 @@ window.pedirTexto = function (o, feito) {
   .ma-th span{text-align:right}.ma-th span:first-child{text-align:left}
   .ma-c{text-align:right;font-size:12.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
   .ma-dim{color:var(--dim)}
-  .ma-gh{padding:10px 2px 8px;cursor:pointer}
+  /* o degradê na cor da categoria separa um bloco do outro */
+  .ma-gh{padding:9px 6px 9px 6px;margin:6px 0 2px;border-radius:12px;cursor:pointer}
   .ma-gh .ma-c{font-weight:700}
   .ma-n{display:flex;align-items:center;gap:9px;min-width:0}
   .ma-ic{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;font-size:15px;color:#fff;font-weight:700;flex:none}
@@ -10526,7 +10527,7 @@ window.pedirTexto = function (o, feito) {
   .ma-seta{color:var(--dim);font-size:10px;transition:transform .2s}
   .ma-gr.fe .ma-seta{transform:rotate(-90deg)}
   .ma-gr.fe .ma-sub{display:none}
-  .ma-sub{position:relative;margin-left:15px;padding-left:12px}
+  .ma-sub{position:relative;margin-left:20px;padding-left:12px}
   .ma-sub::before{content:'';position:absolute;left:0;top:0;bottom:18px;width:2px;border-radius:1px;background:var(--c);opacity:.35}
   .ma-ln{position:relative;padding:9px 2px;cursor:pointer}
   .ma-pt{position:absolute;left:-15px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--c)}
@@ -13050,7 +13051,7 @@ function arvoreMes(lista, nat, q, bate){
     var it=fams[g], p=0, r=0, k=(rec?'R:':'')+g, kj=JSON.stringify(k).replace(/"/g,'&quot;');
     it.forEach(function(d){ p+=d.previsto||0; r+=d.realizado||0; });
     h+='<div class="ma-gr'+(q||ab[k]?'':' fe')+'" style="--c:'+cor(g)+'">'+
-      '<div class="ma-G ma-gh"'+(q?'':' onclick="mesAlternar('+kj+')"')+'><div class="ma-n">'+
+      '<div class="ma-G ma-gh" style="background:linear-gradient(90deg,'+cor(g)+'2e,transparent 75%)"'+(q?'':' onclick="mesAlternar('+kj+')"')+'><div class="ma-n">'+
         '<span class="ma-ic" style="background:'+cor(g)+'">'+iconeCat(g)+'</span>'+
         '<span class="ma-gn">'+tx(nomeBonito(g))+'<small>'+it.length+(it.length===1?' conta':' contas')+'</small></span>'+
         '<span class="ma-seta">&#9662;</span></div>'+
