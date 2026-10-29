@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.64.1 \u00b7 29/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.64.2 \u00b7 29/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -17286,13 +17286,34 @@ function cfgBuscar(v){
    categoria com o ícone na cor dela, "+" (subcategoria nova nela) e "⋮"
    (renomear); embaixo, as subcategorias com o traço da árvore. Tocar numa
    subcategoria abre o editar de sempre, com Meses e Excluir. */
-var ICONE_CAT={CASA:'🏠',MORADIA:'🏠',PESSOAL:'🛒',MERCADO:'🛒',ALIMENTACAO:'🍽️',VEICULO:'🚗',TRANSPORTE:'🚌',SAUDE:'🩺',
-  EDUCACAO:'🎓',LAZER:'🎉',CARTAO:'💳',FAMILIA:'👨‍👩‍👧',RECEITA:'💰',INVESTIMENTO:'📈',EVENTO:'📅',EMPRESA:'💼',
-  PETS:'🐾',PET:'🐾',VIAGENS:'✈️',VIAGEM:'✈️',DIVIDA:'💸',DIVIDAS:'💸',LOJA:'🛍️',TRANSFERENCIA:'⇄',IMPOSTOS:'🧾',
-  SEGUROS:'🛡️',ASSINATURAS:'📺',RESERVA:'🏦',IGREJA:'⛪',HOBBY:'🎨',ESPORTE:'⚽',FILHOS:'🧒'};
+var ICONE_CAT={CASA:'🏠',MORADIA:'🏠',LAR:'🏠',ALUGUEL:'🏠',CONDOMINIO:'🏢',IMOVEL:'🏡',IMOVEIS:'🏡',
+  PESSOAL:'🛒',MERCADO:'🛒',SUPERMERCADO:'🛒',ALIMENTACAO:'🍽️',COMIDA:'🍽️',RESTAURANTE:'🍽️',DELIVERY:'🛵',
+  VEICULO:'🚗',CARRO:'🚗',AUTOMOVEL:'🚗',MOTO:'🏍️',COMBUSTIVEL:'⛽',TRANSPORTE:'🚌',UBER:'🚕',MOBILIDADE:'🚌',
+  SAUDE:'🩺',MEDICO:'🩺',FARMACIA:'💊',PLANO:'🩺',ODONTO:'🦷',DENTISTA:'🦷',ACADEMIA:'🏋️',ESPORTE:'⚽',BELEZA:'💇',
+  EDUCACAO:'🎓',ESCOLA:'🎓',CURSO:'📚',LIVRO:'📚',FACULDADE:'🎓',
+  LAZER:'🎉',DIVERSAO:'🎉',VIAGEM:'✈️',VIAGENS:'✈️',FERIAS:'🏖️',HOBBY:'🎨',CULTURA:'🎭',
+  CARTAO:'💳',CREDITO:'💳',FAMILIA:'👨‍👩‍👧',FILHO:'🧒',KIDS:'🧸',CRIANCA:'🧒',BEBE:'🍼',PET:'🐾',PETS:'🐾',
+  RECEITA:'💰',RENDA:'💵',SALARIO:'💵',PROVENTO:'💵',PROLABORE:'💵',BONUS:'🎁',FREELA:'🧑‍💻',
+  REEMBOLSO:'↩️',ESTORNO:'↩️',DEVOLUCAO:'↩️',
+  INVESTIMENTO:'📈',APLICACAO:'📈',DIVIDENDO:'📈',RESERVA:'🏦',POUPANCA:'🐷',BANCO:'🏦',TARIFA:'🏦',
+  EVENTO:'📅',EMPRESA:'💼',TRABALHO:'💼',NEGOCIO:'💼',LOJA:'🛍️',COMPRA:'🛍️',VESTUARIO:'👕',ROUPA:'👕',
+  DIVIDA:'💸',EMPRESTIMO:'💸',FINANCIAMENTO:'🏦',IMPOSTO:'🧾',TAXA:'🧾',TRIBUTO:'🧾',
+  TRANSFERENCIA:'🔁',TRANSFER:'🔁',SEGURO:'🛡️',ASSINATURA:'📺',STREAMING:'📺',
+  TELEFONE:'📱',CELULAR:'📱',INTERNET:'🌐',ENERGIA:'💡',LUZ:'💡',AGUA:'💧',GAS:'🔥',
+  IGREJA:'⛪',DOACAO:'🤝',DIZIMO:'⛪',PRESENTE:'🎁',CASAMENTO:'💍',
+  TECNOLOGIA:'💻',ELETRONICO:'💻',MANUTENCAO:'🔧',JARDIM:'🌱',OUTROS:'🏷️',OUTRO:'🏷️',DIVERSOS:'🏷️'};
+/* O ícone pela primeira palavra do nome que o dicionário conhece, com ou
+   sem plural e acento ("REEMBOLSOS" acha REEMBOLSO, "SALÁRIO" acha SALARIO).
+   Sem nenhuma, a etiqueta 🏷️ - a letra solta no quadradinho não dizia nada. */
 function iconeCat(g){
-  var k=normaliza(g).toUpperCase().split(/[^A-Z]/)[0];
-  return ICONE_CAT[k] || String(g||'?').trim().charAt(0).toUpperCase();
+  var ps=normaliza(g).toUpperCase().split(/[^A-Z]+/).filter(Boolean);
+  for(var i=0;i<ps.length;i++){
+    var w=ps[i];
+    if(ICONE_CAT[w]) return ICONE_CAT[w];
+    if(/S$/.test(w) && ICONE_CAT[w.slice(0,-1)]) return ICONE_CAT[w.slice(0,-1)];
+    if(/ES$/.test(w) && ICONE_CAT[w.slice(0,-2)]) return ICONE_CAT[w.slice(0,-2)];
+  }
+  return '🏷️';
 }
 function nomeBonito(s){
   var t=String(s||'').toLowerCase().replace(/(^|[\s\/(-])(\S)/g, function(m,a,b){ return a+b.toUpperCase(); });
