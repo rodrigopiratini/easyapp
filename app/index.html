@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.64.0 \u00b7 29/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.64.1 \u00b7 29/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -7322,6 +7322,7 @@ window.pedirTexto = function (o, feito) {
     if ((!t && !anexos.length) || IA.ocupado || ouvindo) return;
     if (anexos.some(function (a) { return !a.pronto; })) { toastIA('Espere terminar de ler o anexo'); return; }
     if (!t) t = 'Leia o anexo e me mostre a prévia.';
+    IA.ultimo = { texto: t, anexos: anexos };   // para o "Reenviar" se o pedido morrer no servidor
     IA.ocupado = true; $('iaEnvia').disabled = true;
     $('iaTxt').value = '';
     IA.anexos = []; mostrarAnexos();
@@ -7390,7 +7391,7 @@ window.pedirTexto = function (o, feito) {
     var b = bolha('assistant', '');
     b.innerHTML = '<div style="font-size:13px;margin-bottom:6px">O pedido continua no servidor (os grandes levam alguns minutos). ' +
       'Pode sair do app: a resposta aparece aqui quando ficar pronta.</div>' + barrinhas();
-    IA.aguardando = { desde: desde, b: b, fim: Date.now() + 20 * 60e3, timer: null };
+    IA.aguardando = { desde: desde, b: b, fim: Date.now() + 20 * 60e3, timer: null, inicio: Date.now(), ultStatus: 0, parado: 0 };
     rolar();
     checarAguardando();
   }
@@ -7403,6 +7404,17 @@ window.pedirTexto = function (o, feito) {
         if (IA.aguardando !== a) return;
         var m = r && r[0];
         if (!m) {
+          /* o pedido ainda vive? A cada 15 s pergunta ao servidor; parado duas
+             vezes seguidas (a função foi republicada ou caiu), a resposta não
+             vem mais: em vez de esperar 20 minutos, oferece reenviar. */
+          if (Date.now() - a.inicio > 15000 && Date.now() - a.ultStatus > 15000) {
+            a.ultStatus = Date.now();
+            funcao({ acao: 'status' }).then(function (s) {
+              if (IA.aguardando !== a || !s) return;
+              a.parado = s.rodando ? 0 : a.parado + 1;
+              if (a.parado >= 2) pedidoParou(a);
+            }).catch(function () {});
+          }
           if (Date.now() > a.fim) {
             IA.aguardando = null;
             a.b.innerHTML = 'A resposta não chegou. Se o pedido mudou algo, aparece em Alterações (dados) ou em Módulos; se não, mande de novo.';
@@ -7427,6 +7439,21 @@ window.pedirTexto = function (o, feito) {
         toastIA('O assistente respondeu');
       })
       .catch(function () { if (IA.aguardando === a) a.timer = setTimeout(checarAguardando, 8000); });
+  }
+  function pedidoParou(a) {
+    IA.aguardando = null; clearTimeout(a.timer);
+    var u = IA.ultimo;
+    a.b.innerHTML = '<div style="font-size:13px;margin-bottom:8px">O pedido parou no servidor antes de responder.' +
+      (u ? '' : ' Mande de novo.') + ' O que ele já tinha mudado aparece em Alterações.</div>' +
+      (u ? '<button class="ia-reenv" style="background:#3b82f6;color:#fff;border:0;border-radius:10px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">↻ Reenviar</button>' : '');
+    var bt = a.b.querySelector('.ia-reenv');
+    if (bt) bt.onclick = function () {
+      if (IA.ocupado) { toastIA('Espere o pedido em andamento'); return; }
+      a.b.remove();
+      $('iaTxt').value = u.texto; IA.anexos = u.anexos.slice(); mostrarAnexos();
+      enviar();
+    };
+    rolar();
   }
   // prévia de dados que ficou sem cartão (a conexão caiu antes de ela chegar)
   function mostrarPropostaPendente(desde) {
