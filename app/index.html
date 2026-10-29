@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.63.5 \u00b7 29/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.64.0 \u00b7 29/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6730,6 +6730,9 @@ window.pedirTexto = function (o, feito) {
     '.ia-anx i{font-style:normal;font-size:20px;width:34px;text-align:center}' +
     '.ia-anx em{font-style:normal;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.ia-anx button{background:none;border:0;color:#8b99b5;font-size:17px;padding:0 2px}' +
+    '.ia-anx span.senha{flex-wrap:wrap;width:100%;border-color:#f59e0b;padding:6px 8px}.ia-anx span.senha em{flex:1;max-width:none}' +
+    '.ia-anx span.senha input{flex:1;min-width:120px;margin:0;padding:8px 10px;font-size:15px;border-radius:9px;border:1px solid #2a3548;background:#0f1420;color:#e8edf7}' +
+    '.ia-anx span.senha .ab{background:#3b82f6;color:#fff;font-size:13px;font-weight:600;padding:8px 12px;border-radius:9px}' +
     '.ia-m .anx{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}.ia-m .anx img{width:120px;height:auto;max-height:160px;border-radius:9px}' +
     '.ia-m .anx span{background:#1e40af;border-radius:8px;padding:4px 8px;font-size:12.5px}' +
     '.ia-prev{margin:8px 0;border-top:1px solid #2a3548}' +
@@ -6775,7 +6778,9 @@ window.pedirTexto = function (o, feito) {
       '<div class="ia-anx" id="iaAnx" hidden></div>' +
       '<div class="ia-foco" id="iaFoco" hidden></div>' +
       '<div class="ia-pe" id="iaPe"><button class="ia-clip" id="iaClip" aria-label="anexar planilha, print ou PDF">📎</button>' +
-      '<textarea id="iaTxt" placeholder="Peça algo ou anexe 📎" autocomplete="on" autocorrect="on" autocapitalize="sentences" spellcheck="true" enterkeyhint="send"></textarea>' +
+      // sem autocomplete nem enterkeyhint (29/10): com eles o teclado Samsung
+      // não mostrava as sugestões neste campo - fica só o que liga o corretor
+      '<textarea id="iaTxt" placeholder="Peça algo ou anexe 📎" autocapitalize="sentences" spellcheck="true" lang="pt-BR"></textarea>' +
       '<button id="iaVoz" aria-label="ditar pedido" title="Ditar pedido">🎤</button>' +
       '<button id="iaEnvia" aria-label="enviar">↑</button></div>' +
       '<input type="file" id="iaArq" multiple hidden ' +
@@ -7495,6 +7500,75 @@ window.pedirTexto = function (o, feito) {
       im.src = url;
     });
   }
+  /* PDF com senha (fatura do banco): a Anthropic recusa o arquivo trancado e
+     o pedido inteiro falhava. O app pede a senha, abre com o pdf.js e manda
+     o TEXTO do PDF, linha a linha - para fatura é até melhor: os valores vão
+     exatos, sem depender de ler a página como imagem. */
+  var PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+  function pdfTemSenha(b64) {
+    try { return atob(b64).indexOf('/Encrypt') >= 0; } catch (e) { return false; }
+  }
+  function carregarPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    var um = function (arq) {
+      return new Promise(function (ok, falha) {
+        var s = document.createElement('script'); s.src = PDFJS + arq;
+        s.onload = ok; s.onerror = function () { falha(new Error('sem internet para abrir o PDF')); };
+        document.head.appendChild(s);
+      });
+    };
+    // o worker vem como script comum: Worker de outro endereço o WebView bloqueia
+    return um('pdf.min.js').then(function () { return um('pdf.worker.min.js'); }).then(function () {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js';
+      return window.pdfjsLib;
+    });
+  }
+  function textoDoPdf(b64, senha) {
+    return carregarPdfJs().then(function (lib) {
+      var bin = atob(b64), bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return lib.getDocument({ data: bytes, password: senha }).promise;
+    }).then(function (doc) {
+      var pags = [];
+      for (var p = 1; p <= doc.numPages; p++) pags.push(p);
+      return Promise.all(pags.map(function (p) {
+        return doc.getPage(p).then(function (pg) {
+          return pg.getTextContent().then(function (tc) { return { tc: tc, w: pg.view[2] - pg.view[0] }; });
+        }).then(function (r) {
+          var itens = r.tc.items.filter(function (it) { return String(it.str || '').trim(); })
+            .map(function (it) { return { x: it.transform[4], y: Math.round(it.transform[5] / 3) * 3, t: it.str.trim() }; });
+          /* fatura em duas colunas (a do Santander): linhas com data "dd/mm"
+             começando na metade direita. Aí cada metade sai inteira, uma depois
+             da outra - lado a lado, a compra da direita colava na da esquerda. */
+          var dir = itens.filter(function (q) { return q.x > r.w * 0.45 && /^\d{2}\/\d{2}\b/.test(q.t); }).length;
+          var partes = dir >= 5 ? [itens.filter(function (q) { return q.x < r.w / 2; }), itens.filter(function (q) { return q.x >= r.w / 2; })] : [itens];
+          // junta os pedaços pela altura na página: cada linha do PDF vira uma linha de texto
+          return '--- página ' + p + ' ---\n' + partes.map(function (lista, k) {
+            var linhas = {};
+            lista.forEach(function (q) { (linhas[q.y] = linhas[q.y] || []).push(q); });
+            return (partes.length > 1 ? '[coluna ' + (k ? 'direita' : 'esquerda') + ']\n' : '') +
+              Object.keys(linhas).map(Number).sort(function (a, b) { return b - a; })
+                .map(function (y) { return linhas[y].sort(function (a, b) { return a.x - b.x; }).map(function (q) { return q.t; }).join('  '); })
+                .join('\n');
+          }).join('\n');
+        });
+      }));
+    }).then(function (t) { return t.join('\n\n'); });
+  }
+  function abrirPdfComSenha(item) {
+    var inp = $('iaSenha_' + item.id), senha = inp ? inp.value.trim() : '';
+    if (!senha) { toastIA('Digite a senha do PDF'); return; }
+    item.abrindo = true; mostrarAnexos();
+    textoDoPdf(item.original, senha).then(function (t) {
+      if (!t.replace(/---.*---|\s/g, '')) throw new Error('o PDF não tem texto (é uma imagem escaneada): mande um print das páginas');
+      item.tipo = 'texto'; item.mime = 'text/plain';
+      item.base64 = btoa(unescape(encodeURIComponent(t)));
+      item.original = ''; item.precisaSenha = false; item.abrindo = false; item.pronto = true; mostrarAnexos();
+    }).catch(function (e) {
+      item.abrindo = false; mostrarAnexos();
+      toastIA(e && e.name === 'PasswordException' ? 'Senha errada. Confira e tente de novo.' : (e && e.message) || 'Não consegui abrir o PDF');
+    });
+  }
   function anexar(files) {
     var lista = Array.prototype.slice.call(files || []);
     if (IA.anexos.length + lista.length > 5) { toastIA('No máximo 5 anexos por mensagem'); lista = lista.slice(0, 5 - IA.anexos.length); }
@@ -7506,6 +7580,12 @@ window.pedirTexto = function (o, feito) {
                    base64: '', thumb: '', pronto: false };
       IA.anexos.push(item); mostrarAnexos();
       (tipo === 'imagem' ? reduzir(f) : lerBase64(f).then(function (b) { return { base64: b }; })).then(function (r) {
+        if (tipo === 'pdf' && pdfTemSenha(r.base64)) {
+          item.id = Date.now() + '' + Math.floor(Math.random() * 1000);
+          item.original = r.base64; item.precisaSenha = true; mostrarAnexos();
+          setTimeout(function () { var i = $('iaSenha_' + item.id); if (i) i.focus(); }, 50);
+          return;
+        }
         item.base64 = r.base64; item.thumb = r.thumb || ''; item.pronto = true; mostrarAnexos();
       }).catch(function (e) {
         IA.anexos = IA.anexos.filter(function (x) { return x !== item; }); mostrarAnexos(); toastIA(e.message);
@@ -7518,7 +7598,19 @@ window.pedirTexto = function (o, feito) {
     c.innerHTML = '';
     IA.anexos.forEach(function (a, i) {
       var sp = document.createElement('span');
-      sp.innerHTML = (a.thumb ? '<img src="' + a.thumb + '">' : '<i>' + (a.tipo === 'pdf' ? '📄' : a.tipo === 'imagem' ? '🖼' : '📊') + '</i>') +
+      if (a.precisaSenha) {
+        sp.className = 'senha';
+        sp.innerHTML = '<i>🔒</i><em>' + esc(a.nome) + ' tem senha</em>' +
+          '<input id="iaSenha_' + a.id + '" type="text" inputmode="numeric" autocomplete="off" placeholder="senha do PDF">' +
+          '<button class="ab">' + (a.abrindo ? 'abrindo…' : 'abrir') + '</button><button aria-label="tirar">×</button>';
+        var bs = sp.querySelectorAll('button');
+        bs[0].onclick = function () { if (!a.abrindo) abrirPdfComSenha(a); };
+        bs[1].onclick = function () { IA.anexos.splice(i, 1); mostrarAnexos(); };
+        sp.querySelector('input').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); abrirPdfComSenha(a); } };
+        c.appendChild(sp);
+        return;
+      }
+      sp.innerHTML = (a.thumb ? '<img src="' + a.thumb + '">' : '<i>' + (a.tipo === 'pdf' || a.tipo === 'texto' ? '📄' : a.tipo === 'imagem' ? '🖼' : '📊') + '</i>') +
         '<em>' + esc(a.pronto ? a.nome : 'lendo...') + '</em><button aria-label="tirar">×</button>';
       sp.querySelector('button').onclick = function () { IA.anexos.splice(i, 1); mostrarAnexos(); };
       c.appendChild(sp);
