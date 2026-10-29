@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.62.0 \u00b7 28/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.63.0 \u00b7 29/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10496,25 +10496,51 @@ window.pedirTexto = function (o, feito) {
   .hr-chip i{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--dim);font-size:18px}
   /* filtro de categoria dentro da lista */
   .ln-toque{cursor:pointer}
-  /* linha compacta do Mês */
-  .lcp{position:relative;overflow:hidden;border-top:1px solid rgba(255,255,255,.06)}
-  .lc-acoes{position:absolute;right:0;top:0;bottom:0;display:flex;visibility:hidden}
-  .lcp.aberta .lc-acoes,.lcp.mexendo .lc-acoes{visibility:visible}
-  .lc-acoes button{border:0!important;border-radius:0!important;width:64px;height:100%;padding:0!important;color:#fff!important;font-size:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
-  .lc-acoes small{font-size:10px;font-weight:600}
-  .lc-rp{background:#3b5bdb!important}.lc-x{background:#c92a2a!important}
-  .lc-fr{position:relative;padding:9px 2px;cursor:pointer;transition:transform .2s ease;touch-action:pan-y}
-  .lcp.aberta .lc-fr{transform:translateX(calc(-64px * var(--n,2)))}
-  .lc-l1{display:flex;align-items:center;gap:8px;font-size:13.5px}
-  .lc-nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-  .lc-l1 b{white-space:nowrap;font-size:14px}
-  .lc-l1 .pt{flex:none}
-  .lc-l2{display:flex;align-items:center;gap:8px;margin-top:6px;padding-left:16px}
-  .lc-bar{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden}.lc-bar u{display:block;height:100%;border-radius:2px}
-  .lc-prev{font-size:11.5px;color:var(--dim);white-space:nowrap;border-bottom:1px dashed rgba(139,153,181,.6);padding:2px 0;cursor:pointer}
-  .lc-prev.vb{border-bottom-style:dotted}
-  .lc-dif{font-size:11.5px;white-space:nowrap;min-width:58px;text-align:right;color:var(--dim)}
-  .lc-dif.pos{color:var(--ok)}.lc-dif.neg{color:var(--bad)}
+  /* lista do Mês em árvore */
+  .ma-res{display:flex;justify-content:space-between;gap:8px;margin:8px 0;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.05)}
+  .ma-res small{display:block;font-size:10.5px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase}.ma-res b{font-size:14.5px;white-space:nowrap}
+  .ma-res div:last-child{text-align:right}
+  .ma-bus{position:relative}
+  .ma-bus input{margin:0!important;width:100%;box-sizing:border-box;padding:8px 34px 8px 11px!important;font-size:14px!important}
+  .ma-lp{position:absolute;right:4px;top:50%;transform:translateY(-50%);padding:4px 8px;color:var(--dim);font-size:18px;cursor:pointer}
+  .ma-ferr{display:flex;justify-content:flex-end;gap:14px;font-size:12px;color:var(--dim);margin:8px 0 4px}
+  .ma-lk{color:var(--acc);font-weight:600;cursor:pointer}
+  .ma-G{display:grid;grid-template-columns:minmax(0,1fr) 62px 62px 60px;gap:6px;align-items:center}
+  .ma-th{font-size:10px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase;padding:0 2px 6px;border-bottom:1px solid rgba(255,255,255,.06)}
+  .ma-th span{text-align:right}.ma-th span:first-child{text-align:left}
+  .ma-c{text-align:right;font-size:12.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .ma-dim{color:var(--dim)}
+  .ma-gh{padding:10px 2px 8px;cursor:pointer}
+  .ma-gh .ma-c{font-weight:700}
+  .ma-n{display:flex;align-items:center;gap:9px;min-width:0}
+  .ma-ic{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;font-size:15px;color:#fff;font-weight:700;flex:none}
+  .ma-gn{flex:1;min-width:0;font-weight:700;font-size:14px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ma-gn small{display:block;font-size:11px;font-weight:500;color:var(--dim)}
+  .ma-seta{color:var(--dim);font-size:10px;transition:transform .2s}
+  .ma-gr.fe .ma-seta{transform:rotate(-90deg)}
+  .ma-gr.fe .ma-sub{display:none}
+  .ma-sub{position:relative;margin-left:15px;padding-left:12px}
+  .ma-sub::before{content:'';position:absolute;left:0;top:0;bottom:18px;width:2px;border-radius:1px;background:var(--c);opacity:.35}
+  .ma-ln{position:relative;padding:9px 2px;cursor:pointer}
+  .ma-pt{position:absolute;left:-15px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--c)}
+  .ma-pt.ps{background:var(--bad);box-shadow:0 0 0 3px rgba(239,68,68,.18)}
+  .ma-nm{min-width:0}
+  .ma-nm b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;font-size:13.5px;line-height:1.25}
+  .ma-nm small{display:block;font-size:11px;color:var(--dim);margin-top:1px}
+  .ma-bar{position:absolute;left:2px;right:0;bottom:0;height:2px;background:rgba(255,255,255,.07)}
+  .ma-bar u{position:absolute;left:0;top:0;bottom:0}
+  /* ações da conta, na folha dos lançamentos */
+  #movFolha .mv-res{display:flex;justify-content:center;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--dim);margin-top:2px;text-align:center}
+  #movFolha .mv-ac{display:grid;grid-template-columns:repeat(var(--n,3),1fr);gap:8px;margin-top:12px}
+  #movFolha .mv-ac button{margin:0!important;width:auto;min-width:0;background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.08)!important;border-radius:12px!important;
+    color:var(--txt)!important;font-size:12px!important;font-weight:600;padding:9px 4px 7px!important;display:flex;flex-direction:column;align-items:center;gap:4px;line-height:1.2;cursor:pointer}
+  #movFolha .mv-ac button.x{color:var(--bad)!important}
+  #movFolha .mv-ac button:disabled{opacity:.38;cursor:default}
+  #movFolha .mv-por{grid-column:1/-1;font-size:11px;color:var(--dim);text-align:center}
+  #movFolha .mv-cf{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);font-size:13px;text-align:left}
+  #movFolha .mv-cf div{display:flex;gap:8px;margin-top:9px}
+  #movFolha .mv-cf button{flex:1;margin:0!important}
+  #movFolha .mv-cf .mv-cf-x{background:var(--bad)!important;color:#fff!important}
   .fam-chips{display:flex;gap:7px;overflow-x:auto;margin:10px -14px 4px;padding:0 14px 2px;scrollbar-width:none}
   .fam-chips::-webkit-scrollbar{display:none}
   .fam-chips .fc{flex:none;display:flex;align-items:center;gap:6px;padding:6px 12px 6px 6px!important;border-radius:999px!important;
@@ -12823,53 +12849,28 @@ function renderMes(){
 
   h+=cardSugestao(r);
 
-  // despesas: tudo aberto, uma linha por conta, filtrado pela familia do cabecalho
+  // despesas em árvore por categoria (o filtro agora é a busca; os botões de categoria saíram)
   var lista=[];
-  (r.grupos||[]).forEach(function(g){
-    if(ST.familia!=='TUDO' && g.grupo!==ST.familia) return;
-    g.itens.forEach(function(d){ lista.push(d); });
-  });
+  (r.grupos||[]).forEach(function(g){ g.itens.forEach(function(d){ lista.push(d); }); });
   // agrupadas por familia, e dentro dela em ordem alfabetica
   lista.sort(function(a,b){
     if(a.grupo!==b.grupo) return a.grupo<b.grupo?-1:1;
     return a.categoria<b.categoria?-1:1;
   });
-
-  var lPrev=0, lReal=0;
-  lista.forEach(function(d){ lPrev+=d.previsto||0; lReal+=d.realizado||0; });
-  h+='<div class="card"><div class="row" style="margin-bottom:2px">'+
+  var rec=r.receitas.filter(function(d){return d.realizado>0||d.previsto>0;});
+  ST.mesDesp=lista; ST.mesRec=rec; ST.linhasMes=lista.concat(rec);
+  ST.mesGrupos=lista.map(function(d){ return d.grupo; }).filter(function(g,k,a){ return a.indexOf(g)===k; });
+  var bq=ST.mesBusca||'';
+  h+='<div class="card">'+
      '<div class="lbl">Despesas'+(r.regime==='COMPETENCIA'?' <span class="pill" style="font-size:10.5px;padding:1px 8px;vertical-align:1px">competência</span>':'')+
      ' <span style="opacity:.6">('+lista.length+')</span>'+
-     dica('O previsto é editável direto na linha. Subcategorias sem movimento no mês ficam ocultas.')+'</div>'+
-     '<div class="desp-tot">'+moeda(lReal)+' de '+moeda(lPrev)+'</div>'+
-     '</div>'+
-     chipsFamilia((r.grupos||[]).map(function(g){ return g.grupo; }).sort())+
-     (ST.familia!=='TUDO'
-       ? '<div class="fam-res"><div><small>previsto</small><b>'+moeda(lPrev)+'</b></div>'+
-         '<div><small>realizado</small><b>'+moeda(lReal)+'</b></div>'+
-         '<div><small>'+(lPrev-lReal>=0?'sobra':'passou')+'</small><b class="'+(lPrev-lReal>=0?'pos':'neg')+'">'+moeda(Math.abs(lPrev-lReal))+'</b></div></div>'
-       : '')+
-     '';
-  lista.forEach(function(d,i){
-    h+=linhaCompacta(d, i, 'DESPESA')+
-       (ST.reprog===d.categoria && ST.reprogOnde==='linha' ? painelReprog({categoria:d.categoria, falta:d.saldo}) : '');
-  });
-  ST.linhasMes=lista;
-  h+=linhaMais('DESPESA')+'</div>';
-
-  var rec=r.receitas.filter(function(d){return d.realizado>0||d.previsto>0;});
-  if(rec.length && ST.familia==='TUDO'){
-    h+='<div class="card"><div class="lbl" style="margin-bottom:4px">Entradas</div>';
-    // o previsto da entrada tambem e editavel: antes so a despesa era, e nao
-    // havia como corrigir um salario ou um aluguel direto na linha
-    var base=lista.length;
-    rec.forEach(function(d,k){
-      var j=base+k;
-      h+=linhaCompacta(d, j, 'RECEITA');
-      ST.linhasMes.push(d);
-    });
-    h+=linhaMais('RECEITA')+'</div>';
-  }
+     dica('Toque numa categoria para abrir e numa conta para ver os lançamentos, mudar o previsto, reprogramar a sobra ou tirar do mês. Subcategorias sem movimento no mês ficam ocultas.')+'</div>'+
+     '<div id="mesResD"></div>'+
+     '<div class="ma-bus"><input id="mesBusca" placeholder="buscar conta ou categoria" autocomplete="off" value="'+tx(bq)+'" oninput="mesBuscar(this.value)">'+
+       '<span id="mesBuscaX" class="ma-lp" onclick="mesBuscar(\'\')"'+(bq?'':' style="display:none"')+'>&times;</span></div>'+
+     '<div id="mesArvD"></div>'+linhaMais('DESPESA')+'</div>';
+  if(rec.length)
+    h+='<div class="card"><div class="lbl" style="margin-bottom:4px">Entradas</div><div id="mesArvR"></div>'+linhaMais('RECEITA')+'</div>';
 
   if(false){
     r.controle.forEach(function(d){
@@ -12883,6 +12884,7 @@ function renderMes(){
     });
   }
   c.innerHTML=h;
+  desenharArvoreMes();
 }
 
 /* Previsto sugerido (só no mês de hoje): o que foi gasto nos meses
@@ -12954,80 +12956,160 @@ function sugUsar(){
   }).withFailureHandler(function(){ toast('Não consegui gravar'); }).apiUsarSugestoes(mes, itens);
 }
 
-/* O botao no fim da linha do mes:
-   - com previsto: X, tira a conta do mes;
-   - sem previsto mas COM valor cadastrado: ↻, devolve aquele valor;
-   - sem previsto e sem cadastro: X, que oferece apagar a conta de vez.
-   Antes o ↻ aparecia sempre que o previsto era zero - inclusive numa conta
-   recém-criada, onde nao havia nada para devolver, e o toque nao fazia nada. */
-/* Um ícone só, com um significado só.
-   Antes havia dois - × e ↻ - e qual deles aparecia dependia de um dado que
-   nao esta na tela (o previsto cadastrado da conta). Duas linhas iguais
-   ganhavam botoes diferentes, e nao havia como adivinhar por que.
-
-   Agora: tem previsto, o × tira do mes. Nao tem previsto mas teve gasto, nao
-   ha botao nenhum - a despesa aconteceu, nao ha o que tirar; o valor
-   cadastrado vira a sugestao dentro do campo. Nao tem nem um nem outro, a
-   conta nao serve para nada neste mes e o × oferece apaga-la. */
-/* A verba do cartao pagando por uma conta que nao tinha previsto - e o que
-   sobrou dela quando a fatura ja fechou. Sem esta linha o previsto aparecia
-   do nada e voce nao sabia de onde tinha vindo. */
-/* Por onde a conta é paga, em cinza ao lado do nome (dentro do campo do
-   previsto apertava o número): banco = conta corrente, cartão = cai na
-   fatura, os dois = parte em cada. */
+/* Banco = conta corrente, cartão = cai na fatura (cabeçalhos da folha dos lançamentos). */
 var IC_BANCO='<svg width="14" height="13" viewBox="0 0 14 13" style="width:14px!important;height:13px!important;min-width:14px;flex:none;display:block"><path d="M1 4.5 7 1l6 3.5" fill="none" stroke="#8b99b5" stroke-width="1.5" stroke-linejoin="round"/><path d="M3 6v4.5M7 6v4.5M11 6v4.5M1 12h12" stroke="#8b99b5" stroke-width="1.5"/></svg>';
 var IC_CARTAO='<svg width="16" height="12" viewBox="0 0 16 12" style="width:16px!important;height:12px!important;min-width:16px;flex:none;display:block"><rect x=".75" y=".75" width="14.5" height="10.5" rx="2" fill="none" stroke="#8b99b5" stroke-width="1.5"/><rect x="1" y="3" width="14" height="2" fill="#8b99b5"/></svg>';
-function iconePagaPor(t){
-  var ic={CC:[IC_BANCO,'paga pela conta corrente'],CARTAO:[IC_CARTAO,'paga no cartão: cai na fatura'],
-          AMBOS:[IC_BANCO+IC_CARTAO,'parte pela conta corrente, parte no cartão']}[t];
-  return ic ? '<span title="'+ic[1]+'" style="display:inline-flex;gap:4px;align-items:center;margin-left:auto;padding-left:8px;flex:0 0 auto;width:auto;max-width:48px;vertical-align:middle">'+ic[0]+'</span>' : '';
+/* Lista do Mês em árvore (29/10/2026), como em Config → Categorias: cada
+   categoria com o ícone na cor dela e os totais nas colunas Gasto, Previsto e
+   Saldo; embaixo, as subcategorias no traço com uma bolinha em cada (vermelha
+   quando passou). A barra é a própria divisória da linha. Na primeira vez
+   tudo vem recolhido; depois o app lembra o que ficou aberto. A busca filtra
+   pelo nome da subcategoria ou da categoria e abre as que têm resultado.
+   Tocar na linha abre a folha dos lançamentos com Mudar previsto, Reprogramar
+   sobra e Excluir do mês - antes essas ações ficavam escondidas no arrastar,
+   e os números da linha (28,48 · de 25,52 · −2,96) não tinham nome. */
+var PAGA_POR={CC:'na conta',CARTAO:'no cartão',AMBOS:'conta + cartão'};
+function mesAbertos(){ try{ return JSON.parse(lerLocal('easyapp:mes-abertos')||'{}')||{}; }catch(e){ return {}; } }
+function mesAlternar(g){
+  var a=mesAbertos(); if(a[g]) delete a[g]; else a[g]=1;
+  gravarLocal('easyapp:mes-abertos', JSON.stringify(a)); desenharArvoreMes();
 }
-function notaDaVerba(d){
-  // um selo em vez de frase: 💳 = o previsto veio da verba do cartão
-  var nota='';
-  if(d.daVerba>0.005)
-    nota='<span class="chip-verba" title="o previsto veio da verba do cartão">💳 '+num(d.daVerba)+'</span>';
-  else if(d.distribuido>0.005)
-    nota='<span class="chip-verba" title="já distribuído nas subcategorias que gastaram">💳 ➜ '+num(d.distribuido)+'</span>';
-  if(!nota) return '';
-  return '<div style="margin:-4px 0 7px 20px">'+nota+'</div>';
+function mesTudo(abrir){
+  var a={}; if(abrir) (ST.mesGrupos||[]).forEach(function(g){ a[g]=1; });
+  gravarLocal('easyapp:mes-abertos', JSON.stringify(a)); desenharArvoreMes();
+}
+/* a busca redesenha só a lista: refazer o campo fechava o teclado a cada letra */
+function mesBuscar(v){
+  ST.mesBusca=v;
+  var i=el('mesBusca'); if(i && i.value!==v) i.value=v;
+  var x=el('mesBuscaX'); if(x) x.style.display=v?'':'none';
+  desenharArvoreMes();
+}
+function maSaldo(prev, real, rec){
+  var d=rec?real-prev:prev-real;
+  if(Math.abs(d)<0.005) return '<span class="ma-dim">0</span>';
+  if(rec) return d>0?'<span class="pos">+'+num(d)+'</span>':'<span class="ma-dim">−'+num(-d)+'</span>';
+  return d<0?'<span class="neg">−'+num(-d)+'</span>':'<span class="pos">'+num(d)+'</span>';
+}
+// cumprido (98% ou mais): cheia e apagada; com saldo: o que já foi, em verde; passou: cheia e vermelha
+function maBarra(prev, real, rec){
+  var uso=prev>0.005?Math.abs(real)/prev*100:(Math.abs(real)>0.005?100:0), passou=!rec && real-prev>0.005;
+  var cor=passou?'var(--bad)':(uso>=98?'rgba(255,255,255,.22)':'var(--ok)');
+  return '<span class="ma-bar"><u style="width:'+(passou||uso>=98?100:Math.floor(uso))+'%;background:'+cor+'"></u></span>';
+}
+function linhaArv(d, nat){
+  var rec=nat==='RECEITA', cj=JSON.stringify(d.categoria).replace(/"/g,'&quot;');
+  var prev=d.previsto||0, real=d.realizado||0, passou=!rec && real-prev>0.005;
+  var nome=rec?nomeBonito(d.categoria):nomeBonito(semGrupo(d.categoria, d.grupo));
+  var sub=rec?'':(PAGA_POR[d.pagaPor]||'');
+  if(d.daVerba>0.005) sub+=(sub?' · ':'')+'verba do cartão';
+  return '<div class="ma-G ma-ln" onclick="abrirComposicao('+cj+',\''+nat+'\')">'+
+      (rec?'':'<i class="ma-pt'+(passou?' ps':'')+'"></i>')+
+      '<div class="ma-nm"><b>'+tx(nome)+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</div>'+
+      '<div class="ma-c">'+num(real)+'</div><div class="ma-c ma-dim">'+num(prev)+'</div>'+
+      '<div class="ma-c">'+maSaldo(prev, real, rec)+'</div>'+maBarra(prev, real, rec)+'</div>'+
+    (ST.reprog===d.categoria && ST.reprogOnde==='linha' ? painelReprog({categoria:d.categoria, falta:d.saldo}) : '');
+}
+function maCab(rot){
+  return '<div class="ma-G ma-th"><span>'+rot+'</span><span>'+(rot==='Entrada'?'Entrou':'Gasto')+'</span><span>Previsto</span><span>Saldo</span></div>';
+}
+function maResumo(prev, real){
+  var d=real-prev;
+  return '<div class="ma-res"><div><small>gasto</small><b>'+moeda(real)+'</b></div><div><small>previsto</small><b>'+moeda(prev)+'</b></div>'+
+    '<div><small>'+(d>0.005?'passou':'sobra')+'</small><b class="'+(d>0.005?'neg':'pos')+'">'+moeda(Math.abs(d))+'</b></div></div>';
+}
+function desenharArvoreMes(){
+  var lista=ST.mesDesp||[], rec=ST.mesRec||[], q=normaliza(ST.mesBusca||''), ab=mesAbertos();
+  var bate=function(d){ return !q || normaliza(d.categoria+' '+(d.grupo||'')+' '+nomeBonito(d.grupo||'')).indexOf(q)>=0; };
+  var vis=lista.filter(bate), fams={}, ordem=[], tp=0, tr=0;
+  vis.forEach(function(d){
+    if(!fams[d.grupo]){ fams[d.grupo]=[]; ordem.push(d.grupo); }
+    fams[d.grupo].push(d); tp+=d.previsto||0; tr+=d.realizado||0;
+  });
+  var h=(q
+      ? '<div class="ma-ferr"><span>'+vis.length+(vis.length===1?' subcategoria':' subcategorias')+'</span></div>'
+      : '<div class="ma-ferr"><span class="ma-lk" onclick="mesTudo(0)">Recolher tudo</span><span class="ma-lk" onclick="mesTudo(1)">Abrir tudo</span></div>')+
+    (vis.length?maCab('Despesa'):'');
+  ordem.forEach(function(g){
+    var it=fams[g], p=0, r=0, gj=JSON.stringify(g).replace(/"/g,'&quot;');
+    it.forEach(function(d){ p+=d.previsto||0; r+=d.realizado||0; });
+    var aberto=q || ab[g];
+    h+='<div class="ma-gr'+(aberto?'':' fe')+'" style="--c:'+cor(g)+'">'+
+      '<div class="ma-G ma-gh"'+(q?'':' onclick="mesAlternar('+gj+')"')+'><div class="ma-n">'+
+        '<span class="ma-ic" style="background:'+cor(g)+'">'+iconeCat(g)+'</span>'+
+        '<span class="ma-gn">'+tx(nomeBonito(g))+'<small>'+it.length+(it.length===1?' conta':' contas')+'</small></span>'+
+        '<span class="ma-seta">&#9662;</span></div>'+
+        '<div class="ma-c">'+num(r)+'</div><div class="ma-c ma-dim">'+num(p)+'</div><div class="ma-c">'+maSaldo(p, r, false)+'</div></div>'+
+      '<div class="ma-sub">'+it.map(function(d){ return linhaArv(d, 'DESPESA'); }).join('')+'</div></div>';
+  });
+  if(q && !vis.length) h+='<div class="vazio" style="padding:18px 4px">Nenhuma despesa com essa busca.</div>';
+  var a=el('mesArvD'); if(a) a.innerHTML=h;
+  var res=el('mesResD'); if(res) res.innerHTML=maResumo(tp, tr);
+  var b=el('mesArvR');
+  if(b){
+    var rv=rec.filter(bate);
+    b.innerHTML=rv.length ? maCab('Entrada')+rv.map(function(d){ return linhaArv(d, 'RECEITA'); }).join('')
+      : '<div class="vazio" style="padding:12px 4px">Nenhuma entrada com essa busca.</div>';
+  }
 }
 
-/* Linha compacta do Mês (25/10): nome e realizado em cima; embaixo a barra
-   do previsto usado, o "de R$ previsto" (toque muda o previsto) e quanto
-   sobra ou passou. Tocar na linha abre a folha conta/cartão dela; arrastar para a
-   esquerda mostra ↪ (reprogramar a sobra) e × (tirar do mês). */
-function linhaCompacta(d, i, nat){
-  var rec=nat==='RECEITA', cj=JSON.stringify(d.categoria).replace(/"/g,'&quot;');
-  var prev=d.previsto||0, real=d.realizado||0;
-  var uso=prev>0.005?Math.abs(real)/prev*100:(real>0.005?100:0), pct=Math.min(100,Math.floor(uso));
-  var passou=!rec && real-prev>0.005, faltaEntrar=rec && prev-real>0.005;
-  /* cumprido (98% ou mais): cheia e apagada - já está resolvido; com saldo:
-     o que já foi, em verde; passou: cheia e vermelha */
-  var corBar=passou?'var(--bad)':(uso>=98?'rgba(255,255,255,.22)':'var(--ok)');
-  if(passou || uso>=98) pct=100;
-  // só número ou símbolo (25/10): sobra em verde, passou em vermelho com "−", cumprido "✓"
-  var dif;
-  if(rec) dif=faltaEntrar?'<span class="lc-dif">−'+num(prev-real)+'</span>':(real-prev>0.005?'<span class="lc-dif pos">+'+num(real-prev)+'</span>':'<span class="lc-dif">&#10003;</span>');
-  else dif=passou?'<span class="lc-dif neg">−'+num(real-prev)+'</span>':(prev-real>0.005?'<span class="lc-dif pos">'+num(prev-real)+'</span>':'<span class="lc-dif">&#10003;</span>');
-  var podeReprog=!rec && d.saldo>0.005 && !d.daVerba && d.categoria!=='CARTAO - A CLASSIFICAR';
-  var x=botaoLinhaMes(d), temX=/<button/.test(x);
-  var nAc=(podeReprog?1:0)+(temX?1:0);
-  return '<div class="lcp" style="--n:'+nAc+'">'+
-    '<div class="lc-acoes">'+
-      (podeReprog?'<button class="lc-rp" onclick="abrirReprog('+cj+',\'linha\')">&#8618;<small>reprogramar</small></button>':'')+
-      (temX?x.replace('class="bt-x"','class="lc-x"').replace('&times;</button>','&times;<small>tirar</small></button>'):'')+
-    '</div>'+
-    '<div class="lc-fr" onclick="if(!lcArrastou&&!event.target.closest(\'.lc-prev\'))abrirComposicao('+cj+',\''+nat+'\')">'+
-      '<div class="lc-l1">'+ponto(rec?'RECEITA':d.grupo)+'<span class="lc-nm">'+tx(nomeBonito(rotuloCat(d.categoria, d.grupo)))+'</span>'+
-        (rec?'':iconePagaPor(d.pagaPor))+'<b>'+moeda(real)+'</b></div>'+
-      '<div class="lc-l2"><span class="lc-bar"><u style="width:'+pct+'%;background:'+corBar+'"></u></span>'+
-        '<span class="lc-prev'+((d.daVerba>0.005||d.distribuido>0.005)?' vb':'')+'" onclick="editarPrevistoLinha('+i+')">de '+num(prev)+'</span>'+dif+'</div>'+
-    '</div></div>';
+/* As ações da conta, na folha que abre ao tocar na linha (29/10/2026): o
+   arrastar escondia o ↪ e o ×, e o "de 25,52" tocável era um segundo alvo na
+   mesma linha. Excluir segue a regra do antigo ×: com previsto, tira do mês;
+   sem previsto e sem gasto, apaga a subcategoria; o previsto que veio da verba
+   do cartão não existe gravado e não tem o que tirar. */
+var IC_ACAO={
+  pv:'<svg viewBox="0 0 24 24" width="18" height="18" style="width:18px!important;height:18px!important;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  rp:'<svg viewBox="0 0 24 24" width="18" height="18" style="width:18px!important;height:18px!important;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m11 14 2 2-2 2"/></svg>',
+  x:'<svg viewBox="0 0 24 24" width="18" height="18" style="width:18px!important;height:18px!important;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>'
+};
+function modoExcluir(d){
+  if(d.daVerba>0.005) return '';
+  if(d.previsto>0.005) return 'mes';
+  return Math.abs(d.realizado)>0.005 ? '' : 'apagar';
 }
-function editarPrevistoLinha(i){
-  var d=(ST.linhasMes||[])[i]; if(!d) return;
-  dialogoPrevisto(d.categoria, d.previsto, nomeBonito(rotuloCat(d.categoria, d.grupo)));
+function linhaDoMes(cat){ return (ST.linhasMes||[]).filter(function(d){ return d.categoria===cat; })[0]; }
+function acoesDaConta(d, nat){
+  var rec=nat==='RECEITA', prev=d.previsto||0, real=d.realizado||0, dif=rec?real-prev:prev-real;
+  var cj=JSON.stringify(d.categoria).replace(/"/g,'&quot;');
+  var sit=Math.abs(dif)<0.005 ? '<b class="ma-dim">certinho</b>'
+    : rec ? (dif>0?'entrou <b class="pos">'+num(dif)+'</b> a mais':'falta entrar <b>'+num(-dif)+'</b>')
+          : (dif<0?'passou <b class="neg">'+num(-dif)+'</b>':(real<0.005?'falta pagar <b>':'sobram <b class="pos">')+num(dif)+'</b>');
+  var podeRp=!rec && d.saldo>0.005 && !d.daVerba && d.categoria!=='CARTAO - A CLASSIFICAR';
+  var ex=modoExcluir(d), por=[];
+  if(d.daVerba>0.005) por.push('O previsto veio da verba do cartão: não há o que reprogramar nem excluir.');
+  else {
+    if(!rec && !podeRp) por.push('Reprogramar acende quando sobra previsto no mês.');
+    if(!ex) por.push('Teve '+(rec?'entrada':'gasto')+' sem previsto: não há o que tirar do mês.');
+  }
+  return '<div class="mv-res"><span>previsto <b>'+num(prev)+'</b>'+(d.daVerba>0.005?' (verba do cartão)':'')+'</span><span>'+sit+'</span></div>'+
+    '<div class="mv-ac" style="--n:'+(rec?2:3)+'">'+
+      '<button onclick="contaPrevisto('+cj+')">'+IC_ACAO.pv+'Mudar previsto</button>'+
+      (rec?'':'<button'+(podeRp?' onclick="contaReprog('+cj+')"':' disabled')+'>'+IC_ACAO.rp+'Reprogramar sobra</button>')+
+      '<button class="x"'+(ex?' onclick="contaExcluir('+cj+',\''+ex+'\')"':' disabled')+'>'+IC_ACAO.x+'Excluir do mês</button>'+
+      (por.length?'<div class="mv-por">'+por.join(' ')+'</div>':'')+
+    '</div><div id="movCf"></div>';
+}
+function contaPrevisto(cat){
+  var d=linhaDoMes(cat); if(!d) return;
+  fecharMovimento();
+  dialogoPrevisto(cat, d.previsto, nomeBonito(rotuloCat(cat, d.grupo)));
+}
+function contaReprog(cat){
+  var d=linhaDoMes(cat); if(!d) return;
+  fecharMovimento();
+  var a=mesAbertos(); a[d.grupo]=1; gravarLocal('easyapp:mes-abertos', JSON.stringify(a));
+  ST.reprog=cat; ST.reprogOnde='linha'; renderMes();
+  setTimeout(function(){ var i=el('rpVal'); if(i) i.scrollIntoView({block:'center', behavior:'smooth'}); }, 60);
+}
+function contaExcluir(cat, modo){
+  var d=linhaDoMes(cat), b=el('movCf'); if(!d || !b) return;
+  var cj=JSON.stringify(cat).replace(/"/g,'&quot;'), nm=tx(nomeBonito(semGrupo(cat, d.grupo)));
+  b.innerHTML='<div class="mv-cf">'+(modo==='mes'
+      ? 'Tirar <b>'+nm+'</b> de '+NOMES_MES[Number(ST.mes.split('-')[1])].toLowerCase()+'? O previsto de '+moeda(d.previsto)+' sai deste mês; a subcategoria continua existindo.'
+      : '<b>'+nm+'</b> não tem previsto neste mês nem valor cadastrado. Apagar esta subcategoria de vez?')+
+    '<div><button class="bt-no" onclick="el(\'movCf\').innerHTML=\'\'">Cancelar</button>'+
+    '<button class="bt-ok mv-cf-x" onclick="fecharMovimento();'+(modo==='mes'?'removerDoMes':'apagarDoMes')+'('+cj+',true)">'+(modo==='mes'?'Tirar do mês':'Apagar')+'</button></div></div>';
 }
 /* Editar o previsto (28/10): o valor, até que mês vale, pular os meses que
    hoje estão sem previsto (IPVA, IPTU...) e o reajuste anual da conta, com a
@@ -13118,56 +13200,10 @@ function dialogoPrevisto(categoria, atual, rotulo){
     prever();
   }).apiInfoPrevisto(ST.mes, categoria);
 }
-/* arrastar a linha para a esquerda mostra as ações; tocar fora fecha */
-var lcArrastou=false;
-(function(){
-  var x0=null, y0=null, fr=null, dx=0, horiz=null;
-  document.addEventListener('touchstart', function(e){
-    var f=e.target.closest && e.target.closest('.lc-fr');
-    /* tocar num botão da linha aberta: ela fica aberta até o clique - fechar
-       já no toque escondia o botão debaixo do dedo e o clique se perdia */
-    var ac=e.target.closest && e.target.closest('.lcp.aberta .lc-acoes');
-    if(ac){ fr=null; return; }
-    document.querySelectorAll('.lcp.aberta').forEach(function(l){ if(!f || l!==f.parentNode) l.classList.remove('aberta'); });
-    lcArrastou=false;
-    if(!f){ fr=null; return; }
-    fr=f; x0=e.touches[0].clientX; y0=e.touches[0].clientY; dx=0; horiz=null;
-  }, { passive:true });
-  document.addEventListener('touchmove', function(e){
-    if(!fr) return;
-    var mx=e.touches[0].clientX-x0, my=e.touches[0].clientY-y0;
-    if(horiz===null && (Math.abs(mx)>8 || Math.abs(my)>8)) horiz=Math.abs(mx)>Math.abs(my);
-    if(!horiz) return;
-    var w=(fr.previousSibling||{}).offsetWidth||0; if(!w) return;
-    var base=fr.parentNode.classList.contains('aberta')?-w:0;
-    dx=Math.max(-w, Math.min(0, base+mx));
-    fr.style.transition='none'; fr.style.transform='translateX('+dx+'px)'; lcArrastou=true; fr.parentNode.classList.add('mexendo');
-  }, { passive:true });
-  document.addEventListener('touchend', function(){
-    if(!fr) return;
-    var w=(fr.previousSibling||{}).offsetWidth||0, l=fr.parentNode;
-    fr.style.transition=''; fr.style.transform=''; l.classList.remove('mexendo');
-    if(lcArrastou) l.classList.toggle('aberta', dx < -w/2);
-    fr=null; setTimeout(function(){ lcArrastou=false; }, 50);
-  });
-})();
-function botaoLinhaMes(d){
-  var cat = JSON.stringify(d.categoria).replace(/"/g,'&quot;');
-  // Previsto que veio da verba nao existe na planilha - nao ha o que tirar
-  // do mes, e o x tentaria apagar uma linha que nunca foi gravada.
-  if(d.daVerba>0.005) return '<span class="bt-x vazio2"></span>';
-  if(d.previsto>0.005)
-    return '<button class="bt-x" title="tirar do mês" onclick="removerDoMes('+cat+
-           ')">&times;</button>';
-  if(Math.abs(d.realizado)>0.005) return '<span class="bt-x vazio2"></span>';
-  return '<button class="bt-x" title="apagar esta subcategoria" onclick="apagarDoMes('+cat+
-         ')">&times;</button>';
-}
-
 /* Conta sem previsto nenhum e sem valor cadastrado: tirar do mes nao faz
    nada (ja esta zerada), entao o X oferece o que realmente resolve. */
-function apagarDoMes(cat){
-  if(!confirm('"'+cat+'" não tem previsto neste mês nem valor cadastrado.\n\n'+
+function apagarDoMes(cat, jaConfirmou){
+  if(!jaConfirmou && !confirm('"'+cat+'" não tem previsto neste mês nem valor cadastrado.\n\n'+
               'Apagar esta subcategoria de vez?')) return;
   toast('Apagando...');
   google.script.run.withSuccessHandler(function(r){
@@ -13338,8 +13374,8 @@ function restaurarPrevisto(cat){
   }).apiRestaurarPrevisto(ST.mes, cat);
 }
 
-function removerDoMes(cat){
-  if(!confirm('Tirar "'+cat+'" de '+NOMES_MES[Number(ST.mes.split('-')[1])]+'?\n\n'+
+function removerDoMes(cat, jaConfirmou){
+  if(!jaConfirmou && !confirm('Tirar "'+cat+'" de '+NOMES_MES[Number(ST.mes.split('-')[1])]+'?\n\n'+
               'A subcategoria continua existindo; só deixa de aparecer neste mês.')) return;
   google.script.run.withSuccessHandler(function(r){
     toast(r.ok ? 'Tirada do mês' : (r.erro||'Não consegui'));
@@ -14815,7 +14851,8 @@ function abrirComposicao(cat, nat){
   var linha=(ST.linhasMes||[]).filter(function(d){ return d.categoria===cat; })[0]||{};
   var p=ST.mes.split('-'), cj=JSON.stringify(cat).replace(/"/g,'&quot;');
   el('movTopo').innerHTML='<div class="mv-tot"><small>'+tx(nomeBonito(rotuloCat(cat, linha.grupo)))+' · '+NOMES_MES[Number(p[1])].toLowerCase()+'</small>'+
-    '<b style="color:'+cor+'">'+moeda(linha.realizado||0)+'</b></div>';
+    '<b style="color:'+cor+'">'+moeda(linha.realizado||0)+'</b></div>'+
+    (linha.categoria ? acoesDaConta(linha, nat) : '');
   el('movLista').innerHTML='<div class="mv-vazio">Carregando...</div>';
   var mes=ST.mes;
   google.script.run.withSuccessHandler(function(r){
