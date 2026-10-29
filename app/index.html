@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.63.1 \u00b7 29/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.63.2 \u00b7 29/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -13034,6 +13034,12 @@ function arvoreMes(lista, nat, q, bate){
       ? '<div class="ma-ferr"><span>'+vis.length+(vis.length===1?' subcategoria':' subcategorias')+'</span></div>'
       : '<div class="ma-ferr"><span class="ma-lk" onclick="mesTudo(0,\''+nat+'\')">Recolher tudo</span><span class="ma-lk" onclick="mesTudo(1,\''+nat+'\')">Abrir tudo</span></div>')+
     (vis.length?maCab(rec?'Entrada':'Despesa'):'');
+  /* em ordem alfabética pelo nome que aparece na tela (sem a categoria na
+     frente, acento e maiúscula não contam): pelo nome gravado, "CASA -
+     ÁGUA" e uma subcategoria sem o prefixo caíam fora do lugar */
+  var nm=function(d){ return nomeBonito(semGrupo(d.categoria, d.grupo)); };
+  ordem.sort(function(a,b){ return nomeBonito(a).localeCompare(nomeBonito(b), 'pt-BR', {sensitivity:'base'}); });
+  ordem.forEach(function(g){ fams[g].sort(function(a,b){ return nm(a).localeCompare(nm(b), 'pt-BR', {sensitivity:'base', numeric:true}); }); });
   ordem.forEach(function(g){
     var it=fams[g], p=0, r=0, k=(rec?'R:':'')+g, kj=JSON.stringify(k).replace(/"/g,'&quot;');
     it.forEach(function(d){ p+=d.previsto||0; r+=d.realizado||0; });
