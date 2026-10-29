@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.63.4 \u00b7 29/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.63.5 \u00b7 29/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -2126,6 +2126,27 @@ window.pedirTexto = function (o, feito) {
       o[CAT_VERBA_CARTAO] = n(Math.max(0, metaCartaoDe(c, ref) - outras));
     }
     return o;
+  }
+  /* A fórmula do Simples guarda o NOME das subcategorias (imposto e
+     faturamento). Renomear tem que trocar lá também: com o nome antigo a
+     fórmula achava faturamento zero e gravava imposto zero dali em diante
+     (29/10: o salário virou "SALÁRIO - SALARIO MENSAL - AZR" e os impostos
+     AZR/ROR zeraram de nov/27 em diante - 2027 passou a fechar no azul). */
+  function renomearNaConfig(pares) {
+    return config().then(function (c) {
+      if (!lerSimples(c).length) return 0;
+      var mudou = false;
+      var novo = String(c.SIMPLES).split(';').map(function (p) {
+        return p.split('|').map(function (x) {
+          var t = x.trim();
+          if (pares[t]) { mudou = true; return pares[t]; }
+          return t;
+        }).join('|');
+      }).join('; ');
+      if (!mudou) return 0;
+      return gravar('config', [{ chave: 'SIMPLES', valor: novo }], 'user_id,chave')
+        .then(function () { _cfgCache = null; _projCache = {}; return aplicarRegras(); });
+    }).catch(function () { return 0; });
   }
   /* Regrava, nos meses que vêm, o previsto que é fórmula - só onde mudou. */
   function aplicarRegras() {
@@ -4220,7 +4241,10 @@ window.pedirTexto = function (o, feito) {
         if (!Object.keys(campos).length) return { ok: true, renomeados: 0 };
         return mudar('categorias', 'id=eq.' + r[0].id, campos).then(function () {
           _projCache = {};
-          return { ok: true, renomeados: campos.nome ? 'todos' : 0, nome: dados.nome || nome };
+          var pares = {}; if (campos.nome) pares[nome] = campos.nome;
+          return (campos.nome ? renomearNaConfig(pares) : Promise.resolve(0)).then(function () {
+            return { ok: true, renomeados: campos.nome ? 'todos' : 0, nome: dados.nome || nome };
+          });
         });
       });
   }
@@ -4255,8 +4279,11 @@ window.pedirTexto = function (o, feito) {
         return { id: c.id, campos: campos };
       });
       if (erro) return { ok: false, erro: erro };
+      var pares = {};
+      delas.forEach(function (c, k) { if (mud[k].campos.nome) pares[c.nome] = mud[k].campos.nome; });
       return Promise.all(mud.map(function (m) { return mudar('categorias', 'id=eq.' + m.id, m.campos); }))
-        .then(function () { _projCache = {}; return { ok: true, contas: delas.length }; });
+        .then(function () { _projCache = {}; return renomearNaConfig(pares); })
+        .then(function () { return { ok: true, contas: delas.length }; });
     });
   }
 
