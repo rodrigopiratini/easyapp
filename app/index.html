@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.63.2 \u00b7 29/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.63.3 \u00b7 29/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10496,6 +10496,13 @@ window.pedirTexto = function (o, feito) {
   .hr-chip i{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--dim);font-size:18px}
   /* filtro de categoria dentro da lista */
   .ln-toque{cursor:pointer}
+  /* grade de escolha no lugar do <select>: o menu do sistema (cinza, letra
+     grande, fora do tema) não entra nas telas do app */
+  .gd{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .gd.g6{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .gd button{flex:none!important;margin:0!important;width:auto;min-width:0;padding:8px 2px!important;border-radius:9px!important;font-size:12.5px!important;font-weight:600;
+    background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.08)!important;color:var(--txt,#e8edf7)!important;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .gd button.on{background:var(--acc,#3b82f6)!important;border-color:var(--acc,#3b82f6)!important;color:#fff!important}
   /* lista do Mês em árvore */
   .ma-res{display:flex;justify-content:space-between;gap:8px;margin:8px 0;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.05)}
   .ma-res small{display:block;font-size:10.5px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase}.ma-res b{font-size:14.5px;white-space:nowrap}
@@ -10523,7 +10530,6 @@ window.pedirTexto = function (o, feito) {
   .ma-sub::before{content:'';position:absolute;left:0;top:0;bottom:18px;width:2px;border-radius:1px;background:var(--c);opacity:.35}
   .ma-ln{position:relative;padding:9px 2px;cursor:pointer}
   .ma-pt{position:absolute;left:-15px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--c)}
-  .ma-pt.ps{background:var(--bad);box-shadow:0 0 0 3px rgba(239,68,68,.18)}
   .ma-nm{min-width:0}
   .ma-nm b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;font-size:13.5px;line-height:1.25}
   .ma-nm small{display:block;font-size:11px;color:var(--dim);margin-top:1px}
@@ -12960,8 +12966,8 @@ var IC_BANCO='<svg width="14" height="13" viewBox="0 0 14 13" style="width:14px!
 var IC_CARTAO='<svg width="16" height="12" viewBox="0 0 16 12" style="width:16px!important;height:12px!important;min-width:16px;flex:none;display:block"><rect x=".75" y=".75" width="14.5" height="10.5" rx="2" fill="none" stroke="#8b99b5" stroke-width="1.5"/><rect x="1" y="3" width="14" height="2" fill="#8b99b5"/></svg>';
 /* Lista do Mês em árvore (29/10/2026), como em Config → Categorias: cada
    categoria com o ícone na cor dela e os totais nas colunas Gasto, Previsto e
-   Saldo; embaixo, as subcategorias no traço com uma bolinha em cada (vermelha
-   quando passou). A barra é a própria divisória da linha. Na primeira vez
+   Saldo; embaixo, as subcategorias no traço com uma bolinha em cada, na cor
+   da categoria. A barra é a própria divisória da linha. Na primeira vez
    tudo vem recolhido; depois o app lembra o que ficou aberto. A busca filtra
    pelo nome da subcategoria ou da categoria e abre as que têm resultado.
    Tocar na linha abre a folha dos lançamentos com Mudar previsto, Reprogramar
@@ -12999,12 +13005,12 @@ function maBarra(prev, real, rec){
 }
 function linhaArv(d, nat){
   var rec=nat==='RECEITA', cj=JSON.stringify(d.categoria).replace(/"/g,'&quot;');
-  var prev=d.previsto||0, real=d.realizado||0, passou=!rec && real-prev>0.005;
+  var prev=d.previsto||0, real=d.realizado||0;
   var nome=nomeBonito(semGrupo(d.categoria, d.grupo));
   var sub=rec?'':(PAGA_POR[d.pagaPor]||'');
   if(d.daVerba>0.005) sub+=(sub?' · ':'')+'verba do cartão';
   return '<div class="ma-G ma-ln" onclick="abrirComposicao('+cj+',\''+nat+'\')">'+
-      '<i class="ma-pt'+(passou?' ps':'')+'"></i>'+
+      '<i class="ma-pt"></i>'+
       '<div class="ma-nm"><b>'+tx(nome)+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</div>'+
       '<div class="ma-c">'+num(real)+'</div><div class="ma-c ma-dim">'+num(prev)+'</div>'+
       '<div class="ma-c">'+maSaldo(prev, real, rec)+'</div>'+maBarra(prev, real, rec)+'</div>'+
@@ -13127,6 +13133,16 @@ function contaExcluir(cat, modo){
 /* Editar o previsto (28/10): o valor, até que mês vale, pular os meses que
    hoje estão sem previsto (IPVA, IPTU...) e o reajuste anual da conta, com a
    prévia do que vai ser gravado. Só neste mês = como era antes. */
+function grade(id, valor, ops, cls){
+  return '<input type="hidden" id="'+id+'" value="'+tx(valor)+'"><div class="gd'+(cls?' '+cls:'')+'" id="'+id+'G">'+
+    ops.map(function(o){ return '<button type="button" class="'+(String(o[0])===String(valor)?'on':'')+'" onclick="escolherGrade(this,\''+id+'\',\''+o[0]+'\')">'+o[1]+'</button>'; }).join('')+'</div>';
+}
+function escolherGrade(b, id, v){
+  var i=el(id); if(!i) return;
+  i.value=v;
+  b.parentNode.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on', x===b); });
+  if(i.onchange) i.onchange();
+}
 function dialogoPrevisto(categoria, atual, rotulo){
   var mesNome=function(ref){ return NOMES_MES[Number(ref.slice(5,7))].substring(0,3)+'/'+ref.slice(2,4); };
   var velho=el('pvDlg'); if(velho) velho.remove();
@@ -13137,9 +13153,9 @@ function dialogoPrevisto(categoria, atual, rotulo){
       '#pvDlg h3{margin:0 0 4px;font-size:17px}#pvDlg .dc{margin:0 0 12px;color:#8b99b5;font-size:13px}'+
       '#pvDlg input,#pvDlg select{box-sizing:border-box;background:#0f1420;color:#e8edf7;border:1px solid #2a3548;border-radius:10px;padding:11px;font-size:16px;outline:none}'+
       '#pvDlg input:focus,#pvDlg select:focus{border-color:#3b82f6}#pvDlg #pvV{width:100%}'+
-      '#pvDlg label.t{display:block;margin:14px 0 6px;font-size:13px;color:#8b99b5}#pvDlg #pvAte{width:100%}'+
+      '#pvDlg label.t{display:block;margin:14px 0 6px;font-size:13px;color:#8b99b5}'+
       '#pvDlg .ck{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px}#pvDlg .ck input{width:18px;height:18px;padding:0}'+
-      '#pvDlg .rj{display:flex;gap:8px;margin-top:8px}#pvDlg .rj input{width:90px}#pvDlg .rj select{flex:1}'+
+      '#pvDlg .rj{margin-top:8px}#pvDlg .rj input{width:100%;margin-bottom:8px}#pvDlg .rj small{display:block;font-size:12px;color:#8b99b5;margin:0 0 6px}'+
       '#pvDlg .pv{margin-top:12px;font-size:12.5px;color:#8b99b5;line-height:1.5;max-height:120px;overflow-y:auto}'+
       '#pvDlg .pb{display:flex;gap:8px;margin-top:14px}#pvDlg button{flex:1;padding:12px;border-radius:10px;border:0;font-size:15px;font-weight:600;cursor:pointer}'+
       '#pvDlg .no{background:#0f1420;color:#e8edf7;border:1px solid #2a3548}#pvDlg .ok{flex:2;background:#3b82f6;color:#fff}';
@@ -13148,11 +13164,11 @@ function dialogoPrevisto(categoria, atual, rotulo){
   var d=document.createElement('div'); d.id='pvDlg';
   d.innerHTML='<div class="px"><h3>Previsto a partir de '+NOMES_MES[Number(ST.mes.split('-')[1])]+'</h3><div class="dc">'+tx(rotulo||categoria)+'</div>'+
     '<input id="pvV" inputmode="decimal" autocomplete="off" value="'+(atual>0.005?num(atual):'')+'">'+
-    '<label class="t">Aplicar em</label><select id="pvAte"><option value="">Só em '+mesNome(ST.mes)+'</option></select>'+
+    '<label class="t">Aplicar até</label><div id="pvAteBox">'+grade('pvAte', '', [['', 'Só '+mesNome(ST.mes).toLowerCase()]])+'</div>'+
     '<label class="ck" id="pvPulaL" style="display:none"><input type="checkbox" id="pvPula"> Pular os meses que hoje estão sem previsto</label>'+
     '<label class="ck"><input type="checkbox" id="pvRj"> Reajuste anual</label>'+
-    '<div class="rj" id="pvRjBox" style="display:none"><input id="pvRjP" inputmode="decimal" data-mask="pct" placeholder="%"><select id="pvRjM">'+
-      [1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){ return '<option value="'+m+'">em '+NOMES_MES[m]+'</option>'; }).join('')+'</select></div>'+
+    '<div class="rj" id="pvRjBox" style="display:none"><input id="pvRjP" inputmode="decimal" data-mask="pct" placeholder="% ao ano"><small>Reajusta em</small><div id="pvRjMBox">'+
+      grade('pvRjM', '1', [1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){ return [m, NOMES_MES[m].substring(0,3)]; }), 'g6')+'</div></div>'+
     '<div class="pv" id="pvPrev"></div>'+
     '<div class="pb"><button class="no" id="pvNo">Cancelar</button><button class="ok" id="pvOk">Salvar</button></div></div>';
   document.body.appendChild(d);
@@ -13203,13 +13219,15 @@ function dialogoPrevisto(categoria, atual, rotulo){
   google.script.run.withSuccessHandler(function(r){
     if(!r || !r.ok || !el('pvDlg')) return;
     info=r;
-    el('pvAte').innerHTML='<option value="">Só em '+mesNome(ST.mes)+'</option>'+
-      r.meses.slice(1).map(function(x){ return '<option value="'+x.ref+'">De '+mesNome(ST.mes)+' até '+mesNome(x.ref)+'</option>'; }).join('');
+    el('pvAteBox').innerHTML=grade('pvAte', '', [['', 'Só '+mesNome(ST.mes).toLowerCase()]].concat(
+      r.meses.slice(1).map(function(x){ return [x.ref, mesNome(x.ref).toLowerCase()]; })));
+    el('pvAte').onchange=prever;
     // a conta que não cai todo mês (tem mês zerado no caminho) já vem com "pular" marcado
     el('pvPula').checked=r.meses.some(function(x){ return !(x.valor>0.005); }) && r.meses.some(function(x,i){ return i>0 && x.valor>0.005; });
     if(r.reajuste>0){ el('pvRj').checked=true; el('pvRjP').value=String(Math.round(r.reajuste*10000)/100).replace('.',','); }
     else el('pvRjP').value='4,5';
-    el('pvRjM').value=String(r.mesReajuste||1);
+    el('pvRjMBox').innerHTML=grade('pvRjM', String(r.mesReajuste||1), [1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){ return [m, NOMES_MES[m].substring(0,3)]; }), 'g6');
+    el('pvRjM').onchange=prever;
     prever();
   }).apiInfoPrevisto(ST.mes, categoria);
 }
@@ -13313,12 +13331,12 @@ function abrirReprog(cat, onde){
   renderMes();
 }
 function painelReprog(x){
-  var modo=ST.reprogModo||'mes', ref=ST.mes, ops='';
+  var modo=ST.reprogModo||'mes', ref=ST.mes, ops=[];
   for(var k=1;k<=12;k++){
     ref=(function(r){ var a=+r.slice(0,4), m=+r.slice(5,7)+1; if(m>12){m=1;a++;} return a+'-'+('0'+m).slice(-2); })(ref);
-    ops+='<option value="'+ref+'">'+NOMES_MES[+ref.slice(5,7)]+' '+ref.slice(0,4)+'</option>';
+    ops.push([ref, NOMES_MES[+ref.slice(5,7)].substring(0,3).toLowerCase()+'/'+ref.slice(2,4)]);
   }
-  var vz=''; for(var v=2;v<=12;v++) vz+='<option value="'+v+'">'+v+' meses</option>';
+  var vz=[]; for(var v=2;v<=12;v++) vz.push([v, v+'x']);
   return '<div class="card" style="margin:4px 0 8px;padding:10px 11px;border:1px solid #2b3a57">'+
     '<div class="m" style="font-size:11.5px;margin-bottom:7px">Levar o que não vai ser gasto de <b>'+tx(x.categoria)+'</b> para os próximos meses. '+
       'Se o mês já tem previsto dessa subcategoria, soma.</div>'+
@@ -13328,8 +13346,8 @@ function painelReprog(x){
       '<button class="'+(modo==='mes'?'on':'')+'" onclick="ST.reprogModo=\'mes\';renderMes()">tudo num mês</button>'+
       '<button class="'+(modo==='dividir'?'on':'')+'" onclick="ST.reprogModo=\'dividir\';renderMes()">dividir nos próximos</button></div>'+
     (modo==='mes'
-      ? '<select id="rpMes" style="margin:0">'+ops+'</select>'
-      : '<select id="rpVezes" style="margin:0">'+vz+'</select>')+
+      ? grade('rpMes', ops[0][0], ops)
+      : grade('rpVezes', '2', vz))+
     '<div class="row" style="gap:8px;margin-top:9px">'+
       '<button class="bt-no" style="flex:1" onclick="ST.reprog=null;renderMes()">Cancelar</button>'+
       '<button class="bt-ok" style="flex:2" onclick="reprogramar('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+')">Reprogramar</button></div></div>';
