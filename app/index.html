@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.63.0 \u00b7 29/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.63.1 \u00b7 29/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -12859,7 +12859,6 @@ function renderMes(){
   });
   var rec=r.receitas.filter(function(d){return d.realizado>0||d.previsto>0;});
   ST.mesDesp=lista; ST.mesRec=rec; ST.linhasMes=lista.concat(rec);
-  ST.mesGrupos=lista.map(function(d){ return d.grupo; }).filter(function(g,k,a){ return a.indexOf(g)===k; });
   var bq=ST.mesBusca||'';
   h+='<div class="card">'+
      '<div class="lbl">Despesas'+(r.regime==='COMPETENCIA'?' <span class="pill" style="font-size:10.5px;padding:1px 8px;vertical-align:1px">competência</span>':'')+
@@ -12870,7 +12869,7 @@ function renderMes(){
        '<span id="mesBuscaX" class="ma-lp" onclick="mesBuscar(\'\')"'+(bq?'':' style="display:none"')+'>&times;</span></div>'+
      '<div id="mesArvD"></div>'+linhaMais('DESPESA')+'</div>';
   if(rec.length)
-    h+='<div class="card"><div class="lbl" style="margin-bottom:4px">Entradas</div><div id="mesArvR"></div>'+linhaMais('RECEITA')+'</div>';
+    h+='<div class="card"><div class="lbl">Entradas <span style="opacity:.6">('+rec.length+')</span></div><div id="mesResR"></div><div id="mesArvR"></div>'+linhaMais('RECEITA')+'</div>';
 
   if(false){
     r.controle.forEach(function(d){
@@ -12974,8 +12973,9 @@ function mesAlternar(g){
   var a=mesAbertos(); if(a[g]) delete a[g]; else a[g]=1;
   gravarLocal('easyapp:mes-abertos', JSON.stringify(a)); desenharArvoreMes();
 }
-function mesTudo(abrir){
-  var a={}; if(abrir) (ST.mesGrupos||[]).forEach(function(g){ a[g]=1; });
+function mesTudo(abrir, nat){
+  var a=mesAbertos(), rec=nat==='RECEITA';
+  (rec?ST.mesRec:ST.mesDesp||[]).forEach(function(d){ var k=(rec?'R:':'')+d.grupo; if(abrir) a[k]=1; else delete a[k]; });
   gravarLocal('easyapp:mes-abertos', JSON.stringify(a)); desenharArvoreMes();
 }
 /* a busca redesenha só a lista: refazer o campo fechava o teclado a cada letra */
@@ -13000,11 +13000,11 @@ function maBarra(prev, real, rec){
 function linhaArv(d, nat){
   var rec=nat==='RECEITA', cj=JSON.stringify(d.categoria).replace(/"/g,'&quot;');
   var prev=d.previsto||0, real=d.realizado||0, passou=!rec && real-prev>0.005;
-  var nome=rec?nomeBonito(d.categoria):nomeBonito(semGrupo(d.categoria, d.grupo));
+  var nome=nomeBonito(semGrupo(d.categoria, d.grupo));
   var sub=rec?'':(PAGA_POR[d.pagaPor]||'');
   if(d.daVerba>0.005) sub+=(sub?' · ':'')+'verba do cartão';
   return '<div class="ma-G ma-ln" onclick="abrirComposicao('+cj+',\''+nat+'\')">'+
-      (rec?'':'<i class="ma-pt'+(passou?' ps':'')+'"></i>')+
+      '<i class="ma-pt'+(passou?' ps':'')+'"></i>'+
       '<div class="ma-nm"><b>'+tx(nome)+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</div>'+
       '<div class="ma-c">'+num(real)+'</div><div class="ma-c ma-dim">'+num(prev)+'</div>'+
       '<div class="ma-c">'+maSaldo(prev, real, rec)+'</div>'+maBarra(prev, real, rec)+'</div>'+
@@ -13013,44 +13013,51 @@ function linhaArv(d, nat){
 function maCab(rot){
   return '<div class="ma-G ma-th"><span>'+rot+'</span><span>'+(rot==='Entrada'?'Entrou':'Gasto')+'</span><span>Previsto</span><span>Saldo</span></div>';
 }
-function maResumo(prev, real){
+function maResumo(prev, real, rec){
   var d=real-prev;
+  if(rec) return '<div class="ma-res"><div><small>entrou</small><b>'+moeda(real)+'</b></div><div><small>previsto</small><b>'+moeda(prev)+'</b></div>'+
+    '<div><small>'+(d<-0.005?'falta entrar':'a mais')+'</small><b class="'+(d<-0.005?'':'pos')+'">'+moeda(Math.abs(d))+'</b></div></div>';
   return '<div class="ma-res"><div><small>gasto</small><b>'+moeda(real)+'</b></div><div><small>previsto</small><b>'+moeda(prev)+'</b></div>'+
     '<div><small>'+(d>0.005?'passou':'sobra')+'</small><b class="'+(d>0.005?'neg':'pos')+'">'+moeda(Math.abs(d))+'</b></div></div>';
 }
-function desenharArvoreMes(){
-  var lista=ST.mesDesp||[], rec=ST.mesRec||[], q=normaliza(ST.mesBusca||''), ab=mesAbertos();
-  var bate=function(d){ return !q || normaliza(d.categoria+' '+(d.grupo||'')+' '+nomeBonito(d.grupo||'')).indexOf(q)>=0; };
-  var vis=lista.filter(bate), fams={}, ordem=[], tp=0, tr=0;
+/* Despesas e entradas no mesmo desenho; a busca do topo filtra as duas.
+   As entradas guardam o aberto com "R:" na frente (a categoria pode ter o
+   mesmo nome nas duas listas). */
+function arvoreMes(lista, nat, q, bate){
+  var rec=nat==='RECEITA', ab=mesAbertos(), vis=lista.filter(bate), fams={}, ordem=[];
   vis.forEach(function(d){
-    if(!fams[d.grupo]){ fams[d.grupo]=[]; ordem.push(d.grupo); }
-    fams[d.grupo].push(d); tp+=d.previsto||0; tr+=d.realizado||0;
+    var g=d.grupo||'OUTROS';
+    if(!fams[g]){ fams[g]=[]; ordem.push(g); }
+    fams[g].push(d);
   });
   var h=(q
       ? '<div class="ma-ferr"><span>'+vis.length+(vis.length===1?' subcategoria':' subcategorias')+'</span></div>'
-      : '<div class="ma-ferr"><span class="ma-lk" onclick="mesTudo(0)">Recolher tudo</span><span class="ma-lk" onclick="mesTudo(1)">Abrir tudo</span></div>')+
-    (vis.length?maCab('Despesa'):'');
+      : '<div class="ma-ferr"><span class="ma-lk" onclick="mesTudo(0,\''+nat+'\')">Recolher tudo</span><span class="ma-lk" onclick="mesTudo(1,\''+nat+'\')">Abrir tudo</span></div>')+
+    (vis.length?maCab(rec?'Entrada':'Despesa'):'');
   ordem.forEach(function(g){
-    var it=fams[g], p=0, r=0, gj=JSON.stringify(g).replace(/"/g,'&quot;');
+    var it=fams[g], p=0, r=0, k=(rec?'R:':'')+g, kj=JSON.stringify(k).replace(/"/g,'&quot;');
     it.forEach(function(d){ p+=d.previsto||0; r+=d.realizado||0; });
-    var aberto=q || ab[g];
-    h+='<div class="ma-gr'+(aberto?'':' fe')+'" style="--c:'+cor(g)+'">'+
-      '<div class="ma-G ma-gh"'+(q?'':' onclick="mesAlternar('+gj+')"')+'><div class="ma-n">'+
+    h+='<div class="ma-gr'+(q||ab[k]?'':' fe')+'" style="--c:'+cor(g)+'">'+
+      '<div class="ma-G ma-gh"'+(q?'':' onclick="mesAlternar('+kj+')"')+'><div class="ma-n">'+
         '<span class="ma-ic" style="background:'+cor(g)+'">'+iconeCat(g)+'</span>'+
         '<span class="ma-gn">'+tx(nomeBonito(g))+'<small>'+it.length+(it.length===1?' conta':' contas')+'</small></span>'+
         '<span class="ma-seta">&#9662;</span></div>'+
-        '<div class="ma-c">'+num(r)+'</div><div class="ma-c ma-dim">'+num(p)+'</div><div class="ma-c">'+maSaldo(p, r, false)+'</div></div>'+
-      '<div class="ma-sub">'+it.map(function(d){ return linhaArv(d, 'DESPESA'); }).join('')+'</div></div>';
+        '<div class="ma-c">'+num(r)+'</div><div class="ma-c ma-dim">'+num(p)+'</div><div class="ma-c">'+maSaldo(p, r, rec)+'</div></div>'+
+      '<div class="ma-sub">'+it.map(function(d){ return linhaArv(d, nat); }).join('')+'</div></div>';
   });
-  if(q && !vis.length) h+='<div class="vazio" style="padding:18px 4px">Nenhuma despesa com essa busca.</div>';
-  var a=el('mesArvD'); if(a) a.innerHTML=h;
-  var res=el('mesResD'); if(res) res.innerHTML=maResumo(tp, tr);
-  var b=el('mesArvR');
-  if(b){
-    var rv=rec.filter(bate);
-    b.innerHTML=rv.length ? maCab('Entrada')+rv.map(function(d){ return linhaArv(d, 'RECEITA'); }).join('')
-      : '<div class="vazio" style="padding:12px 4px">Nenhuma entrada com essa busca.</div>';
-  }
+  if(q && !vis.length) h+='<div class="vazio" style="padding:14px 4px">Nenhuma '+(rec?'entrada':'despesa')+' com essa busca.</div>';
+  return {html:h, vis:vis};
+}
+function desenharArvoreMes(){
+  var q=normaliza(ST.mesBusca||'');
+  var bate=function(d){ return !q || normaliza(d.categoria+' '+(d.grupo||'')+' '+nomeBonito(d.grupo||'')).indexOf(q)>=0; };
+  var soma=function(l){ var t={p:0,r:0}; l.forEach(function(d){ t.p+=d.previsto||0; t.r+=d.realizado||0; }); return t; };
+  var D=arvoreMes(ST.mesDesp||[], 'DESPESA', q, bate), R=arvoreMes(ST.mesRec||[], 'RECEITA', q, bate);
+  var td=soma(D.vis), tr=soma(R.vis);
+  if(el('mesArvD')) el('mesArvD').innerHTML=D.html;
+  if(el('mesResD')) el('mesResD').innerHTML=maResumo(td.p, td.r);
+  if(el('mesArvR')) el('mesArvR').innerHTML=R.html;
+  if(el('mesResR')) el('mesResR').innerHTML=maResumo(tr.p, tr.r, true);
 }
 
 /* As ações da conta, na folha que abre ao tocar na linha (29/10/2026): o
