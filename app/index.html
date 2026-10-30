@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.67.0 \u00b7 30/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.67.1 \u00b7 30/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10923,7 +10923,13 @@ window.pedirTexto = function (o, feito) {
   .fm-acoes button{height:40px;padding:0 10px!important;font-size:14px;margin:0}
   .fm-ic{width:40px;flex:none;display:grid;place-items:center;padding:0!important}
   /* logo do banco e bandeira do cartão */
-  .fat-al{border-color:rgba(251,191,36,.45)!important;background:linear-gradient(135deg,rgba(251,191,36,.10),transparent 60%)}
+  .fat-al{margin-bottom:10px}
+  .fat-bt{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:6px 12px!important;border-radius:999px!important;font-size:12.5px!important;font-weight:600;
+    background:rgba(251,191,36,.12)!important;color:var(--warn)!important;border:1px solid rgba(251,191,36,.35)!important;cursor:pointer}
+  #fatFolha{position:fixed;inset:0;z-index:9000;display:flex;align-items:flex-end}
+  #fatFolha .ff-fundo{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+  #fatFolha .ff-caixa{position:relative;width:100%;max-width:560px;margin:0 auto;max-height:80vh;overflow-y:auto;background:var(--bg,#0f1420);
+    border-radius:22px 22px 0 0;padding:8px 14px calc(16px + env(safe-area-inset-bottom,0px));border-top:1px solid rgba(255,255,255,.08)}
   .bk-orig{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.3px;padding:1px 6px;border-radius:6px;margin-right:3px;background:rgba(255,255,255,.08);color:var(--dim);text-transform:uppercase;vertical-align:1px}
   .bk-orig.of{background:rgba(52,211,153,.14);color:var(--ok)}
   .bk-lg{position:relative;display:inline-grid;place-items:center;flex:none;border-radius:28%;font-style:normal;font-weight:800;overflow:hidden;vertical-align:middle;margin-right:6px}
@@ -13081,7 +13087,6 @@ function renderMes(){
   // entrada, saldo e saída ficam no cabeçalho, embaixo do mês (renderMesNav)
 
   h+=cardSugestao(r);
-  h+=alertaFaturas();
 
   // despesas em árvore por categoria (o filtro agora é a busca; os botões de categoria saíram)
   var lista=[];
@@ -14867,7 +14872,7 @@ function carregarFaturasFechadas(){
   ST._lendoFat=true;
   google.script.run.withSuccessHandler(function(l){
     ST._lendoFat=false; ST.fatFech=l||[];
-    if(ST.fatFech.length){ try{ renderMes(); renderCartao(); }catch(e){} }
+    if(ST.fatFech.length){ try{ renderCartao(); }catch(e){} }
   }).withFailureHandler(function(){ ST._lendoFat=false; ST.fatFech=[]; }).apiFaturasFechadas();
 }
 function gruposFatura(){
@@ -14879,8 +14884,18 @@ function gruposFatura(){
   });
   return Object.keys(g).sort().map(function(k){ return g[k]; });
 }
+/* Antes era um cartão grande no topo do Mês e do Cartão ("muito
+   extravagante"): agora é um botão pequeno no quadro do Cartão, que abre
+   esta folha por cima. */
+function abrirFaturasFechadas(){
+  var v=el('fatFolha'); if(v) v.remove();
+  var d=document.createElement('div'); d.id='fatFolha';
+  d.innerHTML='<div class="ff-fundo" onclick="fecharFaturasFechadas()"></div><div class="ff-caixa"><div class="mv-alca"></div>'+
+    '<div class="lbl" style="margin:4px 2px 10px">Faturas fechadas para conferir</div>'+alertaFaturas()+'</div>';
+  document.body.appendChild(d);
+}
+function fecharFaturasFechadas(){ var v=el('fatFolha'); if(v) v.remove(); }
 function alertaFaturas(){
-  carregarFaturasFechadas();
   var dd=function(d){ return d.slice(8,10)+'/'+d.slice(5,7); };
   return gruposFatura().map(function(g,i){
     var tot=g.itens.reduce(function(t,x){ return t+x.total; },0), nm=NOMES_MES[+g.mes.slice(5,7)].toLowerCase();
@@ -14901,6 +14916,7 @@ function alertaFaturas(){
 function anexarFatura(i){
   var g=gruposFatura()[i]; if(!g || !window.EASYAPP_IA) return;
   var nm=NOMES_MES[+g.mes.slice(5,7)].toLowerCase();
+  fecharFaturasFechadas();
   window.EASYAPP_IA.conferirFatura('Confira a fatura de '+nm+' do '+nomeBonito(g.banco)+' (cartões '+
     g.itens.map(function(x){ return x.cartao; }).join(', ')+') com o PDF anexo: use conferir_fatura do mês '+g.mes+
     ', compare cartão a cartão e linha a linha, corrija o que estiver diferente e me mostre a tabela fatura x app.');
@@ -14909,14 +14925,16 @@ function faturaJaConferi(i){
   var g=gruposFatura()[i]; if(!g) return;
   var ids=g.itens.map(function(x){ return x.conta_id+':'+x.mes; });
   ST.fatFech=(ST.fatFech||[]).filter(function(x){ return ids.indexOf(x.conta_id+':'+x.mes)<0; });
-  renderMes(); renderCartao();
+  renderCartao();
+  if(gruposFatura().length) abrirFaturasFechadas(); else fecharFaturasFechadas();
   google.script.run.withSuccessHandler(function(){ toast('Fatura marcada como conferida'); }).withFailureHandler(function(){}).apiFaturaConferida(g.itens);
 }
 function renderCartao(){
   var k=ST.cartao, c=el('tela-cartao');
   if(!k){ c.innerHTML=''; return; }
   var acima = k.total - k.metaAteHoje;      // >0 = gastando mais rapido que o permitido
-  var h=alertaFaturas();
+  var h='';
+  carregarFaturasFechadas();
   garantirContasInfo();
 
   // tocar no quadro abre as compras que fazem este número (Extrato → Cartão)
@@ -14934,7 +14952,9 @@ function renderCartao(){
       (k.regime==='COMPETENCIA' ? (k.fechada?' · mês encerrado':' · o mês acaba em '+(k.dias-k.hoje)+' dias')
                                 : (k.fechada?' · fatura fechada':' · fecha em '+(k.dias-k.hoje)+' dias'))+
       (k.pendente>0?' · '+moeda(k.pendente)+' a confirmar':'')+'</div>'+
-    barraComMarca(k.total, k.meta, k.metaAteHoje, k.fechada ? 0 : k.dias)+'</div>';
+    barraComMarca(k.total, k.meta, k.metaAteHoje, k.fechada ? 0 : k.dias)+
+    (gruposFatura().length?'<button class="fat-bt" onclick="event.stopPropagation();abrirFaturasFechadas()">🧾 Conferir fatura fechada'+
+      (gruposFatura().length>1?' ('+gruposFatura().length+')':'')+' &#8250;</button>':'')+'</div>';
 
   h+='<div class="kpis" style="margin-bottom:12px">'+
      kpi('Posso gastar por dia', moeda(k.porDiaDisponivel),
