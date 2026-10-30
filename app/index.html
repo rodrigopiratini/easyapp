@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.65.1 \u00b7 30/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.65.2 \u00b7 30/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -2164,8 +2164,11 @@ window.pedirTexto = function (o, feito) {
         var val = function (nome, ref) { return (prev[ref] && prev[ref][nome]) || 0; };
         var linhas = [];
         Object.keys(prev).sort().forEach(function (ref) {
-          if (ref <= hoje) return;
+          // o mês de hoje entra: a meta do cartão mudada hoje vale já (30/10)
+          if (ref < hoje) return;
           var o = previstosPorRegra(c, ref, val, R[0]);
+          // no mês de hoje, só a verba do cartão (segue a meta); o imposto deste mês já é o do contador
+          if (ref === hoje) Object.keys(o).forEach(function (nome) { if (nome !== CAT_VERBA_CARTAO) delete o[nome]; });
           Object.keys(o).forEach(function (nome) {
             var tinha = prev[ref][nome];
             if (!idDe[nome] || (tinha === undefined ? !o[nome] : Math.abs(tinha - o[nome]) < 0.005)) return;
@@ -4213,8 +4216,27 @@ window.pedirTexto = function (o, feito) {
              .filter(function (x) { return x; }).join(';');
       }
     }
+    if (chave === 'META_CARTAO') return salvarMetaCartao(v);
     return gravar('config', [{ chave: chave, valor: String(v) }], 'user_id,chave')
       .then(function () { _cfgCache = null; _projCache = {}; return { ok: true, valor: v }; });
+  }
+  /* Mudar a meta do cartão vale A PARTIR DO MÊS DE HOJE (30/10). Antes só
+     mudava o número de base: a meta por mês (META_CARTAO_MES, "2026-11:10500")
+     continuava mandando de novembro em diante, e o mês corrente nunca era
+     recalculado - a pessoa trocava a meta e nada mudava na tela. Agora os meses
+     que já passaram ficam como estavam, deste mês em diante vale a nova, e a
+     verba livre do cartão é refeita já, inclusive neste mês. */
+  function salvarMetaCartao(v) {
+    return config().then(function (c) {
+      var hoje = hojeRef(), d = metasDoCartao(c), novo = {};
+      Object.keys(d).forEach(function (k) { if (k < hoje) novo[k] = d[k]; });
+      novo[hoje] = v;
+      var txt = Object.keys(novo).sort().map(function (k) { return k + ':' + novo[k]; }).join(',');
+      return gravar('config', [{ chave: 'META_CARTAO', valor: String(v) }, { chave: 'META_CARTAO_MES', valor: txt }], 'user_id,chave');
+    }).then(function () {
+      _cfgCache = null; _projCache = {};
+      return aplicarRegras();
+    }).then(function () { return { ok: true, valor: v }; });
   }
 
   /* Renomear arrasta TUDO junto. Na planilha, mudar o nome numa aba e não
