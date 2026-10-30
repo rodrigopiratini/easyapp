@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.64.2 \u00b7 29/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.65.0 \u00b7 30/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10846,6 +10846,8 @@ window.pedirTexto = function (o, feito) {
   .fm-acoes button{height:40px;padding:0 10px!important;font-size:14px;margin:0}
   .fm-ic{width:40px;flex:none;display:grid;place-items:center;padding:0!important}
   /* logo do banco e bandeira do cartão */
+  .bk-orig{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.3px;padding:1px 6px;border-radius:6px;margin-right:3px;background:rgba(255,255,255,.08);color:var(--dim);text-transform:uppercase;vertical-align:1px}
+  .bk-orig.of{background:rgba(52,211,153,.14);color:var(--ok)}
   .bk-lg{position:relative;display:inline-grid;place-items:center;flex:none;border-radius:28%;font-style:normal;font-weight:800;overflow:hidden;vertical-align:middle;margin-right:6px}
   .bk-lg img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff;padding:2px;box-sizing:border-box}
   .bnd{width:30px;height:19px;flex:none;display:inline-block;vertical-align:middle;margin-right:6px;border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
@@ -17055,14 +17057,32 @@ function bancosHtml(){
       }).join('')+
       '<button class="bt-no" style="width:100%;margin-top:6px" onclick="bancoNaoE(\''+o.id+'\')">Não, é uma conta nova</button></div>';
   });
-  // 2) nova conta manual
-  h+='<div class="row" style="gap:6px;margin-bottom:6px">'+
-     '<div class="m" style="font-size:11.5px;flex:1">🔗 Open Finance &nbsp;·&nbsp; ✍️ manual</div>'+
-     '<button class="bt-no" style="padding:7px 11px;font-size:12.5px;background:var(--acc);color:#fff;flex:none" onclick="ST.bancoNovo=!ST.bancoNovo;ST.bancoEd=null;ST.bancoAberto=null;bancosCarregar()">'+(ST.bancoNovo?'Fechar':'+&nbsp;conta manual')+'</button></div>'+
-     (ST.bancoNovo?'<div class="card" style="padding:8px 10px;border-color:var(--acc)">'+bancoForm(null)+'</div>':'')+
-     // cartão de crédito à mão (25/10): antes só vinha pelo Open Finance
-     (ST.cartaoNovo?'<div class="card" style="padding:10px 12px;border-color:var(--acc)" id="cartaoNovoCard">'+cartaoForm()+'</div>'
-                   :'<button class="bt-no" style="width:100%;margin:0 0 10px;font-size:13px" onclick="ST.cartaoNovo=true;ST.bancoNovo=false;bancosCarregar()">💳 + cartão de crédito</button>');
+  /* 2) Contas e cartões separados (30/10): cada aba com a sua lista e o seu
+     botão de cadastrar. Antes era uma lista só, com "+ conta manual" e
+     "+ cartão de crédito" lado a lado e a legenda 🔗/✍️ solta no topo -
+     não dava para saber o que cada botão criava. */
+  var aba=ST.bkAba||'CONTAS', ehCartao=aba==='CARTOES';
+  var nCont=L.filter(function(c){ return c.tipo!=='CARTAO'; }).length, nCart=L.length-nCont;
+  h+='<div class="seg" style="width:100%;margin-bottom:10px">'+
+       '<button style="flex:1" class="'+(ehCartao?'':'on')+'" onclick="ST.bkAba=\'CONTAS\';ST.bancoAberto=null;ST.cartaoNovo=false;bancosCarregar()">🏦 Contas <span style="opacity:.7">('+nCont+')</span></button>'+
+       '<button style="flex:1" class="'+(ehCartao?'on':'')+'" onclick="ST.bkAba=\'CARTOES\';ST.bancoAberto=null;ST.bancoNovo=false;bancosCarregar()">💳 Cartões <span style="opacity:.7">('+nCart+')</span></button></div>';
+  var abrindo=ehCartao?ST.cartaoNovo:ST.bancoNovo;
+  if(abrindo){
+    h+='<div class="card" style="padding:10px 12px;border-color:var(--acc)" id="cartaoNovoCard">'+
+      (ehCartao ? cartaoForm()
+        : '<div class="row" style="justify-content:space-between"><span class="lbl">Conta nova</span>'+
+          '<button class="bt-no" style="padding:4px 10px;font-size:12px" onclick="ST.bancoNovo=false;bancosCarregar()">Cancelar</button></div>'+bancoForm(null))+
+      '</div>';
+  } else {
+    h+='<button class="bt-ok" style="width:100%;margin:0 0 6px;font-size:14px" onclick="'+
+      (ehCartao?'ST.cartaoNovo=true;ST.bancoNovo=false;':'ST.bancoNovo=true;ST.cartaoNovo=false;')+'ST.bancoAberto=null;bancosCarregar()">'+
+      (ehCartao?'+ Novo cartão de crédito':'+ Nova conta bancária')+'</button>'+
+      '<div class="m" style="font-size:11px;margin:0 2px 10px">'+
+      (ehCartao?'Cartão que não chega pelo Open Finance, ou o adicional/virtual de um que chega: o app separa as compras pelo final do número.'
+               :'Conta que não chega pelo Open Finance. Para o banco mandar tudo sozinho, conecte em ')+
+      (ehCartao?'':'<a href="#" style="color:var(--acc)" onclick="trocarConfig(\'CONTA\');return false">Minha conta › Open Finance</a>.')+'</div>';
+  }
+  L=L.filter(function(c){ return (c.tipo==='CARTAO')===ehCartao; });
   /* 3) um cartão por banco, uma linha por conta/cartão. Toque na linha para
      ver o que dá para fazer com ela - as opções não ficam todas abertas. */
   var porBanco={};
@@ -17072,20 +17092,31 @@ function bancosHtml(){
     var tot=lst.reduce(function(t,c){ return t+(c.tipo==='CARTAO'?0:(c.saldo||0)); },0);
     h+='<div class="card" style="padding:4px 11px">'+
       '<div class="row" style="padding:8px 0 6px;justify-content:flex-start;gap:10px">'+logoBanco(bk, 30)+'<span style="flex:1;font-weight:700;font-size:14px">'+tx(nomeBonito(bk))+'</span>'+
-        '<span class="num" style="font-size:12px;color:var(--dim)">'+moeda(tot)+'</span></div>';
+        '<span class="num" style="font-size:12px;color:var(--dim)">'+(ehCartao?lst.length+(lst.length===1?' cartão':' cartões'):moeda(tot))+'</span></div>';
     lst.forEach(function(c){
       var aberto=ST.bancoAberto===c.id, ed=ST.bancoEd===c.id, ligando=ST.bancoLigar===c.id;
-      var rot=(c.tipo==='CARTAO'?'Cartão':(c.titular==='INV'?'Investimento':'Conta'))+(c.titular&&c.titular!=='INV'?' '+c.titular:'')+(c.final?' ·'+c.final:'');
+      // cartão: o nome sem "CARTAO", sem o banco e sem o final (que já vem no ·0000): "C6 CARTAO 2201" vira "Cartão ·2201"
+      var nomeCt=normaliza(c.nome).toUpperCase().replace(/\bCARTAO\b/g,' ').replace(new RegExp('\\b'+bk.replace(/[^A-Z0-9 ]/g,'')+'\\b','g'),' ')
+        .replace(c.final?new RegExp('\\b0*'+c.final+'\\b','g'):/$^/,' ').replace(/[\s\-]+/g,' ').trim();
+      var rot=c.tipo==='CARTAO' ? (nomeCt?nomeBonito(nomeCt):'Cartão')+(c.final?' ·'+c.final:'')
+        : (c.titular==='INV'?'Investimento':'Conta')+(c.titular&&c.titular!=='INV'?' '+c.titular:'')+(c.final?' ·'+c.final:'');
+      var sub=c.tipo==='CARTAO'
+        ? [c.titular||'', c.fechamento?'fecha dia '+c.fechamento:'', c.vencimento?'vence dia '+c.vencimento:''].filter(Boolean).join(' · ')
+        : tx(c.nome);
       h+='<div style="border-top:1px solid var(--line)">'+
         '<div class="row" style="padding:7px 0;cursor:pointer;gap:8px" onclick="ST.bancoAberto=ST.bancoAberto===\''+c.id+'\'?null:\''+c.id+'\';ST.bancoEd=null;ST.bancoLigar=null;bancosCarregar()">'+
           '<span class="bk-tipo">'+(c.tipo==='CARTAO'?(bandeiraHtml(c.bandeira)||'💳'):'🏦')+'</span>'+
           '<div style="flex:1;min-width:0"><div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+rot+'</div>'+
-            '<div class="m" style="font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(c.of?'🔗 ':'✍️ ')+tx(c.nome)+'</div></div>'+
+            '<div class="m" style="font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+
+              '<span class="bk-orig'+(c.of?' of':'')+'">'+(c.of?'Open Finance':'manual')+'</span> '+sub+'</div></div>'+
           (c.tipo==='CARTAO'?'':'<span class="num '+((c.saldo||0)<0?'neg':'')+'" style="font-size:13.5px">'+moeda(c.saldo||0)+'</span>')+
           '<span class="seta'+(aberto?' aberta':'')+'" style="margin-left:4px">&#9656;</span></div>';
       if(aberto && c.tipo==='CARTAO'){
         // cartão: tocar já abre a edição (25/10); excluir fica embaixo
         h+='<div style="padding:0 0 9px 40px">'+cartaoForm(c)+
+          '<label class="row" style="gap:8px;margin-top:9px;justify-content:flex-start;font-size:12px;cursor:pointer">'+
+            '<input type="checkbox" style="width:auto;margin:0" '+((ST.multiplos||[]).indexOf(c.id)>=0?'checked':'')+
+            ' onchange="bancoMultiplo(\''+c.id+'\',this.checked)"> crédito e débito no mesmo cartão (o aviso do banco não diz qual foi)</label>'+
           (c.of?'':'<button class="bt-no" style="width:100%;margin-top:8px;padding:7px;font-size:12.5px;color:var(--bad)" onclick="bancoExcluir(\''+c.id+'\')">Excluir cartão</button>')+'</div>';
       }
       if(aberto && c.tipo!=='CARTAO'){
@@ -17114,7 +17145,7 @@ function bancosHtml(){
     });
     h+='</div>';
   });
-  if(!L.length) h+='<div class="vazio">Nenhuma conta ainda. Conecte o Open Finance em Minha conta ou lance uma conta manual.</div>';
+  if(!L.length) h+='<div class="vazio">'+(ehCartao?'Nenhum cartão ainda.':'Nenhuma conta ainda.')+'</div>';
   return h;
 }
 function bancoForm(c){
