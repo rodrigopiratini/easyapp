@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.66.0 \u00b7 30/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.67.0 \u00b7 30/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -754,6 +754,52 @@ window.pedirTexto = function (o, feito) {
     if (!(v > f)) { m++; }
     while (m > 12) { m -= 12; a++; }
     return a + '-' + ('0' + m).slice(-2);
+  }
+  /* Faturas que FECHARAM há até 15 dias e ainda não foram conferidas (30/10):
+     o app avisa para conferir com a fatura do banco (o PDF, pelo assistente) -
+     a compra pendente no fechamento ou a que o Open Finance ainda não trouxe
+     fazem o total do app diferir do banco. Cada cartão no seu fechamento
+     (061); sem, o dia do Ajustes. "Já conferi" guarda em FATURAS_CONFERIDAS. */
+  function faturasFechadas() {
+    return Promise.all([config(), rest('/rest/v1/contas?select=id,nome,instituicao,fechamento,vencimento,pluggy_account_id&tipo=eq.CARTAO&ativa=is.true')])
+    .then(function (r) {
+      var c = r[0], cartoes = r[1] || [], conf = String(c.FATURAS_CONFERIDAS || '').split(',');
+      var hoje = new Date(); hoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+      var ref0 = hojeRef(), lista = [];
+      cartoes.forEach(function (k) {
+        [-1, 0, 1].forEach(function (dm) {
+          var ref = dm < 0 ? mesAnterior(ref0) : dm > 0 ? mesSeguinte(ref0) : ref0, a = +ref.slice(0, 4), m = +ref.slice(5, 7), fechou, vence;
+          if (k.fechamento) {
+            var f = +k.fechamento, v = +k.vencimento || (f <= 21 ? f + 7 : f + 7 - 30);
+            fechou = v > f ? new Date(a, m - 1, f) : new Date(a, m - 2, f);
+            vence = new Date(a, m - 1, v);
+          } else {
+            fechou = new Date(a, m - 2, diaDeFechamento(c, ref));
+            vence = new Date(fechou.getTime() + 7 * 864e5);
+          }
+          var dias = Math.round((hoje - fechou) / 864e5);
+          if (dias < 1 || dias > 15 || conf.indexOf(k.id + ':' + ref) >= 0) return;
+          lista.push({ conta_id: k.id, cartao: k.nome, instituicao: k.instituicao || '', of: !!k.pluggy_account_id, mes: ref,
+                       fechou: fechou.toISOString().slice(0, 10), vence: vence.toISOString().slice(0, 10) });
+        });
+      });
+      if (!lista.length) return [];
+      var meses = lista.map(function (x) { return x.mes; }).filter(function (x, i, l) { return l.indexOf(x) === i; });
+      return rest('/rest/v1/fatura_mes?select=mes_ref,conta_id,compras,total&mes_ref=in.(' + meses.join(',') + ')').then(function (fm) {
+        lista.forEach(function (x) {
+          var t = (fm || []).filter(function (y) { return y.conta_id === x.conta_id && y.mes_ref === x.mes; })[0];
+          x.total = t ? n(t.total) : 0; x.compras = t ? t.compras : 0;
+        });
+        return lista.filter(function (x) { return x.compras > 0; });   // cartão sem compra nessa fatura não tem o que conferir
+      });
+    });
+  }
+  function faturaConferida(itens) {
+    return config().then(function (c) {
+      var l = String(c.FATURAS_CONFERIDAS || '').split(',').filter(Boolean);
+      (itens || []).forEach(function (x) { var k = x.conta_id + ':' + x.mes; if (l.indexOf(k) < 0) l.push(k); });
+      return gravar('config', [{ chave: 'FATURAS_CONFERIDAS', valor: l.slice(-80).join(',') }], 'user_id,chave');
+    }).then(function () { _cfgCache = null; return { ok: true }; });
   }
   function saldos() {
     return Promise.all([config(), rest('/rest/v1/contas?select=fechamento,vencimento&tipo=eq.CARTAO&ativa=is.true').catch(function () { return []; })])
@@ -5043,6 +5089,8 @@ window.pedirTexto = function (o, feito) {
     apiLimparAlvo: limparAlvo,
     apiConfiguracoes: configuracoes,
     apiSalvarAjuste: salvarAjuste,
+    apiFaturasFechadas: faturasFechadas,
+    apiFaturaConferida: faturaConferida,
     apiSalvarConta: salvarConta,
     apiRenomearCategoria: renomearCategoria,
     apiReplicarPrevisto: replicarPrevisto,
@@ -8554,7 +8602,14 @@ window.pedirTexto = function (o, feito) {
   }
   // abre o chat com o pedido já escrito (a pessoa confere e toca em enviar)
   function perguntar(t) { abrir(); setTimeout(function () { $('iaTxt').value = t; $('iaTxt').focus(); }, 300); }
-  window.EASYAPP_IA = { abrir: abrir, perguntar: perguntar, anexar: function () { abrir(); $('iaArq').click(); } };
+  window.EASYAPP_IA = { abrir: abrir, perguntar: perguntar, anexar: function () { abrir(); $('iaArq').click(); },
+    // conferir uma fatura: o pedido já escrito, no modo Profundo, e o seletor de arquivo aberto
+    conferirFatura: function (texto) {
+      abrir();
+      // conferir fatura no Ágil não fecha (soma de mais de cem linhas): sobe para o Padrão
+      try { if (localStorage.getItem('easyapp:motor') === 'agil') { localStorage.setItem('easyapp:motor', 'padrao'); desenharMotor(); } } catch (e) {}
+      $('iaTxt').value = texto; $('iaArq').click();
+    } };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { montar(); convitePlanilha(); });
   else { montar(); convitePlanilha(); }
@@ -10868,6 +10923,7 @@ window.pedirTexto = function (o, feito) {
   .fm-acoes button{height:40px;padding:0 10px!important;font-size:14px;margin:0}
   .fm-ic{width:40px;flex:none;display:grid;place-items:center;padding:0!important}
   /* logo do banco e bandeira do cartão */
+  .fat-al{border-color:rgba(251,191,36,.45)!important;background:linear-gradient(135deg,rgba(251,191,36,.10),transparent 60%)}
   .bk-orig{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.3px;padding:1px 6px;border-radius:6px;margin-right:3px;background:rgba(255,255,255,.08);color:var(--dim);text-transform:uppercase;vertical-align:1px}
   .bk-orig.of{background:rgba(52,211,153,.14);color:var(--ok)}
   .bk-lg{position:relative;display:inline-grid;place-items:center;flex:none;border-radius:28%;font-style:normal;font-weight:800;overflow:hidden;vertical-align:middle;margin-right:6px}
@@ -13025,6 +13081,7 @@ function renderMes(){
   // entrada, saldo e saída ficam no cabeçalho, embaixo do mês (renderMesNav)
 
   h+=cardSugestao(r);
+  h+=alertaFaturas();
 
   // despesas em árvore por categoria (o filtro agora é a busca; os botões de categoria saíram)
   var lista=[];
@@ -14801,11 +14858,65 @@ function pizzaCategorias(k){
 function verComprasDoCartao(nome){
   ST.modoEx='CARTAO'; ST.cartaoSel=nome||'TUDO'; ST.extrato=null; irParaTela('extrato');
 }
+/* Fatura fechada: confira com a do banco (30/10). Um aviso por banco (o
+   Santander manda os três cartões numa fatura só), com o total do app, o
+   botão para anexar o PDF ao assistente (que confere com conferir_fatura e
+   corrige) e o "Já conferi", que tira o aviso. */
+function carregarFaturasFechadas(){
+  if(ST.fatFech!==undefined || ST._lendoFat) return;
+  ST._lendoFat=true;
+  google.script.run.withSuccessHandler(function(l){
+    ST._lendoFat=false; ST.fatFech=l||[];
+    if(ST.fatFech.length){ try{ renderMes(); renderCartao(); }catch(e){} }
+  }).withFailureHandler(function(){ ST._lendoFat=false; ST.fatFech=[]; }).apiFaturasFechadas();
+}
+function gruposFatura(){
+  var g={};
+  (ST.fatFech||[]).forEach(function(x){
+    var b=bancoDe({ nome:x.cartao, instituicao:x.instituicao }), k=b+'|'+x.mes;
+    (g[k]=g[k]||{ banco:b, mes:x.mes, fechou:x.fechou, vence:x.vence, of:false, itens:[] }).itens.push(x);
+    if(x.of) g[k].of=true;
+  });
+  return Object.keys(g).sort().map(function(k){ return g[k]; });
+}
+function alertaFaturas(){
+  carregarFaturasFechadas();
+  var dd=function(d){ return d.slice(8,10)+'/'+d.slice(5,7); };
+  return gruposFatura().map(function(g,i){
+    var tot=g.itens.reduce(function(t,x){ return t+x.total; },0), nm=NOMES_MES[+g.mes.slice(5,7)].toLowerCase();
+    return '<div class="card fat-al">'+
+      '<div class="row" style="justify-content:flex-start;gap:10px">'+logoBanco(g.banco,30)+
+        '<div style="flex:1;min-width:0"><b style="font-size:14px">Fatura de '+nm+' fechou</b>'+
+        '<div style="font-size:12px;color:var(--dim)">'+tx(nomeBonito(g.banco))+' · fechou '+dd(g.fechou)+' · vence '+dd(g.vence)+'</div></div>'+
+        '<b class="num" style="font-size:15px">'+moeda(tot)+'</b></div>'+
+      '<div style="font-size:12px;color:var(--dim);margin:8px 0;line-height:1.4">'+
+        (g.itens.length>1?g.itens.map(function(x){ return tx(nomeBonito(x.cartao))+' '+num(x.total); }).join(' · ')+'. ':'')+
+        (g.of?'O Open Finance ainda pode trazer compras dos últimos dias. ':'')+
+        'Confira com a fatura do banco: anexe o PDF e o assistente bate linha a linha e corrige.</div>'+
+      '<div class="row" style="gap:8px">'+
+        '<button class="bt-ok" style="flex:1.6;padding:9px;font-size:13px" onclick="anexarFatura('+i+')">📎 Anexar a fatura (PDF)</button>'+
+        '<button class="bt-no" style="flex:1;padding:9px;font-size:13px" onclick="faturaJaConferi('+i+')">Já conferi</button></div></div>';
+  }).join('');
+}
+function anexarFatura(i){
+  var g=gruposFatura()[i]; if(!g || !window.EASYAPP_IA) return;
+  var nm=NOMES_MES[+g.mes.slice(5,7)].toLowerCase();
+  window.EASYAPP_IA.conferirFatura('Confira a fatura de '+nm+' do '+nomeBonito(g.banco)+' (cartões '+
+    g.itens.map(function(x){ return x.cartao; }).join(', ')+') com o PDF anexo: use conferir_fatura do mês '+g.mes+
+    ', compare cartão a cartão e linha a linha, corrija o que estiver diferente e me mostre a tabela fatura x app.');
+}
+function faturaJaConferi(i){
+  var g=gruposFatura()[i]; if(!g) return;
+  var ids=g.itens.map(function(x){ return x.conta_id+':'+x.mes; });
+  ST.fatFech=(ST.fatFech||[]).filter(function(x){ return ids.indexOf(x.conta_id+':'+x.mes)<0; });
+  renderMes(); renderCartao();
+  google.script.run.withSuccessHandler(function(){ toast('Fatura marcada como conferida'); }).withFailureHandler(function(){}).apiFaturaConferida(g.itens);
+}
 function renderCartao(){
   var k=ST.cartao, c=el('tela-cartao');
   if(!k){ c.innerHTML=''; return; }
   var acima = k.total - k.metaAteHoje;      // >0 = gastando mais rapido que o permitido
-  var h='';
+  var h=alertaFaturas();
   garantirContasInfo();
 
   // tocar no quadro abre as compras que fazem este número (Extrato → Cartão)
