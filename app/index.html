@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.65.2 \u00b7 30/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.66.0 \u00b7 30/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -17126,7 +17126,7 @@ function bancosHtml(){
       var rot=c.tipo==='CARTAO' ? (nomeCt?nomeBonito(nomeCt):'Cartão')+(c.final?' ·'+c.final:'')
         : (c.titular==='INV'?'Investimento':'Conta')+(c.titular&&c.titular!=='INV'?' '+c.titular:'')+(c.final?' ·'+c.final:'');
       var sub=c.tipo==='CARTAO'
-        ? [c.titular||'', c.fechamento?'fecha dia '+c.fechamento:'', c.vencimento?'vence dia '+c.vencimento:''].filter(Boolean).join(' · ')
+        ? [c.titular||'', c.fechamento?'fecha dia '+c.fechamento:'<b style="color:var(--warn)">sem dia de fechamento</b>', c.vencimento?'vence dia '+c.vencimento:''].filter(Boolean).join(' · ')
         : tx(c.nome);
       h+='<div style="border-top:1px solid var(--line)">'+
         '<div class="row" style="padding:7px 0;cursor:pointer;gap:8px" onclick="ST.bancoAberto=ST.bancoAberto===\''+c.id+'\'?null:\''+c.id+'\';ST.bancoEd=null;ST.bancoLigar=null;bancosCarregar()">'+
@@ -17211,8 +17211,8 @@ function cartaoForm(c){
       '<div class="fm-c"><span>Banco</span><input id="ckBanco" list="bkLista" placeholder="ex.: Nubank" value="'+tx(c.instituicao||(ed?bancoDe(c):''))+'"'+(of?' disabled':'')+'>'+
         '<datalist id="bkLista">'+BANCOS_LISTA.map(function(b){ return '<option value="'+b+'">'; }).join('')+'</datalist></div>'+
       '<div class="fm-c"><span>Final do cartão</span><input id="ckFinal" inputmode="numeric" maxlength="4" placeholder="1234" value="'+tx(c.final||'')+'"'+(of?' disabled':'')+'></div>'+
-      '<div class="fm-c"><span>Fatura fecha dia</span><input id="ckFecha" inputmode="numeric" maxlength="2" placeholder="o do Ajustes" value="'+(c.fechamento||'')+'"></div>'+
-      '<div class="fm-c"><span>Vence dia</span><input id="ckVence" inputmode="numeric" maxlength="2" placeholder="7 dias depois" value="'+(c.vencimento||'')+'"></div>'+
+      '<div class="fm-c"><span>Fatura fecha dia</span><input id="ckFecha" inputmode="numeric" maxlength="2" placeholder="ex.: 28" value="'+(c.fechamento||'')+'"></div>'+
+      '<div class="fm-c"><span>Vence dia</span><input id="ckVence" inputmode="numeric" maxlength="2" placeholder="ex.: 5" value="'+(c.vencimento||'')+'"></div>'+
       '<div class="fm-c"><span>Limite</span><input id="ckLimite" inputmode="decimal" placeholder="0,00" oninput="mascaraMoeda(this)" value="'+(c.limite?num(c.limite):'')+'"></div>'+
       '<div class="fm-c fm-full"><span>Paga pela conta</span>'+
         botaoEscolha('ckConta', c.conta_pagamento||'', 'escolher a conta corrente…', 'conta', contasCorrentesItens(), '')+'</div>'+
@@ -17821,7 +17821,16 @@ function cfgCriarConta(){
 /* ---------- AJUSTES ---------- */
 function cfgAjustes(){
   var h=cfgRecursos();
+  /* Fechamento e vencimento são de CADA cartão (30/10): cada um tem as suas
+     datas, e um dia só para todos no Ajustes confundia. Os dois campos saem
+     daqui; o que estava gravado vale só para cartão ainda sem data. */
+  var semData=(ST.bancos||[]).filter(function(c){ return c.tipo==='CARTAO' && !c.fechamento; }).length;
+  h+='<div class="card" style="padding:10px 11px"><div class="lbl" style="margin-bottom:5px">Fechamento e vencimento da fatura</div>'+
+    '<div class="m" style="font-size:12px;margin-bottom:8px">Cada cartão tem as suas datas: cadastre em Bancos › Cartões.'+
+      (semData?' <b style="color:var(--warn)">'+semData+(semData===1?' cartão está':' cartões estão')+' sem data.</b>':'')+'</div>'+
+    '<button class="bt-no" style="width:100%;padding:7px;font-size:12.5px" onclick="ST.bkAba=\'CARTOES\';trocarConfig(\'BANCOS\')">Abrir os cartões</button></div>';
   ST.config.ajustes.forEach(function(a,i){
+    if(a.chave==='DIA_FECHAMENTO_FATURA' || a.chave==='FECHAMENTOS') return;
     var v=a.valor;
     var mostrar = a.tipo==='percent'  ? num(Number(v)*100)
                 : a.tipo==='dinheiro' ? num(Number(v))
