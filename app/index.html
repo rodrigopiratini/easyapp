@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.68.1 \u00b7 31/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.69.0 \u00b7 31/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1253,8 +1253,17 @@ window.pedirTexto = function (o, feito) {
             return { categoria_id: mapa[l.categoria], mes_ref: l.mes, valor: n(l.valor) };
           });
         if (!fora.length) return { ok: false, erro: 'nenhuma subcategoria reconhecida' };
-        return gravar('previstos', fora, 'user_id,categoria_id,mes_ref')
-          .then(aplicarRegras)
+        /* mês com zero APAGA o previsto (31/10), como o "tirar do mês": um
+           previsto zero gravado fazia a conta aparecer no Mês sem valor */
+        var com = fora.filter(function (l) { return Math.abs(l.valor) > 0.005; }), zeros = {};
+        fora.forEach(function (l) { if (Math.abs(l.valor) <= 0.005) (zeros[l.categoria_id] = zeros[l.categoria_id] || []).push(l.mes_ref); });
+        return (com.length ? gravar('previstos', com, 'user_id,categoria_id,mes_ref') : Promise.resolve())
+          .then(function () {
+            return Promise.all(Object.keys(zeros).map(function (cid) {
+              return rest('/rest/v1/previstos?categoria_id=eq.' + cid + '&mes_ref=in.(' + zeros[cid].join(',') + ')', { metodo: 'DELETE' });
+            }));
+          })
+          .then(function () { _projCache = {}; return aplicarRegras(); })
           .then(function () { return { ok: true, quantos: fora.length }; });
       });
   }
@@ -10387,6 +10396,8 @@ window.pedirTexto = function (o, feito) {
   .mesBox input{width:16px;height:16px;accent-color:var(--acc);margin:0}
   .mesBox span{color:var(--txt)}
   .mesBox i{font-style:normal;color:var(--dim);font-size:10px}
+  .mesBox.mesEd{padding:6px 4px 5px}
+  .mesBox.mesEd input{width:100%!important;height:auto!important;margin:2px 0 0!important;padding:6px 2px!important;font-size:11.5px!important;text-align:center;box-sizing:border-box}
   .pk-todos{display:flex;align-items:center;gap:9px;padding:9px 14px;font-size:12.5px;
     color:var(--dim);border-bottom:1px solid var(--bd);background:#0f1724}
   .pk-todos input{width:17px;height:17px;accent-color:var(--acc);margin:0;flex:none}
@@ -17093,6 +17104,9 @@ function renderConfig(){
   // plano, avisos do celular, Open Finance, termos e excluir conta (conta.js)
   if(ST.modoCfg==='CONTA' && window.EASYAPP_CONTA) window.EASYAPP_CONTA.render(el('minhaConta'));
   if(ST.modoCfg==='BANCOS') bancosCarregar();
+  // o ano escolhido à vista na faixa de anos (que rola de lado)
+  var anoOn=document.querySelector('#cfgAnosFx .on');
+  if(anoOn){ var fx=el('cfgAnosFx'); fx.scrollLeft=anoOn.offsetLeft-fx.clientWidth/2+anoOn.clientWidth/2; }
 }
 
 /* ---------- BANCOS: as contas de banco e cartões ----------
@@ -17777,28 +17791,26 @@ function cfgFormMeses(x){
       '<button class="bt-ok" style="width:100%;margin-top:9px" onclick="cfgAbrirAno('+ano+')">'+
       'Abrir '+ano+'</button></div>';
   }
-  h+='<div class="lbl">Valor a aplicar</div>'+
-    '<input id="cfVal" inputmode="decimal" value="'+num(base)+'" oninput="mascaraMoeda(this)">'+
-    '<div class="lbl" style="margin-top:10px">Em quais meses de '+ano+'</div>'+
+  /* Cada mês com o seu valor, editável (31/10): antes era um valor só para
+     os meses marcados - não dava para mudar um mês sem mexer nos outros. O
+     "preencher" de cima só ajuda a digitar: copia um valor para os meses. */
+  h+='<div class="lbl">Valores de '+ano+', mês a mês</div>'+
     '<div class="mesGrade">';
   for(var m=1;m<=12;m++){
     var v = doAno ? doAno[m-1] : 0;
-    h+='<label class="mesBox"><input type="checkbox" class="cfMes" value="'+m+'" '+
-       (v>0?'checked':'')+'><span>'+NOMES_MES[m].substring(0,3)+'</span>'+
-       '<i>'+(v>0?mil(v):'—')+'</i></label>';
+    h+='<label class="mesBox mesEd"><span>'+NOMES_MES[m].substring(0,3)+'</span>'+
+       '<input class="cfMesV" data-m="'+m+'" inputmode="decimal" placeholder="0,00" value="'+(v?num(v):'')+'"></label>';
   }
   h+='</div>'+
-    '<div class="row" style="gap:6px;margin-top:8px">'+
-      '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" '+
-        'onclick="cfgMarcarMeses(true)">marcar todos</button>'+
-      '<button class="bt-no" style="flex:1;padding:6px;font-size:12px" '+
-        'onclick="cfgMarcarMeses(false)">desmarcar</button></div>'+
+    '<div class="row" style="gap:6px;margin-top:9px;align-items:stretch">'+
+      '<input id="cfVal" inputmode="decimal" placeholder="valor" style="flex:1;margin:0" value="'+(base?num(base):'')+'">'+
+      '<button class="bt-no" style="flex:none;padding:6px 10px;font-size:12px" onclick="cfgPreencher(\'todos\')">em todos</button>'+
+      '<button class="bt-no" style="flex:none;padding:6px 10px;font-size:12px" onclick="cfgPreencher(\'com\')">nos com valor</button></div>'+
     '<div class="row" style="margin-top:10px;gap:8px">'+
       '<button class="bt-no" style="flex:1" onclick="ST.cfgReplicando=null;renderConfig()">Cancelar</button>'+
       '<button class="bt-ok" style="flex:2" onclick="cfgAplicarMeses('+
-        JSON.stringify(x.nome).replace(/"/g,'&quot;')+')">Aplicar</button></div>'+
-    '<div class="m" style="font-size:11px;margin-top:6px">Os meses desmarcados ficam com '+
-    'previsto zero — é assim que uma subcategoria deixa de aparecer num mês.</div></div>';
+        JSON.stringify(x.nome).replace(/"/g,'&quot;')+')">Salvar '+ano+'</button></div>'+
+    '<div style="font-size:11px;margin-top:6px;color:var(--dim)">Mês vazio fica sem previsto: é assim que uma subcategoria deixa de aparecer num mês.</div></div>';
   return h;
 }
 
@@ -17814,24 +17826,22 @@ function cfgAbrirAno(ano){
     .apiAbrirAnoNaFC(ano);
 }
 
-function cfgMarcarMeses(v){
-  Array.prototype.forEach.call(document.querySelectorAll('.cfMes'),
-    function(b){ b.checked=v; });
-}
-
-function cfgAplicarMeses(nome){
-  var v=parseFloat(String(el('cfVal').value||'0').replace(/\./g,'').replace(',','.'))||0;
-  var marcados=[], ano=ST.cfgAno||ST.config.ano;
-  var todos=[];
-  Array.prototype.forEach.call(document.querySelectorAll('.cfMes'), function(b){
-    var ref=ano+'-'+('0'+b.value).slice(-2);
-    todos.push({ mes:ref, categoria:nome, valor: b.checked ? v : 0 });
-    if(b.checked) marcados.push(ref);
+function cfgPreencher(onde){
+  var v=String(el('cfVal').value||'').trim();
+  Array.prototype.forEach.call(document.querySelectorAll('.cfMesV'), function(i){
+    if(onde==='todos' || String(i.value).trim()) i.value=v;
   });
-  toast('Aplicando em 12 meses...');
+}
+function cfgAplicarMeses(nome){
+  var ano=ST.cfgAno||ST.config.ano, todos=[], comValor=0;
+  Array.prototype.forEach.call(document.querySelectorAll('.cfMesV'), function(i){
+    var v=parseFloat(String(i.value||'0').replace(/\./g,'').replace(',','.'))||0;
+    todos.push({ mes:ano+'-'+('0'+i.dataset.m).slice(-2), categoria:nome, valor:v });
+    if(v) comValor++;
+  });
+  toast('Salvando '+ano+'...');
   google.script.run.withSuccessHandler(function(r){
-    toast(r&&r.ok ? marcados.length+' meses de '+ano+' com '+moeda(v)+', o resto zerado'
-                  : 'Não consegui');
+    toast(r&&r.ok ? ano+' salvo: '+comValor+(comValor===1?' mês':' meses')+' com valor' : 'Não consegui');
     ST.cfgReplicando=null; recarregarConfig();
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
     .apiSalvarPrevistoEmVarios(todos);
