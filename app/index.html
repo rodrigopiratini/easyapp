@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.68.0 \u00b7 31/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.68.1 \u00b7 31/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -4219,10 +4219,19 @@ window.pedirTexto = function (o, feito) {
         for (var m = 1; m <= 12; m++) {
           doAno.push(n((porCat[x.id] || {})[a + '-' + ('0' + m).slice(-2)] || 0));
         }
+        /* os 12 meses de CADA ano gravado (31/10): a tela de meses trocava de
+           ano e mostrava tudo vazio ("—"), porque só vinha o ano de hoje - e o
+           Aplicar zerava os meses que pareciam vazios */
+        var porAno = {};
+        Object.keys(porCat[x.id] || {}).forEach(function (ref) {
+          var y = Number(ref.slice(0, 4));
+          (porAno[y] = porAno[y] || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])[Number(ref.slice(5, 7)) - 1] = porCat[x.id][ref];
+        });
+        porAno[a] = doAno;
         return { nome: x.nome, grupo: x.grupo, natureza: x.natureza,
                  saiPor: x.sai_por, reajuste: Number(x.reajuste) || 0,
                  mesReajuste: Number(x.mes_reajuste) || 0,
-                 ate: String(x.ate || '').trim(), previsto: doAno };
+                 ate: String(x.ate || '').trim(), previsto: doAno, porAno: porAno };
       });
 
       var anosVistos = {};
@@ -17746,7 +17755,7 @@ function cfgReplicar(nome){
 function cfgFormMeses(x){
   var mesAtual=Number((ST.mes||mesDeHoje()).split('-')[1]);
   var ano = ST.cfgAno || ST.config.ano;
-  var doAno = (x.porAno && x.porAno[ano]) ? x.porAno[ano] : (ano===ST.config.ano ? x.previsto : null);
+  var doAno = (x.porAno && x.porAno[ano]) ? x.porAno[ano] : (ano===ST.config.ano ? x.previsto : [0,0,0,0,0,0,0,0,0,0,0,0]);
   var base = doAno ? (doAno[mesAtual-1] || doAno.filter(function(v){return v>0;})[0] || 0) : 0;
 
   /* um botão por ano até o fim do plano, numa faixa que rola de lado (31/10):
