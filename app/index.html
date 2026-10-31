@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.67.1 \u00b7 30/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.68.0 \u00b7 31/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -2235,34 +2235,56 @@ window.pedirTexto = function (o, feito) {
     _horizonteFeito = true;
     return preencherHorizonte().then(function (k) { return aplicarRegras().then(function (j) { return k + j; }); });
   }
+  /* TUDO GRAVADO, NADA SÓ NO CÓDIGO (31/10). Antes o previsto ficava gravado
+     só 12 meses à frente; dali em diante a projeção calculava na hora, por
+     regras guardadas em textos da config que nenhuma tela mostra (IPVA de jan a
+     jun, degraus da mesada, série do Pluxee, contas que não sobem com a
+     inflação...). A Análise mostrava um número e Config › Categorias mostrava
+     o mês vazio. Agora o previsto é GRAVADO até o fim da projeção (o ano da
+     aposentadoria; sem ela, 3 anos), com os mesmos valores da Análise: cada
+     mês aparece em Categorias e se muda ali. Feito isso, as regras escondidas
+     são apagadas - a partir daí o que vale é o que está gravado. Só preenche
+     mês vazio; o que você ou o chat gravaram não é tocado. Uma vez por sessão. */
+  var REGRAS_OCULTAS = ['SAZONAIS', 'DEGRAUS', 'CALENDARIO', 'PLUXEE_SERIE', 'REAJUSTE_POR_CONTA', 'PARCELAS_FIXAS', 'CONTAS_COM_FIM'];
   function preencherHorizonte() {
-    var hoje = hojeRef(), alvo = hoje;
-    for (var i = 0; i < 12; i++) alvo = mesSeguinte(alvo);
-    return lerTudo('/rest/v1/previstos?select=mes_ref,categoria_id&mes_ref=gte.' + hoje + '&mes_ref=lte.' + alvo)
-      .then(function (prev) {
-        var porMes = {}, tem = {};
-        prev.forEach(function (p) { porMes[p.mes_ref] = (porMes[p.mes_ref] || 0) + 1; tem[p.categoria_id + '|' + p.mes_ref] = 1; });
-        var base = porMes[hoje] || 0;
-        if (!base) return 0;          // conta nova, sem previsto: o primeiro acesso cuida
-        var faltam = [], m = hoje;
-        for (var k = 0; k <= 12; k++) { if ((porMes[m] || 0) < base / 2) faltam.push(m); m = mesSeguinte(m); }
-        if (!faltam.length) return 0;
-        var anos = Number(alvo.slice(0, 4)) - Number(hoje.slice(0, 4)) + 1;
-        return Promise.all([projetarPorConta(Math.max(3, anos)), rest('/rest/v1/categorias?select=id,nome')]).then(function (R) {
-          var pc = R[0], idPorNome = {}, linhas = [];
-          R[1].forEach(function (c) { idPorNome[c.nome] = c.id; });
-          pc.refs.forEach(function (r, i) {
-            if (faltam.indexOf(r.ref) < 0) return;
-            pc.linhas.forEach(function (l) {
-              var id = idPorNome[l.conta], v = n(l.previsto[i]);
-              if (id && v && !tem[id + '|' + r.ref]) linhas.push({ categoria_id: id, mes_ref: r.ref, valor: v });
+    return config().then(function (c) {
+      var hoje = hojeRef(), anos = Math.max(1, anosDaProjecao(c));
+      var alvo = (Number(hoje.slice(0, 4)) + anos) + '-12';
+      return lerTudo('/rest/v1/previstos?select=mes_ref,categoria_id&mes_ref=gte.' + hoje + '&mes_ref=lte.' + alvo)
+        .then(function (prev) {
+          var porMes = {}, tem = {};
+          prev.forEach(function (p) { porMes[p.mes_ref] = (porMes[p.mes_ref] || 0) + 1; tem[p.categoria_id + '|' + p.mes_ref] = 1; });
+          var base = porMes[hoje] || 0;
+          if (!base) return 0;          // conta nova, sem previsto: o primeiro acesso cuida
+          var faltam = [], m = hoje;
+          while (m <= alvo) { if ((porMes[m] || 0) < base / 2) faltam.push(m); m = mesSeguinte(m); }
+          var ocultas = REGRAS_OCULTAS.filter(function (k) { return String(c[k] || '').trim(); });
+          if (!faltam.length && !ocultas.length) return 0;
+          return Promise.all([projetarPorConta(anos + 1), rest('/rest/v1/categorias?select=id,nome')]).then(function (R) {
+            var pc = R[0], idPorNome = {}, linhas = [];
+            R[1].forEach(function (x) { idPorNome[x.nome] = x.id; });
+            pc.refs.forEach(function (r, i) {
+              if (faltam.indexOf(r.ref) < 0) return;
+              pc.linhas.forEach(function (l) {
+                var id = idPorNome[l.conta], v = n(l.previsto[i]);
+                if (id && v && !tem[id + '|' + r.ref]) linhas.push({ categoria_id: id, mes_ref: r.ref, valor: v });
+              });
             });
+            // de mil em mil: um pedido com 15 mil linhas passava do tamanho que o banco aceita
+            var k = 0;
+            function lote() {
+              if (k >= linhas.length) return Promise.resolve();
+              var parte = linhas.slice(k, k + 1000); k += 1000;
+              return gravar('previstos', parte, 'user_id,categoria_id,mes_ref').then(lote);
+            }
+            return lote().then(function () {
+              // gravado até o fim: as regras escondidas não servem mais para nada
+              if (!ocultas.length) return;
+              return gravar('config', ocultas.map(function (x) { return { chave: x, valor: '' }; }), 'user_id,chave');
+            }).then(function () { _projCache = {}; _cfgCache = null; return linhas.length; });
           });
-          if (!linhas.length) return 0;
-          return gravar('previstos', linhas, 'user_id,categoria_id,mes_ref')
-            .then(function () { _projCache = {}; return linhas.length; });
         });
-      }).catch(function () { return 0; });
+    }).catch(function () { return 0; });
   }
 
   function ano(a) {
@@ -17727,27 +17749,18 @@ function cfgFormMeses(x){
   var doAno = (x.porAno && x.porAno[ano]) ? x.porAno[ano] : (ano===ST.config.ano ? x.previsto : null);
   var base = doAno ? (doAno[mesAtual-1] || doAno.filter(function(v){return v>0;})[0] || 0) : 0;
 
-  // uma aba de FC por ano: 2027 e 2028 só aparecem depois de abertos
-  // abas para os anos abertos (e o fechado que estiver escolhido); os outros
-  // fechados, até o fim do plano, numa caixa - eram anos demais para abas
+  /* um botão por ano até o fim do plano, numa faixa que rola de lado (31/10):
+     com o previsto gravado até a aposentadoria são 15 anos - não cabem em
+     abas fixas, e o "abrir outro ano" era o menu do sistema */
   var todos = ST.config.anos||[];
-  var abas = todos.filter(function(a){ return a.aberto || a.ano===ano; }).map(function(a){
-    return '<button style="flex:1" class="'+(a.ano===ano?'on':'')+'" '+
-      'onclick="cfgTrocarAno('+a.ano+','+(a.aberto?'true':'false')+')">'+a.ano+
-      (a.aberto?'':' +')+'</button>';
+  var abas = todos.map(function(a){
+    return '<button style="flex:none;min-width:62px" class="'+(a.ano===ano?'on':'')+'" '+
+      'onclick="cfgTrocarAno('+a.ano+','+(a.aberto?'true':'false')+')">'+a.ano+(a.aberto?'':' +')+'</button>';
   }).join('');
-  var fechados = todos.filter(function(a){ return !a.aberto && a.ano!==ano; });
-  if(fechados.length){
-    abas += '<select style="flex:1.3;width:auto;margin:0;padding:4px 6px;font-size:12px" '+
-      'onchange="if(this.value)cfgTrocarAno(Number(this.value),false)">'+
-      '<option value="">abrir outro ano</option>'+
-      fechados.map(function(a){ return '<option value="'+a.ano+'">'+a.ano+'</option>'; }).join('')+
-      '</select>';
-  }
 
   var aberto = (ST.config.anos||[]).some(function(a){ return a.ano===ano && a.aberto; });
   var h='<div style="border-top:1px solid var(--line);margin-top:9px;padding-top:9px">'+
-    '<div class="seg" style="width:100%;margin-bottom:9px">'+abas+'</div>';
+    '<div class="seg" id="cfgAnosFx" style="width:100%;margin-bottom:9px;overflow-x:auto;justify-content:flex-start;scrollbar-width:none">'+abas+'</div>';
   if(!aberto){
     return h+'<div class="m" style="font-size:12px">O ano de '+ano+' ainda não existe na '+
       'planilha. Ao abrir, ele já nasce com o que a projeção prevê para cada subcategoria — '+
