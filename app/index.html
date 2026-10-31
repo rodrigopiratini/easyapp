@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.69.0 \u00b7 31/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.70.0 \u00b7 31/10/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1456,6 +1456,45 @@ window.pedirTexto = function (o, feito) {
       var antes = op.gravarReajuste ? salvarConta(categoria, { reajuste: rj, mesReajuste: rj ? mr : 0 }) : Promise.resolve();
       return antes.then(function () { return salvarPrevistoEmVarios(linhas); })
         .then(function (r) { _projCache = {}; return r && r.ok ? { ok: true, quantos: linhas.length } : r; });
+    });
+  }
+
+  /* Mudou o reajuste da conta (31/10): ele vale também para os previstos que
+     já estão gravados daqui em diante (até 2040). Para cada mês do ano, o
+     primeiro mês gravado a partir de hoje é a base; os mesmos meses dos anos
+     seguintes passam a ser essa base corrigida a cada virada do mês do
+     reajuste. Mês sem valor (IPVA fora de jan-jun) continua sem; o que é de
+     antes de hoje não muda. Reajuste zero = o mesmo valor todos os anos. */
+  function reaplicarReajuste(categoria, rj, mr) {
+    rj = Number(rj) || 0; if (rj > 1) rj = rj / 100;
+    mr = Number(mr) || 1;
+    var hoje = hojeRef();
+    return idDaCategoria(categoria).then(function (cid) {
+      if (!cid) return { ok: false, erro: 'não achei a subcategoria ' + categoria };
+      return lerTudo('/rest/v1/previstos?select=mes_ref,valor&categoria_id=eq.' + cid + '&mes_ref=gte.' + hoje + '&order=mes_ref')
+        .then(function (prev) {
+          var base = {}, linhas = [];
+          // quantas viradas do mês do reajuste há entre a base (exclusive) e ref (inclusive)
+          var viradas = function (de, ate) {
+            var k = 0;
+            for (var y = Number(de.slice(0, 4)); y <= Number(ate.slice(0, 4)); y++) {
+              var e = y + '-' + ('0' + mr).slice(-2);
+              if (e > de && e <= ate) k++;
+            }
+            return k;
+          };
+          prev.forEach(function (p) {
+            var v = n(p.valor), mm = p.mes_ref.slice(5, 7);
+            if (!(v > 0.005)) return;
+            if (!base[mm]) { base[mm] = { ref: p.mes_ref, v: v }; return; }
+            var novo = n(base[mm].v * Math.pow(1 + rj, viradas(base[mm].ref, p.mes_ref)));
+            if (Math.abs(novo - v) > 0.005) linhas.push({ categoria_id: cid, mes_ref: p.mes_ref, valor: novo });
+          });
+          if (!linhas.length) return { ok: true, quantos: 0 };
+          return gravar('previstos', linhas, 'user_id,categoria_id,mes_ref')
+            .then(function () { _projCache = {}; return aplicarRegras(); })
+            .then(function () { return { ok: true, quantos: linhas.length }; });
+        });
     });
   }
 
@@ -5090,6 +5129,7 @@ window.pedirTexto = function (o, feito) {
 
     apiSalvarPrevisto: salvarPrevisto,
     apiSalvarPrevistoEmVarios: salvarPrevistoEmVarios,
+    apiReaplicarReajuste: reaplicarReajuste,
     apiSugestoesPrevisto: sugestoesPrevisto,
     apiUsarSugestoes: usarSugestoes,
     apiRemoverDoMes: removerDoMes,
@@ -17752,8 +17792,16 @@ function cfgSalvarConta(nome){
     if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
     toast(r.renomeados ? 'Pronto — '+r.renomeados+' lançamentos acompanharam o nome novo'
                        : 'Subcategoria salva');
-    // o previsto vai depois, já com o nome novo (se mudou)
-    cfgSalvarPrevisto(dados.nome || nome, function(){ ST.cfgEditando=null; recarregarConfig(); });
+    // o previsto vai depois, já com o nome novo (se mudou); mudou o reajuste, ele corrige os meses já gravados
+    var mudouRj=Math.abs((x0.reajuste||0)-dados.reajuste)>0.00001 || (dados.reajuste && (x0.mesReajuste||0)!==dados.mesReajuste);
+    cfgSalvarPrevisto(dados.nome || nome, function(){
+      if(!mudouRj){ ST.cfgEditando=null; recarregarConfig(); return; }
+      google.script.run.withSuccessHandler(function(q){
+        if(q && q.ok && q.quantos) toast('Reajuste aplicado em '+q.quantos+' meses já previstos');
+        ST.cfgEditando=null; recarregarConfig();
+      }).withFailureHandler(function(){ ST.cfgEditando=null; recarregarConfig(); })
+        .apiReaplicarReajuste(dados.nome || nome, dados.reajuste, dados.mesReajuste);
+    });
   }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
     .apiSalvarConta(nome, dados);
 }
