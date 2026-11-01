@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.71.1 \u00b7 01/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.71.2 \u00b7 01/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -857,7 +857,7 @@ window.pedirTexto = function (o, feito) {
       lerTudo('/rest/v1/' + rm + '?select=categoria,grupo,previsto,realizado,sai_por'
            + '&mes_ref=eq.' + mes + '&sai_por=eq.CARTAO&order=categoria'),
       c0,
-      lerTudo('/rest/v1/lancamentos?select=data,valor,categorias(nome,grupo),contas(nome)'
+      lerTudo('/rest/v1/lancamentos?select=id,data,valor,descricao,fornecedor,meio,categorias(nome,grupo),contas(nome)'
               + (comp ? dataEntre(mes) : '&mes_ref=eq.' + mes)
               + '&meio=eq.CARTAO_CREDITO&natureza=eq.DESPESA&status=neq.IGNORADO'),
       lerTudo('/rest/v1/' + rm + '?select=categoria,previsto&mes_ref=eq.' + mes)
@@ -907,15 +907,23 @@ window.pedirTexto = function (o, feito) {
         var prev = {}, noCartao = {};
         r[4].forEach(function (x) { prev[x.categoria] = Number(x.previsto) || 0; });
         r[3].forEach(function (l) { var nm = (l.categorias || {}).nome || ''; noCartao[nm] = (noCartao[nm] || 0) + (Number(l.valor) || 0); });
-        var livre = verba.meta - verba.gasto, cobriu = 0;
+        var livre = verba.meta - verba.gasto, cobriu = 0, cobertas = [];
         Object.keys(noCartao).filter(function (nm) {
           return nm && nm !== CAT_VERBA_CARTAO && !(prev[nm] > 0.005) && noCartao[nm] > 0.005;
         }).sort(function (a, b) { return noCartao[a] - noCartao[b]; }).forEach(function (nm) {
           if (livre <= 0.005) return;
           var c = Math.min(livre, noCartao[nm]); livre -= c; cobriu += c;
           porCategoria.forEach(function (x) { if (x.categoria === nm) x.daVerba = n(c); });
+          /* as compras que a verba pagou, as mesmas desta conta (a folha do
+             Cartão lista estas: buscar de novo por categoria perdia as contas
+             que não saem pelo cartão e não fechava com o total) */
+          var grp = '', compras = r[3].filter(function (l) { return ((l.categorias || {}).nome || '') === nm; })
+            .map(function (l) { grp = (l.categorias || {}).grupo || grp; return itemMov(l, nm, (l.categorias || {}).grupo, (l.contas || {}).nome); })
+            .sort(function (a, b) { return String(b.data || '').localeCompare(String(a.data || '')); });
+          cobertas.push({ categoria: nm, grupo: grp, pago: n(c), total: n(noCartao[nm]), compras: compras });
         });
         verba.distribuido = n(cobriu);
+        verba.cobertas = cobertas.reverse();   // a maior primeiro
         verba.sobra = n(verba.meta - verba.gasto - cobriu);
         verba.porDia = verba.sobra > 0 ? n(verba.sobra / Math.max(1, dias - dia)) : 0;
       }
@@ -10960,7 +10968,11 @@ window.pedirTexto = function (o, feito) {
   #movFolha .mv-tx small{display:block;font-size:11.5px;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #movFolha .mv-v{font-size:14px;font-weight:700;white-space:nowrap}
   #movFolha .mv-cp-cab{display:flex;justify-content:space-between;align-items:baseline;margin:14px 4px 8px;font-weight:700}
-  #movFolha .mv-cp-cab span{display:inline-flex;align-items:center;gap:6px}
+  #movFolha .mv-cp-cab{gap:10px}
+  #movFolha .mv-cp-cab span{display:inline-flex;align-items:center;gap:6px;flex:1;min-width:0}
+  #movFolha .mv-cp-cab b{white-space:nowrap;flex:none}
+  #movFolha .mv-cp-cab small{flex:none}
+  #movFolha .mv-cp-nota{font-size:12px;color:var(--warn);margin:-2px 4px 6px;text-align:right}
   #movFolha .mv-cp-cab i{font-style:normal}
   #movFolha .mv-cp-cab small{color:var(--dim);font-weight:600;margin-left:4px}
   #movFolha .mv-cp-ver{display:block;margin:2px 0 8px auto;background:none;border:0;color:var(--acc);font-weight:700;font-size:13px;padding:6px 4px}
@@ -15307,27 +15319,15 @@ function abrirComposicao(cat, nat, total, meta){
     /* A verba livre quase nunca tem compra própria: o que ela mostra são as
        compras de cartão das subcategorias SEM meta que ela pagou. Uma seção
        por subcategoria, com quanto a verba cobriu de cada uma. */
-    var cob=((ST.cartao&&ST.cartao.porCategoria)||[]).filter(function(x){ return x.daVerba>0.005; })
-      .sort(function(a,b){ return b.daVerba-a.daVerba; });
-    if(!cob.length){ el('movLista').innerHTML=h||'<div class="mv-vazio">Nada neste mês.</div>'; return; }
-    el('movLista').innerHTML=h+'<div class="mv-vazio">Carregando as compras pagas pela verba...</div>';
-    Promise.all(cob.map(function(x){
-      return new Promise(function(ok){
-        google.script.run.withSuccessHandler(ok).withFailureHandler(function(){ ok(null); }).apiComposicaoDaCategoria(mes, x.categoria);
-      });
-    })).then(function(rs){
-      if(mes!==ST.mes || ST.movLado!=='C' || ST.compCat!==cat) return;
-      var h2=h;
-      cob.forEach(function(x,i){
-        var l=(rs[i]&&rs[i].cartao)||[];
-        var tot=l.reduce(function(a,y){ return a+y.valor; },0);
-        h2+=bloco(tx(nomeBonito(rotuloCat(x.categoria, x.grupo)))+
-                  (Math.abs(tot-x.daVerba)>0.005?' <small>· verba pagou '+num(x.daVerba)+'</small>':''),
-                  iconeCat(x.grupo||x.categoria), l, 'CARTAO', x.categoria);
-      });
-      el('movLista').innerHTML=h2||'<div class="mv-vazio">Nada neste mês.</div>';
-      el('movLista').scrollTop=0;
+    var vb=((ST.cartao&&ST.cartao.porCategoria)||[]).filter(function(x){ return x.categoria===cat; })[0]||{};
+    var cob=vb.cobertas||[];
+    cob.forEach(function(x){
+      h+=bloco(tx(nomeBonito(rotuloCat(x.categoria, x.grupo))), iconeCat(x.grupo||x.categoria), x.compras, 'CARTAO', x.categoria)+
+         (Math.abs(x.total-x.pago)>0.005?'<div class="mv-cp-nota">a verba pagou '+moeda(x.pago)+' de '+moeda(x.total)+
+           ' — o resto ('+moeda(x.total-x.pago)+') ficou fora da verba</div>':'');
     });
+    el('movLista').innerHTML=h||'<div class="mv-vazio">Nada neste mês.</div>';
+    el('movLista').scrollTop=0;
   }).withFailureHandler(function(e){
     el('movLista').innerHTML='<div class="mv-vazio">Não consegui carregar: '+tx((e&&e.message)||e)+'</div>';
   }).apiComposicaoDaCategoria(mes, cat);
