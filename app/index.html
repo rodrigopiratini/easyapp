@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.70.0 \u00b7 31/10/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.71.0 \u00b7 01/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -15079,7 +15079,11 @@ function renderCartao(){
       var atrasado=temMeta && x.metaAteHoje!==null && usado>x.metaAteHoje;
       var cc=!temMeta?'':(x.sobra<0?'neg':(atrasado?'wr':'pos'));
       var corBar=x.sobra<0?'var(--bad)':(atrasado?'var(--warn)':'var(--ok)');
-      h+='<div class="tg"><div class="nm">'+ponto(familiaDe(x.categoria))+tx(x.categoria)+'</div>'+
+      // tocar na linha abre a folha com os lançamentos (como no Mês), com o
+      // atalho para o Extrato filtrado nesta conta
+      var cj=JSON.stringify(x.categoria).replace(/"/g,'&quot;');
+      h+='<div class="tg cc-toque" onclick="abrirComposicao('+cj+',\'DESPESA\','+usado+')">'+
+         '<div class="nm">'+ponto(familiaDe(x.categoria))+tx(x.categoria)+' <span class="cc-seta">&#8250;</span></div>'+
          '<div class="tg-num"><span class="meta">'+
            (temMeta?'meta '+num(x.meta)+(x.fora>0?' · '+num(x.fora)+' pela conta':'')+
                     (x.distribuido>0?' · '+num(x.distribuido)+' nas subcategorias sem meta':'')
@@ -15259,11 +15263,13 @@ function abrirExtratoDe(cat, modo){
 /* Toque numa linha do Mês (26/10: sempre aqui, não mais direto no Extrato):
    o realizado em blocos, conta corrente e cartão, cada um com o seu total e
    o atalho para o Extrato certo - o cartão não entra no extrato da conta. */
-function abrirComposicao(cat, nat){
+function abrirComposicao(cat, nat, total){
   var rec=nat==='RECEITA', cor=rec?'var(--ok)':'var(--bad)';
   var f=el('movFolha'); if(!f || !ST.mes) return;
   ST.movLado='C'; ST.compCat=cat; f.classList.remove('hide');
   var linha=(ST.linhasMes||[]).filter(function(d){ return d.categoria===cat; })[0]||{};
+  // vindo do Cartão: o total é o que a barra mostra (cartão + conta + verba livre)
+  if(total!==undefined) linha=Object.assign({}, linha, { realizado: total });
   var p=ST.mes.split('-'), cj=JSON.stringify(cat).replace(/"/g,'&quot;');
   el('movTopo').innerHTML='<div class="mv-tot"><small>'+tx(nomeBonito(rotuloCat(cat, linha.grupo)))+' · '+NOMES_MES[Number(p[1])].toLowerCase()+'</small>'+
     '<b style="color:'+cor+'">'+moeda(linha.realizado||0)+'</b></div>'+
