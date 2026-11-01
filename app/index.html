@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.71.0 \u00b7 01/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.71.1 \u00b7 01/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -15082,7 +15082,7 @@ function renderCartao(){
       // tocar na linha abre a folha com os lançamentos (como no Mês), com o
       // atalho para o Extrato filtrado nesta conta
       var cj=JSON.stringify(x.categoria).replace(/"/g,'&quot;');
-      h+='<div class="tg cc-toque" onclick="abrirComposicao('+cj+',\'DESPESA\','+usado+')">'+
+      h+='<div class="tg cc-toque" onclick="abrirComposicao('+cj+',\'DESPESA\','+usado+','+x.meta+')">'+
          '<div class="nm">'+ponto(familiaDe(x.categoria))+tx(x.categoria)+' <span class="cc-seta">&#8250;</span></div>'+
          '<div class="tg-num"><span class="meta">'+
            (temMeta?'meta '+num(x.meta)+(x.fora>0?' · '+num(x.fora)+' pela conta':'')+
@@ -15263,13 +15263,17 @@ function abrirExtratoDe(cat, modo){
 /* Toque numa linha do Mês (26/10: sempre aqui, não mais direto no Extrato):
    o realizado em blocos, conta corrente e cartão, cada um com o seu total e
    o atalho para o Extrato certo - o cartão não entra no extrato da conta. */
-function abrirComposicao(cat, nat, total){
+function abrirComposicao(cat, nat, total, meta){
   var rec=nat==='RECEITA', cor=rec?'var(--ok)':'var(--bad)';
   var f=el('movFolha'); if(!f || !ST.mes) return;
   ST.movLado='C'; ST.compCat=cat; f.classList.remove('hide');
   var linha=(ST.linhasMes||[]).filter(function(d){ return d.categoria===cat; })[0]||{};
   // vindo do Cartão: o total é o que a barra mostra (cartão + conta + verba livre)
   if(total!==undefined) linha=Object.assign({}, linha, { realizado: total });
+  // a verba livre: o Mês mostra só o que restou dela; no Cartão vale a meta
+  // inteira contra o que ela já pagou (sobra = o saldo da linha do Cartão)
+  var verbaCartao=total!==undefined && cat==='CARTAO - A CLASSIFICAR';
+  if(verbaCartao && meta>0) linha.previsto=meta;
   var p=ST.mes.split('-'), cj=JSON.stringify(cat).replace(/"/g,'&quot;');
   el('movTopo').innerHTML='<div class="mv-tot"><small>'+tx(nomeBonito(rotuloCat(cat, linha.grupo)))+' · '+NOMES_MES[Number(p[1])].toLowerCase()+'</small>'+
     '<b style="color:'+cor+'">'+moeda(linha.realizado||0)+'</b></div>'+
@@ -15279,8 +15283,9 @@ function abrirComposicao(cat, nat, total){
   google.script.run.withSuccessHandler(function(r){
     if(mes!==ST.mes || ST.movLado!=='C' || ST.compCat!==cat) return;
     var MEIO={PIX:'Pix',DEBITO:'Débito',BOLETO:'Boleto',DINHEIRO:'Dinheiro',CARTAO_CREDITO:'Cartão',PAGAMENTO_FATURA:'Fatura',TED:'TED',TRANSFERENCIA:'Transferência'};
-    var bloco=function(rot, ic, lista, modo){
+    var bloco=function(rot, ic, lista, modo, catEx){
       if(!lista.length) return '';
+      var cx=catEx?JSON.stringify(catEx).replace(/"/g,'&quot;'):cj;
       // o valor vem no sentido da despesa; na receita, ao contrário
       var val=function(x){ return rec?-x.valor:x.valor; };
       var tot=lista.reduce(function(a,x){ return a+val(x); },0);
@@ -15291,11 +15296,38 @@ function abrirComposicao(cat, nat, total){
             '<div class="mv-tx"><b>'+tx(x.descricao||nomeSub(x.categoria,x.grupo))+'</b><small>'+icConta(x.conta)+tx(sub)+'</small></div>'+
             '<div class="mv-v" style="color:'+cor+'">'+((val(x)<0)!==rec?'+ ':'− ')+moeda(Math.abs(x.valor))+'</div></div>';
         }).join('')+
-        '<button class="mv-cp-ver" onclick="abrirExtratoDe('+cj+',\''+modo+'\')">ver no Extrato '+(modo==='CARTAO'?'do cartão':'da conta')+' &#8250;</button>';
+        '<button class="mv-cp-ver" onclick="abrirExtratoDe('+cx+',\''+modo+'\')">ver no Extrato '+(modo==='CARTAO'?'do cartão':'da conta')+' &#8250;</button>';
     };
     var h=bloco('Na conta corrente',IC_BANCO,r.conta,'CONTA')+bloco('No cartão',IC_CARTAO,r.cartao,'CARTAO');
-    el('movLista').innerHTML=h||'<div class="mv-vazio">Nada neste mês.</div>';
-    el('movLista').scrollTop=0;
+    if(!verbaCartao){
+      el('movLista').innerHTML=h||'<div class="mv-vazio">Nada neste mês.</div>';
+      el('movLista').scrollTop=0;
+      return;
+    }
+    /* A verba livre quase nunca tem compra própria: o que ela mostra são as
+       compras de cartão das subcategorias SEM meta que ela pagou. Uma seção
+       por subcategoria, com quanto a verba cobriu de cada uma. */
+    var cob=((ST.cartao&&ST.cartao.porCategoria)||[]).filter(function(x){ return x.daVerba>0.005; })
+      .sort(function(a,b){ return b.daVerba-a.daVerba; });
+    if(!cob.length){ el('movLista').innerHTML=h||'<div class="mv-vazio">Nada neste mês.</div>'; return; }
+    el('movLista').innerHTML=h+'<div class="mv-vazio">Carregando as compras pagas pela verba...</div>';
+    Promise.all(cob.map(function(x){
+      return new Promise(function(ok){
+        google.script.run.withSuccessHandler(ok).withFailureHandler(function(){ ok(null); }).apiComposicaoDaCategoria(mes, x.categoria);
+      });
+    })).then(function(rs){
+      if(mes!==ST.mes || ST.movLado!=='C' || ST.compCat!==cat) return;
+      var h2=h;
+      cob.forEach(function(x,i){
+        var l=(rs[i]&&rs[i].cartao)||[];
+        var tot=l.reduce(function(a,y){ return a+y.valor; },0);
+        h2+=bloco(tx(nomeBonito(rotuloCat(x.categoria, x.grupo)))+
+                  (Math.abs(tot-x.daVerba)>0.005?' <small>· verba pagou '+num(x.daVerba)+'</small>':''),
+                  iconeCat(x.grupo||x.categoria), l, 'CARTAO', x.categoria);
+      });
+      el('movLista').innerHTML=h2||'<div class="mv-vazio">Nada neste mês.</div>';
+      el('movLista').scrollTop=0;
+    });
   }).withFailureHandler(function(e){
     el('movLista').innerHTML='<div class="mv-vazio">Não consegui carregar: '+tx((e&&e.message)||e)+'</div>';
   }).apiComposicaoDaCategoria(mes, cat);
