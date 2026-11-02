@@ -175,7 +175,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.14.0 · 26/10/2026';
+var VERSAO_PAINEL = '1.15.0 · 02/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -930,7 +930,7 @@ function desenhar() {
   } else if (ABA === 'avisos') {
     h += blocoAvisos(d.avisos || []);
   } else if (ABA === 'ia') {
-    h += blocoDenuncias(d.denuncias || []) + blocoApi(d.api || {}) + blocoClientesIa(d) + blocoMotores(d.motores);
+    h += blocoDenuncias(d.denuncias || []) + blocoErrosIa(d.erros_ia || []) + blocoApi(d.api || {}) + blocoClientesIa(d) + blocoMotores(d.motores);
   } else if (ABA === 'pessoas') {
     h += '<h2>Pessoas</h2><div class="filtro"><input id="busca" placeholder="buscar nome, e-mail ou WhatsApp" value="' + esc(BUSCA) + '">' +
       [['todos', 'Todos'], ['pagantes', 'Pagantes'], ['teste', 'Em teste'], ['vencida', 'Vencidos'], ['ia', 'Usam IA']].map(function (o) {
@@ -1001,6 +1001,20 @@ function blocoDenuncias(l) {
         (x.vista_em ? ' · vista' : ' · <button class="mini" onclick="acao({acao:\'denuncia_vista\',id:' + Number(x.id) + '})">marcar como vista</button>') + '</div>' +
         '<div style="margin:6px 0"><b>Motivo:</b> ' + (x.motivo ? esc(x.motivo) : '<i>não escreveu</i>') + '</div>' +
         '<details><summary style="cursor:pointer;color:var(--azul)">ver a resposta</summary><div style="white-space:pre-wrap;font-size:13px;margin-top:6px">' + esc(x.resposta) + '</div></details></div>';
+    }).join('');
+}
+// pedidos ao assistente que deram erro: o cliente vê "não conseguiu responder";
+// aqui fica o erro de verdade (gestao_log, acao erro_ia)
+function blocoErrosIa(l) {
+  if (!l.length) return '<h2>Erros do assistente</h2><div class="sub">Nenhum pedido deu erro.</div>';
+  return '<h2>Erros do assistente · últimos ' + l.length + '</h2>' +
+    '<div class="sub" style="margin-bottom:8px">o cliente viu "não conseguiu responder" ou parecido; o motivo real está aqui</div>' +
+    l.map(function (x) {
+      var dt0 = x.detalhe || {};
+      return '<div style="margin:8px 0;padding:10px 12px;border:1px solid var(--line);background:var(--card);border-radius:12px">' +
+        '<div class="sub">' + new Date(x.criado_em).toLocaleString('pt-BR') + ' · ' + esc(x.email || '—') +
+        (dt0.motor ? ' · motor ' + esc(dt0.motor) : '') + (dt0.anexos && dt0.anexos.length ? ' · anexos: ' + esc(dt0.anexos.join(', ')) : '') + '</div>' +
+        '<div style="white-space:pre-wrap;font-size:12.5px;margin-top:6px;word-break:break-word">' + esc(String(dt0.erro || '').slice(0, 600)) + '</div></div>';
     }).join('');
 }
 // quem mais usa a IA neste mês: barras de um tom só, do maior para o menor
