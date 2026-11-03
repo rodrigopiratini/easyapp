@@ -1,6 +1,6 @@
 {
   "name": "EasyAPP Gestão",
-  "short_name": "Gestão",
+  "short_name": "EasyAPP Gestão",
   "start_url": "gestao.html",
   "scope": "gestao.html",
   "display": "standalone",
