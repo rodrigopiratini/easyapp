@@ -175,7 +175,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.16.0 · 03/11/2026';
+var VERSAO_PAINEL = '1.17.0 · 03/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -531,15 +531,21 @@ var Fabrica = (function () {
     chamar({ op: 'listar' }).then(function (d) { carregando = false; if (d.erro) erro = d.erro; else dados = d.empresas || []; if (ABA === 'apps') desenhar(); })
       .catch(function (e) { carregando = false; erro = e.message; if (ABA === 'apps') desenhar(); });
   }
+  var bola = function (on) { return '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:0;background:' + (on ? 'var(--verde)' : '#55627a') + (on ? ';box-shadow:0 0 0 3px rgba(34,197,94,.18)' : '') + '"></span>'; };
   function linha(e, i) {
     var s = SIT[e.situacao] || [e.situacao, 'var(--tx2)'];
-    return '<tr><td><b>' + esc(e.nome) + '</b>' + (e.plano && e.plano !== 'teste' ? '<br><small style="color:#8b95a8">' + esc(e.plano) + (e.valorMensal ? ' · ' + brl(e.valorMensal) : '') + '</small>' : '') + '</td>' +
+    return '<tr><td style="overflow:hidden;text-overflow:ellipsis"><b>' + esc(e.nome) + '</b>' + (e.plano && e.plano !== 'teste' ? '<br><small style="color:#8b95a8">' + esc(e.plano) + (e.valorMensal ? ' · ' + brl(e.valorMensal) : '') + '</small>' : '') + '</td>' +
       '<td><span style="color:' + (e.liberada ? s[1] : 'var(--verm)') + '">' + s[0] + (e.liberada ? '' : ' (bloqueada)') + '</span></td>' +
-      '<td>' + esc(e.dono || '—') + '</td><td class="n">' + (e.gestores || 0) + ' / ' + (e.usuarios || 0) + '</td>' +
+      '<td style="overflow:hidden;text-overflow:ellipsis" title="' + esc(e.dono || '') + '">' + esc(e.dono || '—') + '</td>' +
+      '<td class="n" title="' + (e.gestores || 0) + ' na gestão (e-mail) · ' + (e.usuarios || 0) + ' no app de campo (código + PIN)">' + (e.gestores || 0) + ' / ' + (e.usuarios || 0) + '</td>' +
+      '<td>' + (e.online ? bola(true) + '<b style="color:var(--verde)">' + e.online + '</b>' : bola(false) + '<span style="color:var(--tx2)">ninguém</span>') + '</td>' +
       '<td>' + (e.ultimoUso ? dt(e.ultimoUso) : '—') + '</td><td>' + (e.id ? dt(e.situacao === 'teste' ? e.testeAte : e.pagoAte) : '—') + '</td>' +
-      '<td style="white-space:nowrap">' + (e.dono ? '<button class="mini" onclick="Fabrica.abrir(' + i + ',\'leitura\',this)">👁 ver</button><button class="mini" onclick="Fabrica.abrir(' + i + ',\'edicao\',this)">✏️ corrigir</button>' : '') +
+      '<td style="white-space:normal;text-align:right;line-height:2"><button class="mini" onclick="Fabrica.pessoas(' + i + ')">👥 pessoas</button>' + (e.dono ? '<button class="mini" onclick="Fabrica.abrir(' + i + ',\'leitura\',this)">👁 ver</button><button class="mini" onclick="Fabrica.abrir(' + i + ',\'edicao\',this)">✏️ corrigir</button>' : '') +
       (e.id ? '<button class="mini" onclick="Fabrica.assinatura(' + i + ')">assinatura</button>' : '') + '</td></tr>';
   }
+  // as tabelas de todos os apps com as mesmas colunas, nas mesmas larguras
+  var COLS = '<colgroup><col style="width:15%"><col style="width:8%"><col style="width:19%"><col style="width:9%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:25%"></colgroup>';
+  var CAB = '<thead><tr><th>Empresa</th><th>Situação</th><th>Dono</th><th class="n" style="white-space:normal;line-height:1.2" title="Gestão = contas de e-mail (dono e gestores). Campo = logins do app de campo com código + PIN (motoristas, técnicos…)">Gestão / campo</th><th>Agora</th><th>Último uso</th><th>Vence</th><th></th></tr></thead>';
   function html() {
     if (!dados && !erro) { setTimeout(carregarApps, 0); return '<h2>Apps da fábrica</h2><div class="sub">Carregando…</div>'; }
     if (erro) return '<h2>Apps da fábrica</h2><div class="sub" style="color:var(--verm)">' + esc(erro) + '</div><button class="lk" onclick="Fabrica.recarregar()">tentar de novo</button>';
@@ -549,11 +555,12 @@ var Fabrica = (function () {
       k('Empresas', dados.length, apps.length + ' apps') + k('Pagantes', ativas.length, dados.filter(function (e) { return e.situacao === 'teste'; }).length + ' em teste', 'v') +
       k('Receita mensal', brl(ativas.reduce(function (a, e) { return a + (+e.valorMensal || 0); }, 0)), 'soma das ativas', 'v') +
       k('Bloqueadas', dados.filter(function (e) { return !e.liberada; }).length, 'teste ou pagamento vencido', dados.some(function (e) { return !e.liberada; }) ? 'r' : '') + '</div>' +
-      '<div class="sub" style="margin-top:8px">"Ver" e "corrigir" abrem o app como o dono da empresa, sem usar a senha; cada abertura fica no histórico da empresa. <button class="lk" onclick="Fabrica.recarregar()">atualizar</button></div>';
+      '<div class="sub" style="margin-top:8px">"Ver" e "corrigir" abrem o app como o dono da empresa, sem usar a senha; cada abertura fica no histórico da empresa. <button class="lk" onclick="Fabrica.recarregar()">atualizar</button></div>' +
+      '<div class="sub">Gestão / campo: contas de e-mail (dono e gestores) / logins do app de campo com código + PIN (motoristas…). ' + bola(true) + 'Agora: com o app aberto nos últimos 3 minutos. 👥 pessoas: quem entra e o que cada um fez.</div>';
     apps.forEach(function (a) {
       var l = dados.map(function (e, i) { return [e, i]; }).filter(function (x) { return x[0].appNome === a; });
       h += '<h2>' + esc(a) + ' <small style="text-transform:none;letter-spacing:0">· ' + l.length + (l.length === 1 ? ' empresa' : ' empresas') + ' · <a style="color:var(--azul)" target="_blank" rel="noopener" href="' + esc(l[0][0].url) + '">abrir app ↗</a></small></h2>' +
-        '<div class="tab"><table><thead><tr><th>Empresa</th><th>Situação</th><th>Dono</th><th class="n">Gestão / campo</th><th>Último uso</th><th>Vence</th><th></th></tr></thead><tbody>' +
+        '<div class="tab"><table style="table-layout:fixed">' + COLS + CAB + '<tbody>' +
         l.map(function (x) { return linha(x[0], x[1]); }).join('') + '</tbody></table></div>';
     });
     return h;
@@ -579,6 +586,66 @@ var Fabrica = (function () {
       document.getElementById('suporteFechar').onclick = function () { f.remove(); };
     }).catch(function (x) { b.disabled = false; b.textContent = orig; alert(x.message); });
   }
+  // 👥 pessoas da empresa: quem está conectado e o registro do que cada uma fez
+  var NOMES = { viagens: 'viagem', abastecimentos: 'abastecimento', despesas: 'despesa', recebimentos: 'recebimento', veiculos: 'caminhão', motoristas: 'motorista',
+    clientes: 'cliente', manutencoes: 'manutenção', config: 'configurações', perfis: 'acesso', acessos: 'acesso de campo', convites: 'convite' };
+  var ACAO = { insert: 'criou', update: 'alterou', delete: 'excluiu', acesso: 'entrou no app' };
+  function haQuanto(s) {
+    if (!s) return 'nunca';
+    var m = Math.round((Date.now() - new Date(s)) / 60000);
+    return m < 1 ? 'agora' : m < 60 ? 'há ' + m + ' min' : m < 1440 ? 'há ' + Math.round(m / 60) + ' h' : 'há ' + Math.round(m / 1440) + ' d';
+  }
+  function resumo(x) {
+    var d = Object.assign({}, x.atual || {}, x.dados || {}), p = [];
+    if (d.origem || d.destino) p.push(esc((d.numero ? '#' + d.numero + ' ' : '') + (d.origem || '') + ' → ' + (d.destino || '')));
+    if (d.placa) p.push(esc(d.placa)); else if (d.nome && x.colecao !== 'viagens') p.push(esc(d.nome));
+    if (d.categoria) p.push(esc(d.categoria)); if (d.forma) p.push(esc(d.forma));
+    if (d.valor != null && d.valor !== '') p.push(brl(d.valor)); else if (d.valorFrete) p.push('frete ' + brl(d.valorFrete));
+    var mud = x.acao === 'update' && x.dados ? Object.keys(x.dados).filter(function (k) { return k !== 'id'; }) : [];
+    if (mud.length) p.push('<span style="color:var(--tx2)">mudou: ' + esc(mud.slice(0, 6).join(', ')) + (mud.length > 6 ? '…' : '') + '</span>');
+    if (x.acao === 'acesso' && x.dados && x.dados.modo) p.push('<span style="color:var(--amb)">modo ' + esc(x.dados.modo) + '</span>');
+    return p.join(' · ');
+  }
+  function pessoas(i) {
+    var e = dados[i], st = { quem: null, dias: 30, d: null };
+    var f = document.createElement('div'); f.className = 'fundo'; f.id = 'fundoPessoas';
+    f.onclick = function (ev) { if (ev.target === f) f.remove(); };
+    f.innerHTML = '<div class="janela" style="width:min(980px,96vw);max-width:none;max-height:90vh;overflow:auto"><div class="topo"><h3>👥 ' + esc(e.appNome) + ' · ' + esc(e.nome) + '</h3><button class="lk" id="pFechar">fechar</button></div><div id="pCorpo" class="sub">Carregando…</div></div>';
+    document.body.appendChild(f);
+    f.querySelector('#pFechar').onclick = function () { f.remove(); };
+    function carregar() {
+      f.querySelector('#pCorpo').innerHTML = 'Carregando…';
+      chamar({ op: 'pessoas', pasta: e.app, empresa: e.id, dias: st.dias }).then(function (d) { if (!d.ok) { f.querySelector('#pCorpo').innerHTML = '<span style="color:var(--verm)">' + esc(d.erro || 'não deu certo') + '</span>'; return; } st.d = d; desenha(); })
+        .catch(function (x) { f.querySelector('#pCorpo').innerHTML = esc(x.message); });
+    }
+    function desenha() {
+      var d = st.d, ps = d.pessoas || [];
+      var itens = (d.itens || []).filter(function (x) { return !st.quem || x.userId === st.quem; });
+      var papel = { dono: 'dono', gestor: 'gestor', usuario: 'app de campo' };
+      var h = '<div class="tab" style="margin-bottom:12px"><table style="table-layout:fixed;min-width:640px"><colgroup><col style="width:34%"><col style="width:16%"><col style="width:20%"><col style="width:14%"><col style="width:16%"></colgroup>' +
+        '<thead><tr><th>Pessoa</th><th>Papel</th><th>Visto</th><th class="n">Ações (' + st.dias + ' d)</th><th></th></tr></thead><tbody>' +
+        ps.map(function (p) {
+          return '<tr' + (st.quem && st.quem === p.userId ? ' style="background:rgba(59,130,246,.10)"' : '') + '><td style="overflow:hidden;text-overflow:ellipsis">' + bola(p.online) + '<b>' + esc(p.nome || p.email || '—') + '</b>' + (p.codigo ? ' <small style="color:#8b95a8">código ' + esc(p.codigo) + '</small>' : '') + '</td>' +
+            '<td>' + esc(papel[p.papel] || p.papel) + '</td><td>' + (p.online ? '<b style="color:var(--verde)">conectado</b>' : p.userId ? haQuanto(p.visto || p.ultimaAcao) : '<span style="color:var(--tx2)">nunca entrou</span>') + '</td>' +
+            '<td class="n">' + (p.acoes || 0) + '</td><td style="text-align:right">' + (p.userId ? '<button class="mini" data-u="' + esc(p.userId) + '">' + (st.quem === p.userId ? 'mostrando' : 'ver o que fez') + '</button>' : '') + '</td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><b>Registro' + (st.quem ? ' de ' + esc((ps.filter(function (p) { return p.userId === st.quem; })[0] || {}).nome || '') : ' de todos') + '</b>' +
+        (st.quem ? '<button class="mini" data-u="">todos</button>' : '') + [7, 30, 90].map(function (n) { return '<button class="mini" data-dias="' + n + '"' + (st.dias === n ? ' style="border-color:var(--azul);color:var(--azul)"' : '') + '>' + n + ' dias</button>'; }).join('') +
+        '<span class="sub" style="margin:0">' + itens.length + ' registros</span></div>' +
+        '<div class="tab"><table style="table-layout:fixed;min-width:640px"><colgroup><col style="width:15%"><col style="width:20%"><col style="width:15%"><col style="width:50%"></colgroup><thead><tr><th>Quando</th><th>Quem</th><th>O quê</th><th>Detalhe</th></tr></thead><tbody>' +
+        (itens.slice(0, 600).map(function (x) {
+          var w = new Date(x.em);
+          return '<tr><td>' + w.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + w.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+            '<td style="overflow:hidden;text-overflow:ellipsis" title="' + esc(x.quem || '') + '">' + esc(x.quem || '—') + '</td>' +
+            '<td><span style="color:' + (x.acao === 'delete' ? 'var(--verm)' : x.acao === 'insert' ? 'var(--verde)' : x.acao === 'acesso' ? 'var(--tx2)' : 'var(--tx)') + '">' + (ACAO[x.acao] || esc(x.acao)) + '</span>' + (x.colecao ? ' ' + esc(NOMES[x.colecao] || x.colecao) : '') + '</td>' +
+            '<td style="white-space:normal">' + resumo(x) + '</td></tr>';
+        }).join('') || '<tr><td colspan="4" style="color:var(--tx2)">Nada no período.</td></tr>') + '</tbody></table></div>';
+      f.querySelector('#pCorpo').innerHTML = h;
+      f.querySelectorAll('[data-u]').forEach(function (b) { b.onclick = function () { st.quem = b.getAttribute('data-u') || null; desenha(); }; });
+      f.querySelectorAll('[data-dias]').forEach(function (b) { b.onclick = function () { st.dias = +b.getAttribute('data-dias'); carregar(); }; });
+    }
+    carregar();
+  }
   function assinatura(i) {
     var e = dados[i];
     var fj = janelaPeq('<div class="topo"><h3>Assinatura</h3><button class="lk" onclick="fecharPeq()">fechar</button></div>' +
@@ -599,7 +666,7 @@ var Fabrica = (function () {
         .then(function (d) { b.disabled = false; if (!d.ok) return alert(d.erro || 'não deu certo'); fecharPeq(); dados = null; carregarApps(); });
     };
   }
-  return { html: html, mount: function () {}, abrir: abrir, assinatura: assinatura, recarregar: function () { dados = null; erro = null; desenhar(); } };
+  return { html: html, mount: function () {}, abrir: abrir, assinatura: assinatura, pessoas: pessoas, recarregar: function () { dados = null; erro = null; desenhar(); } };
 })();
 
 // 📱 o app do cliente numa moldura de celular (a sessão já está em easyapp:sessao-suporte)
