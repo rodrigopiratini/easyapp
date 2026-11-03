@@ -191,7 +191,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.20.0 · 03/11/2026';
+var VERSAO_PAINEL = '1.20.1 · 03/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -548,7 +548,7 @@ var Fabrica = (function () {
       .catch(function (e) { carregando = false; erro = e.message; if (ABA === 'apps') desenhar(); });
   }
   var bola = function (on) { return '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:0;background:' + (on ? 'var(--verde)' : '#55627a') + (on ? ';box-shadow:0 0 0 3px rgba(34,197,94,.18)' : '') + '"></span>'; };
-  var PAPEL_P = { dono: 'dono', gestor: 'gestão', usuario: 'app de campo' };
+  var PAPEL_P = { dono: 'administrador', gestor: 'gestor', usuario: 'usuário' };
   function quando(s) {
     if (!s) return 'nunca entrou';
     var m = Math.round((Date.now() - new Date(s)) / 60000);
@@ -579,8 +579,8 @@ var Fabrica = (function () {
       k('Empresas', dados.length, apps.length + ' apps') + k('Pagantes', ativas.length, dados.filter(function (e) { return e.situacao === 'teste'; }).length + ' em teste', 'v') +
       k('Receita mensal', brl(ativas.reduce(function (a, e) { return a + (+e.valorMensal || 0); }, 0)), 'soma das ativas', 'v') +
       k('Bloqueadas', dados.filter(function (e) { return !e.liberada; }).length, 'teste ou pagamento vencido', dados.some(function (e) { return !e.liberada; }) ? 'r' : '') + '</div>' +
-      '<div class="sub" style="margin-top:8px">"Abrir no app" leva ao app da empresa: entre com o seu e-mail de administrador, confirme o código do autenticador e escolha <b>Ver</b> ou <b>Corrigir</b>. A empresa abre como o dono vê, por 2 horas, e fica no histórico dela. <button class="lk" onclick="Fabrica.recarregar()">atualizar</button></div>' +
-      '<div class="sub">Uma linha por pessoa: ' + bola(true) + 'conectada agora (app aberto nos últimos 3 minutos) · gestão = e-mail e senha · app de campo = código + PIN. 📜 registro: o que cada um fez.</div>';
+      '<div class="sub" style="margin-top:8px">"Abrir no app" leva ao app da empresa: entre com o seu e-mail de desenvolvedor, confirme o código do autenticador e escolha <b>Ver</b> ou <b>Corrigir</b>. A empresa abre como o administrador dela vê, por 2 horas, e fica no histórico dela. <button class="lk" onclick="Fabrica.recarregar()">atualizar</button></div>' +
+      '<div class="sub">Uma linha por pessoa: ' + bola(true) + 'conectada agora (app aberto nos últimos 3 minutos) · administrador e gestor = e-mail e senha · usuário = app de campo, código + PIN. 📜 registro: o que cada um fez.</div>';
     apps.forEach(function (a) {
       var l = dados.map(function (e, i) { return [e, i]; }).filter(function (x) { return x[0].appNome === a; });
       h += '<h2>' + esc(a) + ' <small style="text-transform:none;letter-spacing:0">· ' + l.length + (l.length === 1 ? ' empresa' : ' empresas') + ' · <a style="color:var(--azul)" target="_blank" rel="noopener" href="' + esc(l[0][0].url) + '">abrir app ↗</a></small></h2>' +
@@ -659,7 +659,7 @@ var Fabrica = (function () {
     var e = dados[i], sit = e.situacao || 'teste';
     var COR = { teste: 'var(--azul)', ativa: 'var(--verde)', suspensa: 'var(--verm)', cancelada: '#55627a' };
     var fj = janelaPeq('<div class="topo"><h3>Assinatura</h3><button class="lk" onclick="fecharPeq()">fechar</button></div>' +
-      '<div class="quem" style="margin-top:4px"><b>' + esc(e.nome) + '</b> · ' + esc(e.appNome) + '<br><small style="color:var(--tx2)">dono ' + esc(e.dono || '—') + '</small></div>' +
+      '<div class="quem" style="margin-top:4px"><b>' + esc(e.nome) + '</b> · ' + esc(e.appNome) + '<br><small style="color:var(--tx2)">administrador ' + esc(e.dono || '—') + '</small></div>' +
       '<div class="fa-grid"><div class="fa full"><span>Situação</span><div class="fa-sit">' + ['teste', 'ativa', 'suspensa', 'cancelada'].map(function (s) { return '<button type="button" data-s="' + s + '">' + s + '</button>'; }).join('') + '</div></div>' +
       '<label class="fa"><span>Plano</span><input id="faPlano" value="' + esc(e.plano || '') + '" placeholder="ex.: frota5"></label>' +
       '<label class="fa"><span>Valor mensal (R$)</span><input id="faValor" inputmode="decimal" value="' + (e.valorMensal ? String(e.valorMensal).replace('.', ',') : '') + '" placeholder="0,00"></label>' +
