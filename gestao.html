@@ -191,7 +191,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.19.0 · 03/11/2026';
+var VERSAO_PAINEL = '1.20.0 · 03/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -563,7 +563,7 @@ var Fabrica = (function () {
     return '<div class="emp"><div class="emp-cab"><span class="nm">' + esc(e.nome) + '</span>' +
       '<span style="color:' + (e.liberada ? s[1] : 'var(--verm)') + ';font-size:13px">' + s[0] + (e.liberada ? '' : ' (bloqueada)') + '</span>' +
       '<span class="meta">' + [venc, e.plano && e.plano !== 'teste' ? esc(e.plano) + (e.valorMensal ? ' · ' + brl(e.valorMensal) : '') : '', e.online ? '<b style="color:var(--verde)">' + e.online + ' conectado' + (e.online > 1 ? 's' : '') + '</b>' : ''].filter(Boolean).join(' · ') + '</span>' +
-      '<span class="acoes"><button class="mini" onclick="Fabrica.pessoas(' + i + ')">📜 registro</button>' + (e.dono ? '<button class="mini" onclick="Fabrica.abrir(' + i + ',\'leitura\',this)">👁 ver</button><button class="mini" onclick="Fabrica.abrir(' + i + ',\'edicao\',this)">✏️ corrigir</button>' : '') +
+      '<span class="acoes"><button class="mini" onclick="Fabrica.pessoas(' + i + ')">📜 registro</button>' + '<button class="mini" onclick="Fabrica.abrir(' + i + ')" title="Abre o app e, entrando com o seu e-mail, a empresa: Plataforma › Ver / Corrigir">📱 abrir no app ↗</button>' +
       (e.id ? '<button class="mini" onclick="Fabrica.assinatura(' + i + ')">assinatura</button>' : '') + '</span></div>' +
       (ps.map(function (p) {
         return '<div class="pes">' + bola(p.online) + '<span class="nm"><b>' + esc(p.nome || '—') + '</b>' + (p.codigo ? ' <small style="color:#8b95a8">código ' + esc(p.codigo) + '</small>' : '') + '</span>' +
@@ -579,7 +579,7 @@ var Fabrica = (function () {
       k('Empresas', dados.length, apps.length + ' apps') + k('Pagantes', ativas.length, dados.filter(function (e) { return e.situacao === 'teste'; }).length + ' em teste', 'v') +
       k('Receita mensal', brl(ativas.reduce(function (a, e) { return a + (+e.valorMensal || 0); }, 0)), 'soma das ativas', 'v') +
       k('Bloqueadas', dados.filter(function (e) { return !e.liberada; }).length, 'teste ou pagamento vencido', dados.some(function (e) { return !e.liberada; }) ? 'r' : '') + '</div>' +
-      '<div class="sub" style="margin-top:8px">"Ver" e "corrigir" abrem o app como o dono da empresa, sem usar a senha; cada abertura fica no histórico da empresa. <button class="lk" onclick="Fabrica.recarregar()">atualizar</button></div>' +
+      '<div class="sub" style="margin-top:8px">"Abrir no app" leva ao app da empresa: entre com o seu e-mail de administrador, confirme o código do autenticador e escolha <b>Ver</b> ou <b>Corrigir</b>. A empresa abre como o dono vê, por 2 horas, e fica no histórico dela. <button class="lk" onclick="Fabrica.recarregar()">atualizar</button></div>' +
       '<div class="sub">Uma linha por pessoa: ' + bola(true) + 'conectada agora (app aberto nos últimos 3 minutos) · gestão = e-mail e senha · app de campo = código + PIN. 📜 registro: o que cada um fez.</div>';
     apps.forEach(function (a) {
       var l = dados.map(function (e, i) { return [e, i]; }).filter(function (x) { return x[0].appNome === a; });
@@ -588,26 +588,12 @@ var Fabrica = (function () {
     });
     return h;
   }
-  function abrir(i, modo, b) {
+  // o suporte é feito no próprio app (Plataforma › Ver / Corrigir), com o login do administrador
+  function abrir(i) {
     var e = dados[i];
-    if (modo === 'edicao' && !confirm('Abrir ' + e.appNome + ' de ' + e.nome + ' com edição? O que você mudar fica na conta do cliente.')) return;
-    var orig = b.textContent; b.disabled = true; b.textContent = 'abrindo…';
-    chamar({ op: 'abrir_como', pasta: e.app, empresa: e.id, modo: modo }).then(function (d) {
-      b.disabled = false; b.textContent = orig;
-      if (!d.ok) return alert(d.erro || 'não deu certo');
-      var pac = btoa(unescape(encodeURIComponent(JSON.stringify({ access_token: d.sessao.access_token, refresh_token: d.sessao.refresh_token, modo: d.modo, nome: e.nome + ' · ' + d.email }))));
-      var src = d.url + '?r=' + Date.now() + '#suporte=' + encodeURIComponent(pac);
-      var v = document.getElementById('suporteApp'); if (v) v.remove();
-      var f = document.createElement('div'); f.id = 'suporteApp';
-      f.style.cssText = 'position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.75);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px';
-      f.innerHTML = '<div style="display:flex;gap:10px;align-items:center;color:#e8edf7;font-size:13.5px;flex-wrap:wrap;justify-content:center">' +
-          '<b>📱 ' + esc(e.appNome) + ' · ' + esc(e.nome) + '</b><span style="color:' + (d.modo === 'edicao' ? 'var(--amb)' : 'var(--tx2)') + '">' + (d.modo === 'edicao' ? 'leitura e edição' : 'só leitura') + '</span>' +
-          '<button class="lk" id="suporteFechar" style="color:var(--tx)">fechar ✕</button></div>' +
-        '<iframe title="App do cliente" style="width:min(1100px,100%);height:min(840px,calc(100vh - 60px));border:1px solid #40516c;border-radius:18px;background:#fff"></iframe>';
-      document.body.appendChild(f);
-      f.querySelector('iframe').src = src;
-      document.getElementById('suporteFechar').onclick = function () { f.remove(); };
-    }).catch(function (x) { b.disabled = false; b.textContent = orig; alert(x.message); });
+    var u = String(e.url || '');
+    if (!u) return alert('Este app não tem endereço cadastrado.');
+    window.open(u + (e.id ? '#/plataforma?abrir=' + encodeURIComponent(e.id) : '#/plataforma'), '_blank', 'noopener');
   }
   // 👥 pessoas da empresa: quem está conectado e o registro do que cada uma fez
   var NOMES = { viagens: 'viagem', abastecimentos: 'abastecimento', despesas: 'despesa', recebimentos: 'recebimento', veiculos: 'caminhão', motoristas: 'motorista',
