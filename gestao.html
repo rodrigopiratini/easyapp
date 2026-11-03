@@ -175,7 +175,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.15.0 · 02/11/2026';
+var VERSAO_PAINEL = '1.16.0 · 03/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -513,6 +513,94 @@ function darCortesia(id, nome) {
     enviarPeq(f, { acao: 'dar_cortesia', user_id: id, tipo: tipo, dias: dias ? parseInt(dias, 10) : null });
   };
 }
+
+// 🧩 Apps da fábrica (Mil Terras, Frota, Golden… no projeto easyapp-fabrica): empresas de todos os apps,
+// assinatura e "abrir o app como o cliente" (o mesmo suporte do Financial, Termos de Uso seção 7).
+// A função gestao repassa para a gestao-fabrica com o segredo FABRICA_SEGREDO.
+var Fabrica = (function () {
+  var dados = null, erro = null, carregando = false;
+  var SIT = { teste: ['teste', 'var(--azul)'], ativa: ['ativa', 'var(--verde)'], suspensa: ['suspensa', 'var(--verm)'], cancelada: ['cancelada', 'var(--tx2)'] };
+  function chamar(o) {
+    return token().then(function (t) {
+      return fetch(URL_SB + '/functions/v1/gestao', { method: 'POST',
+        headers: { apikey: CHAVE, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ acao: 'fabrica' }, o)) });
+    }).then(function (r) { return r.json(); }).then(function (d) { if (d.mfa) telaMfa(); return d; });
+  }
+  function carregarApps() {
+    if (carregando) return; carregando = true; erro = null;
+    chamar({ op: 'listar' }).then(function (d) { carregando = false; if (d.erro) erro = d.erro; else dados = d.empresas || []; if (ABA === 'apps') desenhar(); })
+      .catch(function (e) { carregando = false; erro = e.message; if (ABA === 'apps') desenhar(); });
+  }
+  function linha(e, i) {
+    var s = SIT[e.situacao] || [e.situacao, 'var(--tx2)'];
+    return '<tr><td><b>' + esc(e.nome) + '</b>' + (e.plano && e.plano !== 'teste' ? '<br><small style="color:#8b95a8">' + esc(e.plano) + (e.valorMensal ? ' · ' + brl(e.valorMensal) : '') + '</small>' : '') + '</td>' +
+      '<td><span style="color:' + (e.liberada ? s[1] : 'var(--verm)') + '">' + s[0] + (e.liberada ? '' : ' (bloqueada)') + '</span></td>' +
+      '<td>' + esc(e.dono || '—') + '</td><td class="n">' + (e.gestores || 0) + ' / ' + (e.usuarios || 0) + '</td>' +
+      '<td>' + (e.ultimoUso ? dt(e.ultimoUso) : '—') + '</td><td>' + (e.id ? dt(e.situacao === 'teste' ? e.testeAte : e.pagoAte) : '—') + '</td>' +
+      '<td style="white-space:nowrap">' + (e.dono ? '<button class="mini" onclick="Fabrica.abrir(' + i + ',\'leitura\',this)">👁 ver</button><button class="mini" onclick="Fabrica.abrir(' + i + ',\'edicao\',this)">✏️ corrigir</button>' : '') +
+      (e.id ? '<button class="mini" onclick="Fabrica.assinatura(' + i + ')">assinatura</button>' : '') + '</td></tr>';
+  }
+  function html() {
+    if (!dados && !erro) { setTimeout(carregarApps, 0); return '<h2>Apps da fábrica</h2><div class="sub">Carregando…</div>'; }
+    if (erro) return '<h2>Apps da fábrica</h2><div class="sub" style="color:var(--verm)">' + esc(erro) + '</div><button class="lk" onclick="Fabrica.recarregar()">tentar de novo</button>';
+    var apps = []; dados.forEach(function (e) { if (apps.indexOf(e.appNome) < 0) apps.push(e.appNome); });
+    var ativas = dados.filter(function (e) { return e.id && e.situacao === 'ativa'; });
+    var h = '<h2>Apps da fábrica</h2><div class="grade">' +
+      k('Empresas', dados.length, apps.length + ' apps') + k('Pagantes', ativas.length, dados.filter(function (e) { return e.situacao === 'teste'; }).length + ' em teste', 'v') +
+      k('Receita mensal', brl(ativas.reduce(function (a, e) { return a + (+e.valorMensal || 0); }, 0)), 'soma das ativas', 'v') +
+      k('Bloqueadas', dados.filter(function (e) { return !e.liberada; }).length, 'teste ou pagamento vencido', dados.some(function (e) { return !e.liberada; }) ? 'r' : '') + '</div>' +
+      '<div class="sub" style="margin-top:8px">"Ver" e "corrigir" abrem o app como o dono da empresa, sem usar a senha; cada abertura fica no histórico da empresa. <button class="lk" onclick="Fabrica.recarregar()">atualizar</button></div>';
+    apps.forEach(function (a) {
+      var l = dados.map(function (e, i) { return [e, i]; }).filter(function (x) { return x[0].appNome === a; });
+      h += '<h2>' + esc(a) + ' <small style="text-transform:none;letter-spacing:0">· ' + l.length + (l.length === 1 ? ' empresa' : ' empresas') + ' · <a style="color:var(--azul)" target="_blank" rel="noopener" href="' + esc(l[0][0].url) + '">abrir app ↗</a></small></h2>' +
+        '<div class="tab"><table><thead><tr><th>Empresa</th><th>Situação</th><th>Dono</th><th class="n">Gestão / campo</th><th>Último uso</th><th>Vence</th><th></th></tr></thead><tbody>' +
+        l.map(function (x) { return linha(x[0], x[1]); }).join('') + '</tbody></table></div>';
+    });
+    return h;
+  }
+  function abrir(i, modo, b) {
+    var e = dados[i];
+    if (modo === 'edicao' && !confirm('Abrir ' + e.appNome + ' de ' + e.nome + ' com edição? O que você mudar fica na conta do cliente.')) return;
+    var orig = b.textContent; b.disabled = true; b.textContent = 'abrindo…';
+    chamar({ op: 'abrir_como', pasta: e.app, empresa: e.id, modo: modo }).then(function (d) {
+      b.disabled = false; b.textContent = orig;
+      if (!d.ok) return alert(d.erro || 'não deu certo');
+      var pac = btoa(unescape(encodeURIComponent(JSON.stringify({ access_token: d.sessao.access_token, refresh_token: d.sessao.refresh_token, modo: d.modo, nome: e.nome + ' · ' + d.email }))));
+      var src = d.url + '?r=' + Date.now() + '#suporte=' + encodeURIComponent(pac);
+      var v = document.getElementById('suporteApp'); if (v) v.remove();
+      var f = document.createElement('div'); f.id = 'suporteApp';
+      f.style.cssText = 'position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.75);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px';
+      f.innerHTML = '<div style="display:flex;gap:10px;align-items:center;color:#e8edf7;font-size:13.5px;flex-wrap:wrap;justify-content:center">' +
+          '<b>📱 ' + esc(e.appNome) + ' · ' + esc(e.nome) + '</b><span style="color:' + (d.modo === 'edicao' ? 'var(--amb)' : 'var(--tx2)') + '">' + (d.modo === 'edicao' ? 'leitura e edição' : 'só leitura') + '</span>' +
+          '<button class="lk" id="suporteFechar" style="color:var(--tx)">fechar ✕</button></div>' +
+        '<iframe title="App do cliente" style="width:min(1100px,100%);height:min(840px,calc(100vh - 60px));border:1px solid #40516c;border-radius:18px;background:#fff"></iframe>';
+      document.body.appendChild(f);
+      f.querySelector('iframe').src = src;
+      document.getElementById('suporteFechar').onclick = function () { f.remove(); };
+    }).catch(function (x) { b.disabled = false; b.textContent = orig; alert(x.message); });
+  }
+  function assinatura(i) {
+    var e = dados[i];
+    var fj = janelaPeq('<div class="topo"><h3>Assinatura</h3><button class="lk" onclick="fecharPeq()">fechar</button></div>' +
+      '<div class="quem">' + esc(e.appNome) + ' · ' + esc(e.nome) + ' · dono ' + esc(e.dono || '—') + '</div>' +
+      '<label>Situação <select id="faSit">' + ['teste', 'ativa', 'suspensa', 'cancelada'].map(function (s) { return '<option' + (s === e.situacao ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></label>' +
+      '<label>Plano <input id="faPlano" value="' + esc(e.plano || '') + '"></label>' +
+      '<label>Teste até <input type="date" id="faTeste" value="' + esc(e.testeAte || '') + '"></label>' +
+      '<label>Pago até <input type="date" id="faPago" value="' + esc(e.pagoAte || '') + '"></label>' +
+      '<label>Valor mensal (R$) <input id="faValor" inputmode="decimal" value="' + (e.valorMensal || '') + '"></label>' +
+      '<label>Observação <input id="faObs" value="' + esc(e.obs || '') + '"></label>' +
+      '<div class="resumo">Ativa com "pago até" vencido há mais de 5 dias, ou teste vencido, bloqueia as gravações (os dados continuam visíveis).</div>' +
+      '<button class="sim" id="faOk">Salvar</button>');
+    fj.querySelector('#faOk').onclick = function () {
+      var b = this; b.disabled = true;
+      chamar({ op: 'assinatura', pasta: e.app, empresa: e.id, situacao: fj.querySelector('#faSit').value, plano: fj.querySelector('#faPlano').value,
+        testeAte: fj.querySelector('#faTeste').value || null, pagoAte: fj.querySelector('#faPago').value || null,
+        valor: parseFloat(String(fj.querySelector('#faValor').value).replace(',', '.')) || null, obs: fj.querySelector('#faObs').value })
+        .then(function (d) { b.disabled = false; if (!d.ok) return alert(d.erro || 'não deu certo'); fecharPeq(); dados = null; carregarApps(); });
+    };
+  }
+  return { html: html, mount: function () {}, abrir: abrir, assinatura: assinatura, recarregar: function () { dados = null; erro = null; desenhar(); } };
+})();
 
 // 📱 o app do cliente numa moldura de celular (a sessão já está em easyapp:sessao-suporte)
 function telaSuporte(nome, modo) {
@@ -923,9 +1011,11 @@ function desenhar() {
   var aba = function (k, t) { return '<button class="' + (ABA === k ? 'on' : '') + '" onclick="trocarAba(\'' + k + '\')">' + t + '</button>'; };
   var h = '<div class="topo"><h1><span class="lg3" aria-hidden="true"><i></i><i></i><i></i></span>EasyAPP <em>Gestão</em></h1><div><button class="lk" id="at">Atualizar</button> · <button class="lk" id="sair">Sair</button></div></div>' +
     '<div class="sub">atualizado ' + new Date(d.gerado_em).toLocaleString('pt-BR') + (VERSAO ? ' · app no site: versão ' + esc(VERSAO) : '') + '</div>' +
-    '<div class="abas">' + aba('geral', '📊 Visão geral') + aba('ia', '✦ IA e créditos' + (abertas(d.denuncias) ? ' <b style="color:var(--verm)">⚑ ' + abertas(d.denuncias) + '</b>' : '')) + aba('pessoas', '👥 Pessoas e vouchers') + aba('avisos', '🔔 Avisos dos bancos') + aba('testes', '🧪 Testar primeiro acesso') + '</div>';
+    '<div class="abas">' + aba('geral', '📊 Visão geral') + aba('ia', '✦ IA e créditos' + (abertas(d.denuncias) ? ' <b style="color:var(--verm)">⚑ ' + abertas(d.denuncias) + '</b>' : '')) + aba('pessoas', '👥 Pessoas e vouchers') + aba('avisos', '🔔 Avisos dos bancos') + aba('testes', '🧪 Testar primeiro acesso') + aba('apps', '🧩 Apps da fábrica') + '</div>';
 
-  if (ABA === 'testes') {
+  if (ABA === 'apps') {
+    h += Fabrica.html();
+  } else if (ABA === 'testes') {
     h += TestePrimeiroAcesso.html();
   } else if (ABA === 'avisos') {
     h += blocoAvisos(d.avisos || []);
@@ -980,6 +1070,7 @@ function desenhar() {
   h += rodape();
   cx.innerHTML = h;
   if (ABA === 'testes') TestePrimeiroAcesso.mount();
+  if (ABA === 'apps') Fabrica.mount();
   tirarAbertura();
 
   document.getElementById('at').onclick = carregar;
