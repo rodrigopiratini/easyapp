@@ -217,7 +217,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.25.0 · 04/11/2026';
+var VERSAO_PAINEL = '1.26.0 · 04/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -596,7 +596,8 @@ var Fabrica = (function () {
     return '<div class="emp"><div class="emp-cab"><span class="nm">' + esc(e.nome) + '</span>' +
       '<span style="color:' + (e.liberada ? s[1] : 'var(--verm)') + ';font-size:13px">' + s[0] + (e.liberada ? '' : ' (bloqueada)') + '</span>' +
       '<span class="meta">' + [venc, e.plano && e.plano !== 'teste' ? esc(e.plano) + (e.valorMensal ? ' · ' + brl(e.valorMensal) : '') : '', e.online ? '<b style="color:var(--verde)">' + e.online + ' conectado' + (e.online > 1 ? 's' : '') + '</b>' : ''].filter(Boolean).join(' · ') + '</span>' +
-      '<span class="acoes"><button class="mini" onclick="Fabrica.pessoas(' + i + ')">📜 registro</button>' + '<button class="mini" onclick="Fabrica.abrir(' + i + ',this)">📱 abrir no app ↗</button>' +
+      '<span class="acoes"><button class="mini" onclick="Fabrica.pessoas(' + i + ')">📜 registro</button>' + '<button class="mini" onclick="Fabrica.abrir(' + i + ',this,\'leitura\')" title="Abrir a Gestão desta empresa só para ver">📱 ver no app ↗</button>' +
+      (e.id ? '<button class="mini" style="color:var(--amb)" onclick="Fabrica.abrir(' + i + ',this,\'edicao\')" title="Abrir a Gestão desta empresa para ver e corrigir">✏️ corrigir no app ↗</button>' : '') +
       (e.id ? '<button class="mini" onclick="Fabrica.assinatura(' + i + ')">assinatura</button>' : '') + '</span></div>' +
       (ps.map(function (p, j) {
         var pode = e.id && (p.papel !== 'usuario' || p.ref);
@@ -631,8 +632,8 @@ var Fabrica = (function () {
     return h;
   }
   // o suporte é feito no próprio app (Plataforma › Ver / Corrigir), com o login do administrador
-  function abrir(i, b) {
-    if (dados[i].id) return entrarComo(i, null, 'leitura', b);
+  function abrir(i, b, modo) {
+    if (dados[i].id) return entrarComo(i, null, modo || 'leitura', b);
     var e = dados[i];
     var u = String(e.url || '');
     if (!u) return alert('Este app não tem endereço cadastrado.');
@@ -655,7 +656,7 @@ var Fabrica = (function () {
   }
   // 👥 pessoas da empresa: quem está conectado e o registro do que cada uma fez
   var NOMES = { viagens: 'viagem', abastecimentos: 'abastecimento', despesas: 'despesa', recebimentos: 'recebimento', veiculos: 'caminhão', motoristas: 'motorista',
-    clientes: 'cliente', manutencoes: 'manutenção', config: 'configurações', perfis: 'acesso', acessos: 'acesso de campo', convites: 'convite' };
+    clientes: 'cliente', manutencoes: 'manutenção', config: 'configurações', empresa: 'a empresa', perfis: 'acesso', acessos: 'acesso de campo', convites: 'convite' };
   var ACAO = { insert: 'criou', update: 'alterou', delete: 'excluiu', acesso: 'entrou no app' };
   function haQuanto(s) {
     if (!s) return 'nunca';
@@ -665,7 +666,7 @@ var Fabrica = (function () {
   function resumo(x) {
     var d = Object.assign({}, x.atual || {}, x.dados || {}), p = [];
     if (d.origem || d.destino) p.push(esc((d.numero ? '#' + d.numero + ' ' : '') + (d.origem || '') + ' → ' + (d.destino || '')));
-    if (d.placa) p.push(esc(d.placa)); else if (d.nome && x.colecao !== 'viagens') p.push(esc(d.nome));
+    if (x.colecao === 'empresa' && d.nome) p.push('nome agora: <b>' + esc(d.nome) + '</b>'); else if (d.placa) p.push(esc(d.placa)); else if (d.nome && x.colecao !== 'viagens') p.push(esc(d.nome));
     if (d.categoria) p.push(esc(d.categoria)); if (d.forma) p.push(esc(d.forma));
     if (d.valor != null && d.valor !== '') p.push(brl(d.valor)); else if (d.valorFrete) p.push('frete ' + brl(d.valorFrete));
     var mud = x.acao === 'update' && x.dados ? Object.keys(x.dados).filter(function (k) { return k !== 'id'; }) : [];
