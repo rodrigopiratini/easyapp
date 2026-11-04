@@ -148,7 +148,28 @@
   .abas{display:flex;gap:6px;margin:14px 0 4px;border-bottom:1px solid var(--line);overflow-x:auto}
   .abas button{background:none;border:0;border-bottom:2px solid transparent;color:var(--tx2);padding:10px 14px;font-size:14.5px;font-weight:600;cursor:pointer;white-space:nowrap}
   .abas button.on{color:var(--tx);border-bottom-color:var(--azul)}
-  .abas2{margin-top:0}.abas2 button{font-size:13.5px;padding:8px 12px}
+  /* menu lateral por grupos; no celular vira gaveta (☰) */
+  .shell{display:grid;grid-template-columns:236px minmax(0,1fr);gap:28px;max-width:1340px;margin:0 auto}
+  .cx:has(.shell){max-width:none}
+  .lado{position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto;display:flex;flex-direction:column;gap:2px;padding-right:12px;border-right:1px solid var(--line)}
+  .lado .marca{display:flex;align-items:center;font-weight:700;font-size:17px;padding:4px 8px 10px}.lado .marca em{color:var(--verm);font-style:normal;margin-left:5px}
+  .lado .g{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--tx2);padding:16px 10px 5px;font-weight:600}
+  .lado a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;color:#c9d2e3;font-size:14px;cursor:pointer;user-select:none}
+  .lado a:hover{background:#171f33}.lado a.on{background:#1f2940;color:#fff}
+  .lado a.sub{padding:6px 10px 6px 40px;font-size:13px;color:var(--tx2)}.lado a.sub.on{color:#fff;background:none;font-weight:600}
+  .lado .n{margin-left:auto;font-style:normal;font-size:11px;color:var(--amb);font-variant-numeric:tabular-nums}
+  .lado .ic{width:20px;height:20px;border-radius:6px;flex:none;display:inline-flex;align-items:flex-end;justify-content:center;gap:1.5px;padding:0 0 4px}
+  .lado .ic i{display:block;width:3.2px;border-radius:1px}.lado .ic.s{align-items:center;padding:0;font-size:13px;color:var(--tx2)}
+  .lado .pe{margin-top:auto;padding:18px 10px 4px;font-size:11.5px;color:var(--tx2);line-height:1.6}.lado .pe .lk{font-size:12.5px;padding:0}
+  .pag-t{font-size:22px;margin:4px 0 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.pag-t small{font-size:15px;color:var(--tx2);font-weight:500}
+  .topo-m{display:none}.veu{display:none}
+  @media (max-width:860px){
+    .shell{grid-template-columns:1fr;gap:0}
+    .lado{position:fixed;inset:0 auto 0 0;width:272px;max-height:none;align-self:stretch;height:100%;background:var(--bg);z-index:40;padding:calc(16px + env(safe-area-inset-top)) 12px 16px;transform:translateX(-105%);transition:transform .2s;border-right:1px solid var(--line)}
+    body.menu .lado{transform:none}body.menu .veu{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:39}
+    .topo-m{display:flex;align-items:center;gap:12px;margin:0 0 4px}.topo-m b{font-size:16px}.topo-m b small{color:var(--tx2);font-weight:500}
+    .pag{display:none}
+  }
   /* saldo da IA: o número grande, o medidor e quanto dura */
   .heroi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:grid;grid-template-columns:1.2fr 1fr;gap:18px;align-items:center}
   .heroi .rot{font-size:12px;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
@@ -192,7 +213,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.21.0 · 04/11/2026';
+var VERSAO_PAINEL = '1.22.0 · 04/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -216,11 +237,11 @@ var ABA = (function () { try { return localStorage.getItem('gestao:aba') || 'ger
 // Menu de cima: Grupo (todos os apps somados) › Financial (com as abas dele) › uma página por app da fábrica.
 // App novo na fábrica (fabrica_apps) aparece sozinho no menu, com a mesma página.
 var SECAO = (function () { try { return localStorage.getItem('gestao:secao') || 'grupo'; } catch (e) { return 'grupo'; } })();
-if (ABA === 'apps') ABA = 'geral';
+if (ABA === 'apps' || ABA === 'ia') ABA = 'geral';
 var FAMILIA = { milterras: 'exclusivo', golden: 'exclusivo' };   // apps de um cliente só (marca dele); o resto é escalável
 function familia(pasta) { return FAMILIA[pasta] || 'escalável'; }
-function trocarSecao(x) { TestePrimeiroAcesso.pause(); SECAO = x; try { localStorage.setItem('gestao:secao', x); } catch (e) {} desenhar(); window.scrollTo(0, 0); }
-function trocarAba(a) { TestePrimeiroAcesso.pause(); ABA = a; SECAO = 'financial'; try { localStorage.setItem('gestao:aba', a); localStorage.setItem('gestao:secao', 'financial'); } catch (e) {} desenhar(); window.scrollTo(0, 0); }
+function trocarSecao(x) { document.body.classList.remove('menu'); TestePrimeiroAcesso.pause(); SECAO = x; try { localStorage.setItem('gestao:secao', x); } catch (e) {} desenhar(); window.scrollTo(0, 0); }
+function trocarAba(a) { if (a === 'ia') return trocarSecao('ia'); document.body.classList.remove('menu'); TestePrimeiroAcesso.pause(); ABA = a; SECAO = 'financial'; try { localStorage.setItem('gestao:aba', a); localStorage.setItem('gestao:secao', 'financial'); } catch (e) {} desenhar(); window.scrollTo(0, 0); }
 function rodape() { return '<div class="rodape">Painel de gestão · versão ' + VERSAO_PAINEL + '</div>'; }
 var VERSAO = '';   // a do APK publicado no site (versao.json, copiado pelo publicar-site --apk)
 fetch('versao.json', { cache: 'no-store' }).then(function (r) { return r.json(); })
@@ -589,19 +610,18 @@ var Fabrica = (function () {
     var apps = []; lista.forEach(function (e) { if (apps.indexOf(e.appNome) < 0) apps.push(e.appNome); });
     var ativas = lista.filter(function (e) { return e.id && e.situacao === 'ativa'; });
     var exc = pasta && familia(pasta) === 'exclusivo';
-    var h = (pasta ? '' : '<h2>Apps da fábrica</h2>') + avisoHtml() + '<div class="grade">' +
+    var h = '<div class="grade">' +
       (exc ? k('Contrato', ativas.length ? brl(ativas.reduce(function (a, e) { return a + (+e.valorMensal || 0); }, 0)) : '—', ativas.length ? 'por mês' : 'lance em "assinatura"', 'v')
         : k('Empresas', lista.length, pasta ? lista.filter(function (e) { return e.situacao === 'teste'; }).length + ' em teste' : apps.length + ' apps') + k('Pagantes', ativas.length, lista.filter(function (e) { return e.situacao === 'teste'; }).length + ' em teste', 'v') +
           k('Receita mensal', brl(ativas.reduce(function (a, e) { return a + (+e.valorMensal || 0); }, 0)), 'soma das ativas', 'v')) +
       k('Pessoas', lista.reduce(function (a, e) { return a + (e.pessoas || []).length; }, 0), lista.reduce(function (a, e) { return a + (+e.online || 0); }, 0) + ' conectadas agora') +
       k('Assistente no mês', brl(lista.reduce(function (a, e) { return a + (+e.iaCustoMes || 0); }, 0)), lista.reduce(function (a, e) { return a + (+e.iaPedidosMes || 0); }, 0) + ' pedidos · custo') +
-      k('Bloqueadas', lista.filter(function (e) { return !e.liberada; }).length, 'teste ou pagamento vencido', lista.some(function (e) { return !e.liberada; }) ? 'r' : '') + '</div>' +
-      '<div class="sub" style="margin-top:8px">"Abrir no app" leva ao app da empresa: entre com o seu e-mail de desenvolvedor, confirme o código do autenticador e escolha <b>Ver</b> ou <b>Corrigir</b>. A empresa abre como o administrador dela vê, por 2 horas, e fica no histórico dela. <button class="lk" onclick="Fabrica.recarregar()">atualizar</button></div>' +
-      '<div class="sub">Uma linha por pessoa: ' + bola(true) + 'conectada agora (app aberto nos últimos 3 minutos) · administrador e gestor = e-mail e senha · usuário = código + PIN (o mesmo app). <b>entrar como</b>: abre o app daquela pessoa com os dados dela (usuário: só ver). 📜 registro: o que cada um fez.</div>';
+      k('Bloqueadas', lista.filter(function (e) { return !e.liberada; }).length, 'teste ou pagamento vencido', lista.some(function (e) { return !e.liberada; }) ? 'r' : '') + '</div>';
     apps.forEach(function (a) {
       var l = todos.filter(function (x) { return x[0].appNome === a; });
-      h += '<h2>' + esc(a) + ' <small style="text-transform:none;letter-spacing:0">· ' + l.length + (l.length === 1 ? ' empresa' : ' empresas') + ' · <a style="color:var(--azul)" target="_blank" rel="noopener" href="' + esc(l[0][0].url) + '" title="Com o seu login você entra na empresa de testes (sem dados de clientes)">abrir app ↗</a></small></h2>' +
-        l.map(function (x) { return linha(x[0], x[1]); }).join('');
+      if (!pasta) h += '<h2>' + esc(a) + ' <small style="text-transform:none;letter-spacing:0">· ' + l.length + (l.length === 1 ? ' empresa' : ' empresas') + ' · <a style="color:var(--azul)" target="_blank" rel="noopener" href="' + esc(l[0][0].url) + '" title="Com o seu login você entra na empresa de testes (sem dados de clientes)">abrir app ↗</a></small></h2>' +
+        '';
+      h += (pasta ? '<h2>' + (l.length === 1 ? 'Empresa' : l.length + ' empresas') + '</h2>' : '') + l.map(function (x) { return linha(x[0], x[1]); }).join('');
     });
     return h;
   }
@@ -747,7 +767,7 @@ var Fabrica = (function () {
     }).then(function () { pushEstado = 'inativo'; var el = document.getElementById('avisoPush'); if (el) el.outerHTML = avisoHtml(); });
   }
   function testarPush(b) { b.disabled = true; chamar({ op: 'push_testar' }).then(function (d) { b.disabled = false; if (!d.ok) alert(d.erro || 'não deu certo'); else if (!d.enviados) alert('Nenhum aparelho recebeu (' + (d.falhas || 0) + ' falha). Desligue e ligue de novo.'); }); }
-  return { html: html, mount: function () {}, lista: function () { return dados; }, erro: function () { return erro; }, carregar: carregarApps, entrarComo: entrarComo, abrir: abrir, assinatura: assinatura, pessoas: pessoas, ligarPush: ligarPush, desligarPush: desligarPush, testarPush: testarPush, recarregar: function () { dados = null; erro = null; desenhar(); } };
+  return { html: html, avisoPush: avisoHtml, mount: function () {}, lista: function () { return dados; }, erro: function () { return erro; }, carregar: carregarApps, entrarComo: entrarComo, abrir: abrir, assinatura: assinatura, pessoas: pessoas, ligarPush: ligarPush, desligarPush: desligarPush, testarPush: testarPush, recarregar: function () { dados = null; erro = null; desenhar(); } };
 })();
 
 // 📱 o app do cliente numa moldura de celular (a sessão já está em easyapp:sessao-suporte)
@@ -1164,6 +1184,42 @@ function appsFabrica() {
   });
   return ordem.map(function (p) { return m[p]; });
 }
+// ---------- Menu lateral (por grupos) ----------
+var CORES_APP = { financial: ['#3b82f6', '#22c55e', '#0f1420'], frota: ['#4FB393', '#E8930C', '#0E2F28'], milterras: ['#E9DCC6', '#B8925A', '#4A1019'], golden: ['#d9d9d9', '#F2B705', '#2B2B2B'] };
+function iconeApp(pasta) {
+  var c = CORES_APP[pasta] || ['#3b82f6', '#22c55e', '#1b2436'];
+  return '<span class="ic" style="background:' + c[2] + '"><i style="height:5px;background:' + c[0] + '"></i><i style="height:8px;background:' + c[0] + '"></i><i style="height:11px;background:' + c[1] + '"></i></span>';
+}
+var NOMES_FIN = { geral: 'Visão geral', pessoas: 'Pessoas e vouchers', avisos: 'Avisos dos bancos', testes: 'Testar primeiro acesso' };
+function tituloSecao() {
+  if (SECAO === 'grupo') return 'Visão do grupo';
+  if (SECAO === 'ia') return 'Assistente (IA)';
+  if (SECAO === 'celular') return 'Avisos no celular';
+  if (SECAO === 'financial') return 'Financial <small>· ' + (NOMES_FIN[ABA] || NOMES_FIN.geral) + '</small>';
+  var a = appsFabrica().filter(function (x) { return 'app:' + x.pasta === SECAO; })[0];
+  return a ? esc(a.nome.replace(/^EasyAPP\s+/i, '')) : 'App';
+}
+function acaoSecao() {
+  var a = appsFabrica().filter(function (x) { return 'app:' + x.pasta === SECAO; })[0];
+  return a && a.url ? ' <a class="mini" style="text-decoration:none;font-weight:500" target="_blank" rel="noopener" href="' + esc(a.url) + '?entrar=gestao">abrir app ↗</a>' : '';
+}
+function ladoHtml(d) {
+  if (!Fabrica.lista() && !Fabrica.erro()) setTimeout(Fabrica.carregar, 0);
+  var it = function (x, t, ic, n) { return '<a class="' + (SECAO === x ? 'on' : '') + '" onclick="trocarSecao(\'' + x + '\')">' + (ic || '') + '<span>' + t + '</span>' + (n ? '<em class="n">' + n + '</em>' : '') + '</a>'; };
+  var fab = appsFabrica(), r = d.resumo || {}, p = r.planos || {};
+  var app = function (a) { return it('app:' + a.pasta, esc(a.nome.replace(/^EasyAPP\s+/i, '')), iconeApp(a.pasta), a.bloqueadas || ''); };
+  var h = '<div class="marca"><span class="lg3" aria-hidden="true"><i></i><i></i><i></i></span>EasyAPP <em>Gestão</em></div>' +
+    '<div class="g">Grupo</div>' + it('grupo', 'Visão do grupo', '<span class="ic s">◎</span>') + it('ia', 'Assistente (IA)', '<span class="ic s">✦</span>', abertas(d.denuncias) || '') +
+    '<div class="g">Escaláveis</div>' + it('financial', 'Financial', iconeApp('financial'), p.vencido || '');
+  if (SECAO === 'financial') h += ['geral', 'pessoas', 'avisos', 'testes'].map(function (x) { return '<a class="sub' + (ABA === x ? ' on' : '') + '" onclick="trocarAba(\'' + x + '\')">' + NOMES_FIN[x] + '</a>'; }).join('');
+  h += fab.filter(function (a) { return familia(a.pasta) !== 'exclusivo'; }).map(app).join('');
+  var exc = fab.filter(function (a) { return familia(a.pasta) === 'exclusivo'; });
+  if (exc.length) h += '<div class="g">Exclusivos</div>' + exc.map(app).join('');
+  h += '<div class="g">Ajustes</div>' + it('celular', 'Avisos no celular', '<span class="ic s">🔔</span>') +
+    '<div class="pe"><button class="lk" id="at">Atualizar</button> · <button class="lk" id="sair">Sair</button><br>' +
+    'dados de ' + new Date(d.gerado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + '<br>painel ' + esc(VERSAO_PAINEL.split(' ')[0]) + (VERSAO ? ' · app ' + esc(VERSAO) : '') + '</div>';
+  return h;
+}
 function menuSecoes(d) {
   var b = function (x, t) { return '<button class="' + (SECAO === x ? 'on' : '') + '" onclick="trocarSecao(\'' + x + '\')">' + t + '</button>'; };
   if (!Fabrica.lista() && !Fabrica.erro()) setTimeout(Fabrica.carregar, 0);
@@ -1182,21 +1238,20 @@ function grupoHtml(d) {
   var tot = function (c) { return linhas.reduce(function (s, x) { return s + (+x[c] || 0); }, 0); };
   var receita = tot('receita'), ia = tot('ia');
   var a = d.api || {};
-  var h = '<h2>Grupo EasyAPP · este mês</h2><div class="grade">' +
+  var h = '<div class="grade">' +
     k('Receita mensal', brl(receita), 'todos os apps (assinaturas e contratos)', 'v') +
     k('Pagantes', tot('pagantes'), linhas.length + ' apps') +
     k('Custo do assistente', brl(ia), receita ? Math.round(ia / receita * 100) + '% da receita' : '', ia > receita * 0.3 ? 'a' : '') +
     k('Resultado', brl(receita - ia), 'receita − assistente (sem taxas)', receita - ia < 0 ? 'r' : 'v') +
     k('Crédito da IA', a.saldo != null ? usdTxt(a.saldo) : '—', a.dias != null ? 'dura uns ' + a.dias + ' dias' : 'informe em Financial › IA', a.saldo != null && (a.saldo < 3 || (a.dias != null && a.dias < 7)) ? 'r' : '') + '</div>' +
-    '<h2>Por app</h2><div class="tab"><table><thead><tr><th>App</th><th>Família</th><th class="n">Clientes</th><th class="n">Pagantes</th><th class="n">Receita/mês</th><th class="n">Pessoas</th><th class="n">Assistente</th><th>Atenção</th></tr></thead><tbody>' +
+    '<h2>Por app · este mês</h2><div class="tab"><table><thead><tr><th>App</th><th>Família</th><th class="n">Clientes</th><th class="n">Pagantes</th><th class="n">Receita/mês</th><th class="n">Pessoas</th><th class="n">Assistente</th><th>Atenção</th></tr></thead><tbody>' +
     linhas.map(function (x) {
       return '<tr style="cursor:pointer" onclick="trocarSecao(\'' + x.pasta + '\')"><td><b>' + esc(x.nome) + '</b></td><td><span style="font-size:12px;color:' + (x.fam === 'exclusivo' ? 'var(--amb)' : 'var(--azul)') + '">' + x.fam + '</span></td>' +
         '<td class="n">' + x.clientes + '<br><small style="color:var(--tx2)">' + esc(x.notaCli) + '</small></td><td class="n">' + x.pagantes + '</td><td class="n">' + brl(x.receita) + '</td>' +
         '<td class="n">' + x.pessoas + '<br><small style="color:var(--tx2)">' + esc(x.notaPes) + '</small></td><td class="n">' + brl(x.ia) + '</td>' +
         '<td style="color:' + (x.alerta ? 'var(--amb)' : 'var(--tx2)') + ';font-size:13px">' + (esc(x.alerta) || '—') + '</td></tr>';
     }).join('') + '</tbody><tfoot><tr><td><b>Total</b></td><td></td><td class="n">' + tot('clientes') + '</td><td class="n">' + tot('pagantes') + '</td><td class="n"><b>' + brl(receita) + '</b></td><td class="n">' + tot('pessoas') + '</td><td class="n">' + brl(ia) + '</td><td></td></tr></tfoot></table></div>' +
-    (carregandoFab ? '<div class="sub">Carregando os apps da fábrica…</div>' : Fabrica.erro() ? '<div class="sub" style="color:var(--verm)">Apps da fábrica: ' + esc(Fabrica.erro()) + '</div>' : '') +
-    '<div class="sub" style="margin-top:8px">Toque num app para ver as empresas e as pessoas dele. Financial: receita recorrente (MRR) e custo da IA anotado pelo app. Fábrica: valor mensal das empresas ativas (nos exclusivos, o contrato, lançado em "assinatura") e custo do assistente no mês.</div>';
+    (carregandoFab ? '<div class="sub">Carregando os apps…</div>' : Fabrica.erro() ? '<div class="sub" style="color:var(--verm)">Apps da fábrica: ' + esc(Fabrica.erro()) + '</div>' : '');
   return h;
 }
 
@@ -1206,14 +1261,15 @@ function k(rot, val, nota, cls) {
 
 function desenhar() {
   var d = DADOS, r = d.resumo, p = r.planos;
-  var aba = function (k, t) { return '<button class="' + (ABA === k ? 'on' : '') + '" onclick="trocarAba(\'' + k + '\')">' + t + '</button>'; };
-  var h = '<div class="topo"><h1><span class="lg3" aria-hidden="true"><i></i><i></i><i></i></span>EasyAPP <em>Gestão</em></h1><div><button class="lk" id="at">Atualizar</button> · <button class="lk" id="sair">Sair</button></div></div>' +
-    '<div class="sub">atualizado ' + new Date(d.gerado_em).toLocaleString('pt-BR') + (VERSAO ? ' · app no site: versão ' + esc(VERSAO) : '') + '</div>' +
-    menuSecoes(d) +
-    (SECAO === 'financial' ? '<div class="abas abas2">' + aba('geral', '📊 Visão geral') + aba('ia', '✦ IA e créditos' + (abertas(d.denuncias) ? ' <b style="color:var(--verm)">⚑ ' + abertas(d.denuncias) + '</b>' : '')) + aba('pessoas', '👥 Pessoas e vouchers') + aba('avisos', '🔔 Avisos dos bancos') + aba('testes', '🧪 Testar primeiro acesso') + '</div>' : '');
+  var h = '<div class="topo-m"><button class="lk" style="font-size:22px;color:var(--tx)" onclick="document.body.classList.add(\'menu\')" aria-label="Menu">☰</button><b style="flex:1">' + tituloSecao() + '</b>' + acaoSecao() + '</div>' +
+    '<div class="pag"><h1 class="pag-t">' + tituloSecao() + acaoSecao() + '</h1></div>';
 
   if (SECAO === 'grupo') {
     h += grupoHtml(d);
+  } else if (SECAO === 'ia') {
+    h += blocoDenuncias(d.denuncias || []) + blocoErrosIa(d.erros_ia || []) + blocoApi(d.api || {}) + blocoClientesIa(d) + blocoMotores(d.motores);
+  } else if (SECAO === 'celular') {
+    h += Fabrica.avisoPush();
   } else if (SECAO.indexOf('app:') === 0) {
     h += Fabrica.html(SECAO.slice(4));
   } else if (ABA === 'testes') {
@@ -1268,8 +1324,7 @@ function desenhar() {
       k('Resultado', brl(r.resultado_mes), 'receita líquida − custo da IA', r.resultado_mes < 0 ? 'r' : 'v') +
       '</div>' + blocoMultiplicador() + blocoMeses();
   }
-  h += rodape();
-  cx.innerHTML = h;
+  cx.innerHTML = '<div class="shell"><aside class="lado">' + ladoHtml(d) + '</aside><main class="corpo">' + h + '</main></div><div class="veu" onclick="document.body.classList.remove(\'menu\')"></div>';
   if (SECAO === 'financial' && ABA === 'testes') TestePrimeiroAcesso.mount();
   tirarAbertura();
 
