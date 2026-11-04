@@ -1,6 +1,6 @@
 {
   "name": "EasyAPP Financial",
-  "short_name": "EasyAPP",
+  "short_name": "EasyAPP Financial",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
