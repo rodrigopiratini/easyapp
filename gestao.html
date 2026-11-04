@@ -140,9 +140,9 @@
   h1 em,#abertura b em{color:#a1a1aa;font-style:normal}
   .lg3{display:inline-flex;align-items:flex-end;gap:3px;height:24px;margin-right:10px;vertical-align:-3px}
   .lg3 i{display:block;width:7px;border-radius:2px;transform-origin:bottom;animation:lgNasce .6s cubic-bezier(.34,1.56,.64,1) both,lgSobe 9s cubic-bezier(.34,1.56,.64,1) 3s infinite}
-  .lg3 i:nth-child(1){height:10px;background:#71717a;animation-delay:.05s,3.05s}
+  .lg3 i:nth-child(1){height:10px;background:#a1a1aa;animation-delay:.05s,3.05s}
   .lg3 i:nth-child(2){height:17px;background:#a1a1aa;animation-delay:.18s,3.18s}
-  .lg3 i:nth-child(3){height:24px;background:#f4f4f5;animation-delay:.31s,3.31s}
+  .lg3 i:nth-child(3){height:24px;background:#ffffff;animation-delay:.31s,3.31s}
   @keyframes lgNasce{from{transform:scaleY(0);opacity:0}to{transform:scaleY(1);opacity:1}}
   @keyframes lgSobe{0%{transform:scaleY(1)}5%{transform:scaleY(.1)}12%{transform:scaleY(1)}100%{transform:scaleY(1)}}
   @media (prefers-reduced-motion:reduce){.lg3 i{animation:none}}
@@ -218,7 +218,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.29.0 · 04/11/2026';
+var VERSAO_PAINEL = '1.29.1 · 04/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
