@@ -148,6 +148,7 @@
   .abas{display:flex;gap:6px;margin:14px 0 4px;border-bottom:1px solid var(--line);overflow-x:auto}
   .abas button{background:none;border:0;border-bottom:2px solid transparent;color:var(--tx2);padding:10px 14px;font-size:14.5px;font-weight:600;cursor:pointer;white-space:nowrap}
   .abas button.on{color:var(--tx);border-bottom-color:var(--azul)}
+  .abas2{margin-top:0}.abas2 button{font-size:13.5px;padding:8px 12px}
   /* saldo da IA: o número grande, o medidor e quanto dura */
   .heroi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:grid;grid-template-columns:1.2fr 1fr;gap:18px;align-items:center}
   .heroi .rot{font-size:12px;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
@@ -191,7 +192,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.20.1 · 03/11/2026';
+var VERSAO_PAINEL = '1.21.0 · 04/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -212,7 +213,14 @@ function tirarAbertura() {
   setTimeout(function () { a.classList.add('some'); setTimeout(function () { a.remove(); }, 500); }, Math.max(0, 2600 - (Date.now() - ABERTO_EM)));   // a logo fica um tempo na tela (pedido do Rodrigo)
 }
 var ABA = (function () { try { return localStorage.getItem('gestao:aba') || 'geral'; } catch (e) { return 'geral'; } })();
-function trocarAba(a) { TestePrimeiroAcesso.pause(); ABA = a; try { localStorage.setItem('gestao:aba', a); } catch (e) {} desenhar(); window.scrollTo(0, 0); }
+// Menu de cima: Grupo (todos os apps somados) › Financial (com as abas dele) › uma página por app da fábrica.
+// App novo na fábrica (fabrica_apps) aparece sozinho no menu, com a mesma página.
+var SECAO = (function () { try { return localStorage.getItem('gestao:secao') || 'grupo'; } catch (e) { return 'grupo'; } })();
+if (ABA === 'apps') ABA = 'geral';
+var FAMILIA = { milterras: 'exclusivo', golden: 'exclusivo' };   // apps de um cliente só (marca dele); o resto é escalável
+function familia(pasta) { return FAMILIA[pasta] || 'escalável'; }
+function trocarSecao(x) { TestePrimeiroAcesso.pause(); SECAO = x; try { localStorage.setItem('gestao:secao', x); } catch (e) {} desenhar(); window.scrollTo(0, 0); }
+function trocarAba(a) { TestePrimeiroAcesso.pause(); ABA = a; SECAO = 'financial'; try { localStorage.setItem('gestao:aba', a); localStorage.setItem('gestao:secao', 'financial'); } catch (e) {} desenhar(); window.scrollTo(0, 0); }
 function rodape() { return '<div class="rodape">Painel de gestão · versão ' + VERSAO_PAINEL + '</div>'; }
 var VERSAO = '';   // a do APK publicado no site (versao.json, copiado pelo publicar-site --apk)
 fetch('versao.json', { cache: 'no-store' }).then(function (r) { return r.json(); })
@@ -544,8 +552,8 @@ var Fabrica = (function () {
   }
   function carregarApps() {
     if (carregando) return; carregando = true; erro = null;
-    chamar({ op: 'listar' }).then(function (d) { carregando = false; if (d.erro) erro = d.erro; else dados = d.empresas || []; if (ABA === 'apps') desenhar(); })
-      .catch(function (e) { carregando = false; erro = e.message; if (ABA === 'apps') desenhar(); });
+    chamar({ op: 'listar' }).then(function (d) { carregando = false; if (d.erro) erro = d.erro; else dados = d.empresas || []; if (SECAO !== 'financial') desenhar(); })
+      .catch(function (e) { carregando = false; erro = e.message; if (SECAO !== 'financial') desenhar(); });
   }
   var bola = function (on) { return '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:0;background:' + (on ? 'var(--verde)' : '#55627a') + (on ? ';box-shadow:0 0 0 3px rgba(34,197,94,.18)' : '') + '"></span>'; };
   var PAPEL_P = { dono: 'administrador', gestor: 'gestor', usuario: 'usuário' };
@@ -565,25 +573,34 @@ var Fabrica = (function () {
       '<span class="meta">' + [venc, e.plano && e.plano !== 'teste' ? esc(e.plano) + (e.valorMensal ? ' · ' + brl(e.valorMensal) : '') : '', e.online ? '<b style="color:var(--verde)">' + e.online + ' conectado' + (e.online > 1 ? 's' : '') + '</b>' : ''].filter(Boolean).join(' · ') + '</span>' +
       '<span class="acoes"><button class="mini" onclick="Fabrica.pessoas(' + i + ')">📜 registro</button>' + '<button class="mini" onclick="Fabrica.abrir(' + i + ')" title="Abre o app e, entrando com o seu e-mail, a empresa: Plataforma › Ver / Corrigir">📱 abrir no app ↗</button>' +
       (e.id ? '<button class="mini" onclick="Fabrica.assinatura(' + i + ')">assinatura</button>' : '') + '</span></div>' +
-      (ps.map(function (p) {
+      (ps.map(function (p, j) {
+        var pode = e.id && (p.papel !== 'usuario' || p.ref);
         return '<div class="pes">' + bola(p.online) + '<span class="nm"><b>' + esc(p.nome || '—') + '</b>' + (p.codigo ? ' <small style="color:#8b95a8">código ' + esc(p.codigo) + '</small>' : '') + '</span>' +
-          '<span class="vs">' + (p.online ? '<b style="color:var(--verde)">conectado</b>' : quando(p.visto)) + '</span><span class="pp">' + esc(PAPEL_P[p.papel] || p.papel) + '</span></div>';
+          '<span class="vs">' + (p.online ? '<b style="color:var(--verde)">conectado</b>' : quando(p.visto)) + '</span><span class="pp">' + esc(PAPEL_P[p.papel] || p.papel) +
+          (pode ? ' · <button class="lk" style="font-size:12.5px;padding:0" onclick="Fabrica.entrarComo(' + i + ',' + j + ')" title="' + (p.papel === 'usuario' ? 'Abre o app dessa pessoa, com os dados dela, só para ver' : 'Abre a Gestão da empresa como o administrador vê') + '">entrar como ↗</button>' : '') + '</span></div>';
       }).join('') || '<div class="pes"><span></span><span class="pp">ninguém cadastrado</span></div>') + '</div>';
   }
-  function html() {
+  // pasta = um app só (página do app no menu); sem pasta = todos
+  function html(pasta) {
     if (!dados && !erro) { setTimeout(carregarApps, 0); return '<h2>Apps da fábrica</h2><div class="sub">Carregando…</div>'; }
     if (erro) return '<h2>Apps da fábrica</h2><div class="sub" style="color:var(--verm)">' + esc(erro) + '</div><button class="lk" onclick="Fabrica.recarregar()">tentar de novo</button>';
-    var apps = []; dados.forEach(function (e) { if (apps.indexOf(e.appNome) < 0) apps.push(e.appNome); });
-    var ativas = dados.filter(function (e) { return e.id && e.situacao === 'ativa'; });
-    var h = '<h2>Apps da fábrica</h2>' + avisoHtml() + '<div class="grade">' +
-      k('Empresas', dados.length, apps.length + ' apps') + k('Pagantes', ativas.length, dados.filter(function (e) { return e.situacao === 'teste'; }).length + ' em teste', 'v') +
-      k('Receita mensal', brl(ativas.reduce(function (a, e) { return a + (+e.valorMensal || 0); }, 0)), 'soma das ativas', 'v') +
-      k('Bloqueadas', dados.filter(function (e) { return !e.liberada; }).length, 'teste ou pagamento vencido', dados.some(function (e) { return !e.liberada; }) ? 'r' : '') + '</div>' +
+    var todos = dados.map(function (e, i) { return [e, i]; }).filter(function (x) { return !pasta || x[0].app === pasta; });
+    var lista = todos.map(function (x) { return x[0]; });
+    var apps = []; lista.forEach(function (e) { if (apps.indexOf(e.appNome) < 0) apps.push(e.appNome); });
+    var ativas = lista.filter(function (e) { return e.id && e.situacao === 'ativa'; });
+    var exc = pasta && familia(pasta) === 'exclusivo';
+    var h = (pasta ? '' : '<h2>Apps da fábrica</h2>') + avisoHtml() + '<div class="grade">' +
+      (exc ? k('Contrato', ativas.length ? brl(ativas.reduce(function (a, e) { return a + (+e.valorMensal || 0); }, 0)) : '—', ativas.length ? 'por mês' : 'lance em "assinatura"', 'v')
+        : k('Empresas', lista.length, pasta ? lista.filter(function (e) { return e.situacao === 'teste'; }).length + ' em teste' : apps.length + ' apps') + k('Pagantes', ativas.length, lista.filter(function (e) { return e.situacao === 'teste'; }).length + ' em teste', 'v') +
+          k('Receita mensal', brl(ativas.reduce(function (a, e) { return a + (+e.valorMensal || 0); }, 0)), 'soma das ativas', 'v')) +
+      k('Pessoas', lista.reduce(function (a, e) { return a + (e.pessoas || []).length; }, 0), lista.reduce(function (a, e) { return a + (+e.online || 0); }, 0) + ' conectadas agora') +
+      k('Assistente no mês', brl(lista.reduce(function (a, e) { return a + (+e.iaCustoMes || 0); }, 0)), lista.reduce(function (a, e) { return a + (+e.iaPedidosMes || 0); }, 0) + ' pedidos · custo') +
+      k('Bloqueadas', lista.filter(function (e) { return !e.liberada; }).length, 'teste ou pagamento vencido', lista.some(function (e) { return !e.liberada; }) ? 'r' : '') + '</div>' +
       '<div class="sub" style="margin-top:8px">"Abrir no app" leva ao app da empresa: entre com o seu e-mail de desenvolvedor, confirme o código do autenticador e escolha <b>Ver</b> ou <b>Corrigir</b>. A empresa abre como o administrador dela vê, por 2 horas, e fica no histórico dela. <button class="lk" onclick="Fabrica.recarregar()">atualizar</button></div>' +
-      '<div class="sub">Uma linha por pessoa: ' + bola(true) + 'conectada agora (app aberto nos últimos 3 minutos) · administrador e gestor = e-mail e senha · usuário = app de campo, código + PIN. 📜 registro: o que cada um fez.</div>';
+      '<div class="sub">Uma linha por pessoa: ' + bola(true) + 'conectada agora (app aberto nos últimos 3 minutos) · administrador e gestor = e-mail e senha · usuário = código + PIN (o mesmo app). <b>entrar como</b>: abre o app daquela pessoa com os dados dela (usuário: só ver). 📜 registro: o que cada um fez.</div>';
     apps.forEach(function (a) {
-      var l = dados.map(function (e, i) { return [e, i]; }).filter(function (x) { return x[0].appNome === a; });
-      h += '<h2>' + esc(a) + ' <small style="text-transform:none;letter-spacing:0">· ' + l.length + (l.length === 1 ? ' empresa' : ' empresas') + ' · <a style="color:var(--azul)" target="_blank" rel="noopener" href="' + esc(l[0][0].url) + '">abrir app ↗</a></small></h2>' +
+      var l = todos.filter(function (x) { return x[0].appNome === a; });
+      h += '<h2>' + esc(a) + ' <small style="text-transform:none;letter-spacing:0">· ' + l.length + (l.length === 1 ? ' empresa' : ' empresas') + ' · <a style="color:var(--azul)" target="_blank" rel="noopener" href="' + esc(l[0][0].url) + '" title="Com o seu login você entra na empresa de testes (sem dados de clientes)">abrir app ↗</a></small></h2>' +
         l.map(function (x) { return linha(x[0], x[1]); }).join('');
     });
     return h;
@@ -593,7 +610,14 @@ var Fabrica = (function () {
     var e = dados[i];
     var u = String(e.url || '');
     if (!u) return alert('Este app não tem endereço cadastrado.');
-    window.open(u + (e.id ? '#/plataforma?abrir=' + encodeURIComponent(e.id) : '#/plataforma'), '_blank', 'noopener');
+    window.open(u + '?entrar=gestao' + (e.id ? '#/plataforma?abrir=' + encodeURIComponent(e.id) : '#/plataforma'), '_blank', 'noopener');
+  }
+  // entrar como uma pessoa: administrador/gestor → a Gestão da empresa (Ver ou Corrigir);
+  // usuário (motorista, parceiro…) → o app dele, com os dados dele, só para ver. Pede o autenticador no app; fica no registro.
+  function entrarComo(i, j) {
+    var e = dados[i], p = (e.pessoas || [])[j], u = String(e.url || '');
+    if (!u || !e.id || !p) return alert('Este app não tem endereço cadastrado.');
+    window.open(u + '?entrar=gestao#/plataforma?abrir=' + encodeURIComponent(e.id) + (p.papel === 'usuario' && p.ref ? '&ver=' + encodeURIComponent(p.ref) : ''), '_blank', 'noopener');
   }
   // 👥 pessoas da empresa: quem está conectado e o registro do que cada uma fez
   var NOMES = { viagens: 'viagem', abastecimentos: 'abastecimento', despesas: 'despesa', recebimentos: 'recebimento', veiculos: 'caminhão', motoristas: 'motorista',
@@ -723,7 +747,7 @@ var Fabrica = (function () {
     }).then(function () { pushEstado = 'inativo'; var el = document.getElementById('avisoPush'); if (el) el.outerHTML = avisoHtml(); });
   }
   function testarPush(b) { b.disabled = true; chamar({ op: 'push_testar' }).then(function (d) { b.disabled = false; if (!d.ok) alert(d.erro || 'não deu certo'); else if (!d.enviados) alert('Nenhum aparelho recebeu (' + (d.falhas || 0) + ' falha). Desligue e ligue de novo.'); }); }
-  return { html: html, mount: function () {}, abrir: abrir, assinatura: assinatura, pessoas: pessoas, ligarPush: ligarPush, desligarPush: desligarPush, testarPush: testarPush, recarregar: function () { dados = null; erro = null; desenhar(); } };
+  return { html: html, mount: function () {}, lista: function () { return dados; }, erro: function () { return erro; }, carregar: carregarApps, entrarComo: entrarComo, abrir: abrir, assinatura: assinatura, pessoas: pessoas, ligarPush: ligarPush, desligarPush: desligarPush, testarPush: testarPush, recarregar: function () { dados = null; erro = null; desenhar(); } };
 })();
 
 // 📱 o app do cliente numa moldura de celular (a sessão já está em easyapp:sessao-suporte)
@@ -1126,6 +1150,56 @@ function blocoAvisos(L) {
   return h;
 }
 
+// ---------- Grupo EasyAPP: todos os apps somados ----------
+function appsFabrica() {
+  var l = Fabrica.lista() || [], m = {}, ordem = [];
+  l.forEach(function (e) {
+    if (!m[e.app]) { m[e.app] = { pasta: e.app, nome: e.appNome, url: e.url, empresas: 0, pagantes: 0, teste: 0, receita: 0, pessoas: 0, online: 0, nunca: 0, ia: 0, pedidos: 0, bloqueadas: 0 }; ordem.push(e.app); }
+    var a = m[e.app];
+    a.empresas++; if (e.situacao === 'ativa') { a.pagantes++; a.receita += +e.valorMensal || 0; } if (e.situacao === 'teste') a.teste++;
+    if (!e.liberada) a.bloqueadas++;
+    a.pessoas += (e.pessoas || []).length; a.online += +e.online || 0;
+    a.nunca += (e.pessoas || []).filter(function (p) { return !p.visto; }).length;
+    a.ia += +e.iaCustoMes || 0; a.pedidos += +e.iaPedidosMes || 0;
+  });
+  return ordem.map(function (p) { return m[p]; });
+}
+function menuSecoes(d) {
+  var b = function (x, t) { return '<button class="' + (SECAO === x ? 'on' : '') + '" onclick="trocarSecao(\'' + x + '\')">' + t + '</button>'; };
+  if (!Fabrica.lista() && !Fabrica.erro()) setTimeout(Fabrica.carregar, 0);
+  return '<div class="abas">' + b('grupo', '🏠 Grupo') + b('financial', 'Financial') +
+    appsFabrica().map(function (a) { return b('app:' + a.pasta, esc(a.nome.replace(/^EasyAPP\s+/i, '')) + (a.bloqueadas ? ' <b style="color:var(--verm)">' + a.bloqueadas + '</b>' : '')); }).join('') + '</div>';
+}
+function grupoHtml(d) {
+  var r = d.resumo, p = r.planos, fab = appsFabrica(), carregandoFab = !Fabrica.lista() && !Fabrica.erro();
+  var linhas = [{ pasta: 'financial', nome: 'EasyAPP Financial', fam: 'escalável', clientes: r.inscritos, notaCli: 'inscritos', pagantes: r.pagantes, receita: +r.mrr || 0,
+      pessoas: r.ativos_7d, notaPes: 'ativos em 7 dias', ia: +r.ia_custo_mes_brl || 0, alerta: [p.vencido ? p.vencido + ' vencidos' : '', r.pagamentos_recusados_30d ? r.pagamentos_recusados_30d + ' recusados' : '', abertas(d.denuncias) ? abertas(d.denuncias) + ' respostas sinalizadas' : ''].filter(Boolean).join(' · ') }]
+    .concat(fab.map(function (a) {
+      var exc = familia(a.pasta) === 'exclusivo';
+      return { pasta: 'app:' + a.pasta, nome: a.nome, fam: familia(a.pasta), clientes: a.empresas, notaCli: exc ? 'cliente' : a.teste + ' em teste', pagantes: a.pagantes, receita: a.receita,
+        pessoas: a.pessoas, notaPes: a.online + ' agora', ia: a.ia, alerta: [a.bloqueadas ? a.bloqueadas + ' bloqueada' + (a.bloqueadas > 1 ? 's' : '') : '', exc && a.nunca ? a.nunca + ' nunca entraram' : '', exc && !a.receita ? 'contrato sem valor' : ''].filter(Boolean).join(' · ') };
+    }));
+  var tot = function (c) { return linhas.reduce(function (s, x) { return s + (+x[c] || 0); }, 0); };
+  var receita = tot('receita'), ia = tot('ia');
+  var a = d.api || {};
+  var h = '<h2>Grupo EasyAPP · este mês</h2><div class="grade">' +
+    k('Receita mensal', brl(receita), 'todos os apps (assinaturas e contratos)', 'v') +
+    k('Pagantes', tot('pagantes'), linhas.length + ' apps') +
+    k('Custo do assistente', brl(ia), receita ? Math.round(ia / receita * 100) + '% da receita' : '', ia > receita * 0.3 ? 'a' : '') +
+    k('Resultado', brl(receita - ia), 'receita − assistente (sem taxas)', receita - ia < 0 ? 'r' : 'v') +
+    k('Crédito da IA', a.saldo != null ? usdTxt(a.saldo) : '—', a.dias != null ? 'dura uns ' + a.dias + ' dias' : 'informe em Financial › IA', a.saldo != null && (a.saldo < 3 || (a.dias != null && a.dias < 7)) ? 'r' : '') + '</div>' +
+    '<h2>Por app</h2><div class="tab"><table><thead><tr><th>App</th><th>Família</th><th class="n">Clientes</th><th class="n">Pagantes</th><th class="n">Receita/mês</th><th class="n">Pessoas</th><th class="n">Assistente</th><th>Atenção</th></tr></thead><tbody>' +
+    linhas.map(function (x) {
+      return '<tr style="cursor:pointer" onclick="trocarSecao(\'' + x.pasta + '\')"><td><b>' + esc(x.nome) + '</b></td><td><span style="font-size:12px;color:' + (x.fam === 'exclusivo' ? 'var(--amb)' : 'var(--azul)') + '">' + x.fam + '</span></td>' +
+        '<td class="n">' + x.clientes + '<br><small style="color:var(--tx2)">' + esc(x.notaCli) + '</small></td><td class="n">' + x.pagantes + '</td><td class="n">' + brl(x.receita) + '</td>' +
+        '<td class="n">' + x.pessoas + '<br><small style="color:var(--tx2)">' + esc(x.notaPes) + '</small></td><td class="n">' + brl(x.ia) + '</td>' +
+        '<td style="color:' + (x.alerta ? 'var(--amb)' : 'var(--tx2)') + ';font-size:13px">' + (esc(x.alerta) || '—') + '</td></tr>';
+    }).join('') + '</tbody><tfoot><tr><td><b>Total</b></td><td></td><td class="n">' + tot('clientes') + '</td><td class="n">' + tot('pagantes') + '</td><td class="n"><b>' + brl(receita) + '</b></td><td class="n">' + tot('pessoas') + '</td><td class="n">' + brl(ia) + '</td><td></td></tr></tfoot></table></div>' +
+    (carregandoFab ? '<div class="sub">Carregando os apps da fábrica…</div>' : Fabrica.erro() ? '<div class="sub" style="color:var(--verm)">Apps da fábrica: ' + esc(Fabrica.erro()) + '</div>' : '') +
+    '<div class="sub" style="margin-top:8px">Toque num app para ver as empresas e as pessoas dele. Financial: receita recorrente (MRR) e custo da IA anotado pelo app. Fábrica: valor mensal das empresas ativas (nos exclusivos, o contrato, lançado em "assinatura") e custo do assistente no mês.</div>';
+  return h;
+}
+
 function k(rot, val, nota, cls) {
   return '<div class="k ' + (cls || '') + '"><span>' + rot + '</span><b>' + val + '</b>' + (nota ? '<small>' + nota + '</small>' : '') + '</div>';
 }
@@ -1135,10 +1209,13 @@ function desenhar() {
   var aba = function (k, t) { return '<button class="' + (ABA === k ? 'on' : '') + '" onclick="trocarAba(\'' + k + '\')">' + t + '</button>'; };
   var h = '<div class="topo"><h1><span class="lg3" aria-hidden="true"><i></i><i></i><i></i></span>EasyAPP <em>Gestão</em></h1><div><button class="lk" id="at">Atualizar</button> · <button class="lk" id="sair">Sair</button></div></div>' +
     '<div class="sub">atualizado ' + new Date(d.gerado_em).toLocaleString('pt-BR') + (VERSAO ? ' · app no site: versão ' + esc(VERSAO) : '') + '</div>' +
-    '<div class="abas">' + aba('geral', '📊 Visão geral') + aba('ia', '✦ IA e créditos' + (abertas(d.denuncias) ? ' <b style="color:var(--verm)">⚑ ' + abertas(d.denuncias) + '</b>' : '')) + aba('pessoas', '👥 Pessoas e vouchers') + aba('avisos', '🔔 Avisos dos bancos') + aba('testes', '🧪 Testar primeiro acesso') + aba('apps', '🧩 Apps da fábrica') + '</div>';
+    menuSecoes(d) +
+    (SECAO === 'financial' ? '<div class="abas abas2">' + aba('geral', '📊 Visão geral') + aba('ia', '✦ IA e créditos' + (abertas(d.denuncias) ? ' <b style="color:var(--verm)">⚑ ' + abertas(d.denuncias) + '</b>' : '')) + aba('pessoas', '👥 Pessoas e vouchers') + aba('avisos', '🔔 Avisos dos bancos') + aba('testes', '🧪 Testar primeiro acesso') + '</div>' : '');
 
-  if (ABA === 'apps') {
-    h += Fabrica.html();
+  if (SECAO === 'grupo') {
+    h += grupoHtml(d);
+  } else if (SECAO.indexOf('app:') === 0) {
+    h += Fabrica.html(SECAO.slice(4));
   } else if (ABA === 'testes') {
     h += TestePrimeiroAcesso.html();
   } else if (ABA === 'avisos') {
@@ -1193,8 +1270,7 @@ function desenhar() {
   }
   h += rodape();
   cx.innerHTML = h;
-  if (ABA === 'testes') TestePrimeiroAcesso.mount();
-  if (ABA === 'apps') Fabrica.mount();
+  if (SECAO === 'financial' && ABA === 'testes') TestePrimeiroAcesso.mount();
   tirarAbertura();
 
   document.getElementById('at').onclick = carregar;
