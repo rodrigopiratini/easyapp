@@ -217,7 +217,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.28.0 · 04/11/2026';
+var VERSAO_PAINEL = '1.28.1 · 04/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -1220,8 +1220,8 @@ function linksApps(so) {
   if (!so || so === 'financial') l.push({ pasta: 'financial', nome: 'EasyAPP Financial', itens: [
     ['Página de download (Android e iPhone)', 'https://easyappfinancial.com.br/#testar'],
     ['App (celular e computador)', 'https://easyappfinancial.com.br/app/'],
-    // ?v= novo a cada dia: o celular não reaproveita um APK velho guardado
-    ['Android: instalar pelo APK', 'https://easyappfinancial.com.br/EasyAPP-Financial.apk?v=' + new Date().toISOString().slice(0, 10).replace(/-/g, '')]] });
+    // ?v= novo a cada abertura do painel: o celular não reaproveita um APK velho guardado (nem do mesmo dia)
+    ['Android: instalar pelo APK', 'https://easyappfinancial.com.br/EasyAPP-Financial.apk?v=' + Date.now().toString(36)]] });
   appsFabrica().forEach(function (a) {
     if (so && so !== a.pasta) return;
     var u = String(a.url || '').split('?')[0].split('#')[0]; if (!u) return;
