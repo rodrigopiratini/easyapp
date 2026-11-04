@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.73.3 \u00b7 04/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.73.4 \u00b7 04/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -17365,17 +17365,10 @@ function bancosCarregar(){
     var sal={}; r[1].forEach(function(x){ sal[x.conta_id]=Number(x.saldo)||0; });
     r[0].forEach(function(c){ c.saldo=sal[c.id]; c.of=!!c.pluggy_account_id; });
     ST.bancos=r[0];
-    // cartão com vencimento e sem fechamento: grava o fechamento calculado
-    var semFecha=ST.bancos.filter(function(c){ return c.tipo==='CARTAO' && !c.fechamento && fechamentoPeloVencimento(c.vencimento); });
-    if(semFecha.length){
-      Promise.all(semFecha.map(function(c){
-        c.fechamento=fechamentoPeloVencimento(c.vencimento);
-        return ponteRest('/rest/v1/contas?id=eq.'+c.id, { metodo:'PATCH', corpo:{ fechamento:c.fechamento }, prefer:'return=minimal' });
-      })).then(function(){
-        ST.cacheMes={}; ST.extras=null; ST.saldos=null;
-        google.script.run.withSuccessHandler(function(){ carregar(ST.mes, true); }).withFailureHandler(function(){}).apiLimparCache();
-      }).catch(function(){});
-    }
+    /* (04/11) Não grava mais o fechamento calculado pelo vencimento sozinho: com
+       o dia de fechamento no cartão o banco MOVE as compras para o mês da
+       fatura dele (061), e isso trocava as faturas de lugar sem a pessoa pedir.
+       Cartão sem o dia de fechamento segue o dia do Ajustes, como sempre. */
     // pendências de vínculo: só as contas novas que ainda existem e ainda têm manual parecida
     var vivas={}; ST.bancos.forEach(function(c){ vivas[c.id]=c; });
     ofNovasGravar(ofNovasLer().filter(function(x){ return vivas[x.id]; }));
@@ -17562,7 +17555,7 @@ function cartaoForm(c){
         '<datalist id="bkLista">'+BANCOS_LISTA.map(function(b){ return '<option value="'+b+'">'; }).join('')+'</datalist></div>'+
       '<div class="fm-c"><span>Final do cartão</span><input id="ckFinal" inputmode="numeric" maxlength="4" placeholder="1234" value="'+tx(c.final||'')+'"'+(of?' disabled':'')+'></div>'+
       '<div class="fm-c"><span>Fatura fecha dia</span><input id="ckFecha" inputmode="numeric" maxlength="2" placeholder="ex.: 28" value="'+(c.fechamento||'')+'"></div>'+
-      '<div class="fm-c"><span>Vence dia</span><input id="ckVence" inputmode="numeric" maxlength="2" placeholder="ex.: 5" oninput="var f=el(\'ckFecha\'),d=fechamentoPeloVencimento(this.value.replace(/\\D/g,\'\'));if(f)f.placeholder=d?\'dia \'+d+\' (calculado)\':\'ex.: 28\'" value="'+(c.vencimento||'')+'"></div>'+
+      '<div class="fm-c"><span>Vence dia</span><input id="ckVence" inputmode="numeric" maxlength="2" placeholder="ex.: 5" value="'+(c.vencimento||'')+'"></div>'+
       '<div class="fm-c"><span>Limite</span><input id="ckLimite" inputmode="decimal" placeholder="0,00" oninput="mascaraMoeda(this)" value="'+(c.limite?num(c.limite):'')+'"></div>'+
       '<div class="fm-c fm-full"><span>Paga pela conta</span>'+
         botaoEscolha('ckConta', c.conta_pagamento||'', 'escolher a conta corrente…', 'conta', contasCorrentesItens(), '')+'</div>'+
@@ -17583,8 +17576,7 @@ function cartaoSalvar(id){
   if(vence!==null && (vence<1||vence>31)){ toast('O dia do vencimento vai de 1 a 31'); return; }
   if(!banco){ toast('Diga o banco do cartão'); el('ckBanco').focus(); return; }
   if(fecha!==null && (fecha<1||fecha>31)){ toast('O dia do fechamento vai de 1 a 31'); return; }
-  var fechaCalc=false;
-  if(fecha===null && vence!==null){ fecha=fechamentoPeloVencimento(vence); fechaCalc=true; }
+  var fechaCalc=false;   // o fechamento só entra se a pessoa digitar (04/11)
   // fechamento e vencimento: o banco refaz o mês da fatura das compras deste cartão (061)
   var dados={ instituicao:banco, titular:tit, final:fim||null, fechamento:fecha, vencimento:vence, limite:lim, bandeira:band, conta_pagamento:conta };
   var feito;
