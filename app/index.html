@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.73.4 \u00b7 04/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.73.5 \u00b7 05/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -12450,7 +12450,8 @@ function blocoIgnorados(){
       ST.ignorados=(l||[]).filter(function(x){
         var o=String((x.dados||{}).obs||'');
         if(x.origem==='ESPELHO'||x.origem==='RATEIO'||/PAGAMENTO DA FATURA \(lado do cart|distribu[ií]do em|outro lado de/i.test(o)) return false;
-        return (x.dados||{}).ignorado_em || /^(PUSH|MANUAL|EMAIL)$/.test(x.origem||'');
+        // o pendente que o Open Finance deu por "não confirmado" também volta por aqui (05/11)
+        return (x.dados||{}).ignorado_em || /^(PUSH|MANUAL|EMAIL)$/.test(x.origem||'') || /^pendente que o banco n/.test(o);
       });
       if(ST.telaAtual==='pendentes') renderPendentes();
     }).catch(function(){ ST.ignorados=[]; });
