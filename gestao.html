@@ -213,7 +213,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.22.0 · 04/11/2026';
+var VERSAO_PAINEL = '1.23.0 · 04/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -592,13 +592,14 @@ var Fabrica = (function () {
     return '<div class="emp"><div class="emp-cab"><span class="nm">' + esc(e.nome) + '</span>' +
       '<span style="color:' + (e.liberada ? s[1] : 'var(--verm)') + ';font-size:13px">' + s[0] + (e.liberada ? '' : ' (bloqueada)') + '</span>' +
       '<span class="meta">' + [venc, e.plano && e.plano !== 'teste' ? esc(e.plano) + (e.valorMensal ? ' · ' + brl(e.valorMensal) : '') : '', e.online ? '<b style="color:var(--verde)">' + e.online + ' conectado' + (e.online > 1 ? 's' : '') + '</b>' : ''].filter(Boolean).join(' · ') + '</span>' +
-      '<span class="acoes"><button class="mini" onclick="Fabrica.pessoas(' + i + ')">📜 registro</button>' + '<button class="mini" onclick="Fabrica.abrir(' + i + ')" title="Abre o app e, entrando com o seu e-mail, a empresa: Plataforma › Ver / Corrigir">📱 abrir no app ↗</button>' +
+      '<span class="acoes"><button class="mini" onclick="Fabrica.pessoas(' + i + ')">📜 registro</button>' + '<button class="mini" onclick="Fabrica.abrir(' + i + ',this)">📱 abrir no app ↗</button>' +
       (e.id ? '<button class="mini" onclick="Fabrica.assinatura(' + i + ')">assinatura</button>' : '') + '</span></div>' +
       (ps.map(function (p, j) {
         var pode = e.id && (p.papel !== 'usuario' || p.ref);
         return '<div class="pes">' + bola(p.online) + '<span class="nm"><b>' + esc(p.nome || '—') + '</b>' + (p.codigo ? ' <small style="color:#8b95a8">código ' + esc(p.codigo) + '</small>' : '') + '</span>' +
           '<span class="vs">' + (p.online ? '<b style="color:var(--verde)">conectado</b>' : quando(p.visto)) + '</span><span class="pp">' + esc(PAPEL_P[p.papel] || p.papel) +
-          (pode ? ' · <button class="lk" style="font-size:12.5px;padding:0" onclick="Fabrica.entrarComo(' + i + ',' + j + ')" title="' + (p.papel === 'usuario' ? 'Abre o app dessa pessoa, com os dados dela, só para ver' : 'Abre a Gestão da empresa como o administrador vê') + '">entrar como ↗</button>' : '') + '</span></div>';
+          (pode ? (p.papel === 'usuario' ? ' · <button class="lk" style="font-size:12.5px;padding:0" onclick="Fabrica.entrarComo(' + i + ',' + j + ',\'leitura\',this)">entrar como ↗</button>'
+            : ' · <button class="lk" style="font-size:12.5px;padding:0" onclick="Fabrica.entrarComo(' + i + ',' + j + ',\'leitura\',this)">ver ↗</button> · <button class="lk" style="font-size:12.5px;padding:0;color:var(--amb)" onclick="Fabrica.entrarComo(' + i + ',' + j + ',\'edicao\',this)">corrigir ↗</button>') : '') + '</span></div>';
       }).join('') || '<div class="pes"><span></span><span class="pp">ninguém cadastrado</span></div>') + '</div>';
   }
   // pasta = um app só (página do app no menu); sem pasta = todos
@@ -626,18 +627,27 @@ var Fabrica = (function () {
     return h;
   }
   // o suporte é feito no próprio app (Plataforma › Ver / Corrigir), com o login do administrador
-  function abrir(i) {
+  function abrir(i, b) {
+    if (dados[i].id) return entrarComo(i, null, 'leitura', b);
     var e = dados[i];
     var u = String(e.url || '');
     if (!u) return alert('Este app não tem endereço cadastrado.');
     window.open(u + '?entrar=gestao' + (e.id ? '#/plataforma?abrir=' + encodeURIComponent(e.id) : '#/plataforma'), '_blank', 'noopener');
   }
-  // entrar como uma pessoa: administrador/gestor → a Gestão da empresa (Ver ou Corrigir);
-  // usuário (motorista, parceiro…) → o app dele, com os dados dele, só para ver. Pede o autenticador no app; fica no registro.
-  function entrarComo(i, j) {
-    var e = dados[i], p = (e.pessoas || [])[j], u = String(e.url || '');
-    if (!u || !e.id || !p) return alert('Este app não tem endereço cadastrado.');
-    window.open(u + '?entrar=gestao#/plataforma?abrir=' + encodeURIComponent(e.id) + (p.papel === 'usuario' && p.ref ? '&ver=' + encodeURIComponent(p.ref) : ''), '_blank', 'noopener');
+  // entrar como uma pessoa, direto, sem pedir login no app: a função gestao-fabrica abre a visita de suporte (2 h, no
+  // registro da empresa) com a sua conta de desenvolvedor e devolve o endereço já com a sessão.
+  // usuário (motorista, parceiro…) → o app dele, com os dados dele, só ver; administrador/gestor → a Gestão (ver ou corrigir).
+  function entrarComo(i, j, modo, b) {
+    var e = dados[i], p = j == null ? null : (e.pessoas || [])[j];
+    if (!e.id) return alert('Esta empresa ainda não tem cadastro no app.');
+    if (modo === 'edicao' && !confirm('Abrir ' + e.nome + ' para ver e corrigir? O que você mudar fica na conta do cliente.')) return;
+    var w = window.open('', '_blank');   // abre já (no toque), senão o navegador bloqueia a janela
+    var orig = b ? b.textContent : ''; if (b) { b.disabled = true; b.textContent = 'abrindo…'; }
+    chamar({ op: 'entrar_como', pasta: e.app, empresa: e.id, ref: p && p.papel === 'usuario' ? p.ref : null, modo: modo || 'leitura' }).then(function (d) {
+      if (b) { b.disabled = false; b.textContent = orig; }
+      if (!d.ok) { if (w) w.close(); return alert(d.erro || 'não deu certo'); }
+      if (w) w.location.href = d.url; else location.href = d.url;
+    }).catch(function (x) { if (b) { b.disabled = false; b.textContent = orig; } if (w) w.close(); alert(x.message); });
   }
   // 👥 pessoas da empresa: quem está conectado e o registro do que cada uma fez
   var NOMES = { viagens: 'viagem', abastecimentos: 'abastecimento', despesas: 'despesa', recebimentos: 'recebimento', veiculos: 'caminhão', motoristas: 'motorista',
