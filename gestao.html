@@ -217,7 +217,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.27.0 · 04/11/2026';
+var VERSAO_PAINEL = '1.28.0 · 04/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -1234,11 +1234,21 @@ function linksApps(so) {
     return '<div class="emp"><div class="emp-cab"><span class="nm" style="display:flex;align-items:center;gap:8px">' + iconeApp(a.pasta) + esc(a.nome) + '</span></div>' +
       a.itens.map(function (x) {
         var msg = 'Baixe o app ' + a.nome + ':\n' + x[1] + '\n\nAndroid: abra no Chrome › ⋮ › Instalar app\niPhone: abra no Safari › Compartilhar › Adicionar à Tela de Início';
-        return '<div class="lnk"><div style="min-width:0"><div class="t">' + esc(x[0]) + '</div><div class="u">' + esc(x[1]) + '</div></div>' +
-          '<span class="acoes"><button class="mini" onclick="copiar(\'' + esc(x[1]) + '\');this.textContent=\'copiado ✓\'">copiar</button>' +
+        return '<div class="lnk"><div style="min-width:0"><div class="t">' + esc(x[0]) + '</div><a class="u" style="display:block;color:var(--azul);text-decoration:none" target="_blank" rel="noopener" href="' + esc(x[1]) + '">' + esc(x[1]) + '</a></div>' +
+          '<span class="acoes"><a class="mini" style="text-decoration:none" target="_blank" rel="noopener" href="' + esc(x[1]) + '">abrir ↗</a><button class="mini" onclick="copiar(\'' + esc(x[1]) + '\');this.textContent=\'copiado ✓\'">copiar</button>' +
           '<a class="mini zap" style="text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(msg) + '">WhatsApp</a></span></div>';
       }).join('') + '</div>';
   }).join('');
+}
+// Nome e endereço que o Google mostra no "Continuar com o Google" (vêm do Google Cloud, não do app)
+function googleLogin() {
+  var l = [['Nome e logo na tela do Google (Branding › App name: EasyAPP Financial)', 'https://console.cloud.google.com/auth/branding'],
+    ['Endereços liberados do login (Clients › Origens JavaScript: https://easyappfinancial.com.br)', 'https://console.cloud.google.com/auth/clients'],
+    ['Verificar a marca no Google (some o endereço estranho e aparece o nome)', 'https://console.cloud.google.com/auth/verification']];
+  return '<h2>Login com o Google</h2><div class="emp">' + l.map(function (x) {
+    return '<div class="lnk"><div style="min-width:0"><div class="t">' + esc(x[0]) + '</div><a class="u" style="display:block;color:var(--azul);text-decoration:none" target="_blank" rel="noopener" href="' + esc(x[1]) + '">' + esc(x[1]) + '</a></div>' +
+      '<span class="acoes"><a class="mini" style="text-decoration:none" target="_blank" rel="noopener" href="' + esc(x[1]) + '">abrir ↗</a></span></div>';
+  }).join('') + '</div>';
 }
 function tituloSecao() {
   if (SECAO === 'links') return 'Links para instalar';
@@ -1325,7 +1335,7 @@ function desenhar() {
   } else if (SECAO.indexOf('app:') === 0) {
     h += Fabrica.html(SECAO.slice(4)) + '<h2>Links para instalar</h2>' + linksApps(SECAO.slice(4));
   } else if (ABA === 'links') {
-    h += linksApps('financial');
+    h += linksApps('financial') + googleLogin();
   } else if (ABA === 'testes') {
     h += TestePrimeiroAcesso.html();
   } else if (ABA === 'avisos') {

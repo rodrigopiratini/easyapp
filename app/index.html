@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.71.2 \u00b7 01/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.72.0 \u00b7 04/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -6630,7 +6630,25 @@ window.pedirTexto = function (o, feito) {
     for (var i = 0; i < bytes.length; i++) t += String.fromCharCode(bytes[i]);
     return btoa(t).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
+  /* No app instalado (APK/iPhone) o Google abre pela nossa página
+     easyappfinancial.com.br/entrar-google.html (o mesmo botão oficial do
+     navegador), para a janela do Google dizer o nosso endereço e não o do
+     Supabase. A página devolve o id_token por br.com.easyapp.financial://login?gis=
+     e aqui ele vira sessão com o nonce, que fica só no aparelho. */
+  var SITE_GOOGLE = 'https://easyappfinancial.com.br/entrar-google.html';
   function entrarComGoogle() {
+    if (!NATIVO) return entrarComGooglePkce();
+    var r = new Uint8Array(24); crypto.getRandomValues(r);
+    var nonce = b64url(r);
+    try { localStorage.setItem('easyapp:gisnonce', nonce); } catch (e) {}
+    msg('abrindo o Google...', true);
+    crypto.subtle.digest('SHA-256', new TextEncoder().encode(nonce)).then(function (h) {
+      var hex = Array.prototype.map.call(new Uint8Array(h), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+      var url = SITE_GOOGLE + '?n=' + hex;
+      window.Capacitor.nativePromise('Browser', 'open', { url: url }).catch(function () { entrarComGooglePkce(); });
+    }).catch(function () { entrarComGooglePkce(); });
+  }
+  function entrarComGooglePkce() {
     var r = new Uint8Array(32); crypto.getRandomValues(r);
     var v = b64url(r);
     try { localStorage.setItem('easyapp:pkce', v); } catch (e) {}
@@ -6652,6 +6670,20 @@ window.pedirTexto = function (o, feito) {
     });
     if (q.error_description || q.error) {
       caixa.hidden = false; ir('entrar', 'não deu para entrar com o Google: ' + (q.error_description || q.error)); return true;
+    }
+    if (q.gis) {
+      var nn = null; try { nn = localStorage.getItem('easyapp:gisnonce'); } catch (e) {}
+      if (!nn) return false;
+      caixa.hidden = false; ir('entrar'); msg('entrando com o Google...', true); ocupado(true);
+      fetch(CFG.url + '/auth/v1/token?grant_type=id_token', {
+        method: 'POST', headers: { 'apikey': CFG.anon, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'google', id_token: q.gis, nonce: nn })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        try { localStorage.removeItem('easyapp:gisnonce'); } catch (e) {}
+        if (!d.access_token) throw new Error(d.error_description || d.msg || d.message || 'o Google não confirmou');
+        P.usarSessao(d); ocupado(false); entrou();
+      }).catch(function (x) { ocupado(false); msg('não deu para entrar com o Google: ' + x.message); });
+      return true;
     }
     if (!q.code) return false;
     var v = null; try { v = localStorage.getItem('easyapp:pkce'); } catch (e) {}
