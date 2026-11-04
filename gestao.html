@@ -213,7 +213,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.23.0 · 04/11/2026';
+var VERSAO_PAINEL = '1.24.0 · 04/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -777,6 +777,13 @@ var Fabrica = (function () {
     }).then(function () { pushEstado = 'inativo'; var el = document.getElementById('avisoPush'); if (el) el.outerHTML = avisoHtml(); });
   }
   function testarPush(b) { b.disabled = true; chamar({ op: 'push_testar' }).then(function (d) { b.disabled = false; if (!d.ok) alert(d.erro || 'não deu certo'); else if (!d.enviados) alert('Nenhum aparelho recebeu (' + (d.falhas || 0) + ' falha). Desligue e ligue de novo.'); }); }
+  // a bolinha de "conectado": relê a lista a cada 20 s enquanto o painel está aberto numa página da fábrica (e ao voltar para ele)
+  function atualizarSozinho() {
+    if (!dados || carregando || SECAO === 'financial' || document.visibilityState !== 'visible' || document.querySelector('.fundo')) return;
+    chamar({ op: 'listar' }).then(function (d) { if (d.empresas) { dados = d.empresas; if (SECAO !== 'financial' && !document.querySelector('.fundo')) desenhar(); } }).catch(function () {});
+  }
+  setInterval(atualizarSozinho, 20000);
+  document.addEventListener('visibilitychange', atualizarSozinho);
   return { html: html, avisoPush: avisoHtml, mount: function () {}, lista: function () { return dados; }, erro: function () { return erro; }, carregar: carregarApps, entrarComo: entrarComo, abrir: abrir, assinatura: assinatura, pessoas: pessoas, ligarPush: ligarPush, desligarPush: desligarPush, testarPush: testarPush, recarregar: function () { dados = null; erro = null; desenhar(); } };
 })();
 
