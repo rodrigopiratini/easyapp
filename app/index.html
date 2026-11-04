@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.72.2 \u00b7 04/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.73.0 \u00b7 04/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -13372,18 +13372,18 @@ function linhaArv(d, nat){
   return '<div class="ma-G ma-ln" onclick="abrirComposicao('+cj+',\''+nat+'\')">'+
       '<i class="ma-pt"></i>'+
       '<div class="ma-nm"><b>'+tx(nome)+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</div>'+
-      '<div class="ma-c">'+num(real)+'</div><div class="ma-c ma-dim">'+num(prev)+'</div>'+
+      '<div class="ma-c ma-dim">'+num(prev)+'</div><div class="ma-c">'+num(real)+'</div>'+
       '<div class="ma-c">'+maSaldo(prev, real, rec)+'</div>'+maBarra(prev, real, rec)+'</div>'+
     (ST.reprog===d.categoria && ST.reprogOnde==='linha' ? painelReprog({categoria:d.categoria, falta:d.saldo}) : '');
 }
 function maCab(rot){
-  return '<div class="ma-G ma-th"><span>'+rot+'</span><span>'+(rot==='Entrada'?'Entrou':'Gasto')+'</span><span>Previsto</span><span>Saldo</span></div>';
+  return '<div class="ma-G ma-th"><span>'+rot+'</span><span>Previsto</span><span>'+(rot==='Entrada'?'Entrou':'Gasto')+'</span><span>Saldo</span></div>';
 }
 function maResumo(prev, real, rec){
   var d=real-prev;
-  if(rec) return '<div class="ma-res"><div><small>entrou</small><b>'+moeda(real)+'</b></div><div><small>previsto</small><b>'+moeda(prev)+'</b></div>'+
+  if(rec) return '<div class="ma-res"><div><small>previsto</small><b>'+moeda(prev)+'</b></div><div><small>entrou</small><b>'+moeda(real)+'</b></div>'+
     '<div><small>'+(d<-0.005?'falta entrar':'a mais')+'</small><b class="'+(d<-0.005?'':'pos')+'">'+moeda(Math.abs(d))+'</b></div></div>';
-  return '<div class="ma-res"><div><small>gasto</small><b>'+moeda(real)+'</b></div><div><small>previsto</small><b>'+moeda(prev)+'</b></div>'+
+  return '<div class="ma-res"><div><small>previsto</small><b>'+moeda(prev)+'</b></div><div><small>gasto</small><b>'+moeda(real)+'</b></div>'+
     '<div><small>'+(d>0.005?'passou':'sobra')+'</small><b class="'+(d>0.005?'neg':'pos')+'">'+moeda(Math.abs(d))+'</b></div></div>';
 }
 /* Despesas e entradas no mesmo desenho; a busca do topo filtra as duas.
@@ -13414,7 +13414,7 @@ function arvoreMes(lista, nat, q, bate){
         '<span class="ma-ic" style="background:'+cor(g)+'">'+iconeCat(g)+'</span>'+
         '<span class="ma-gn">'+tx(nomeBonito(g))+'<small>'+it.length+(it.length===1?' conta':' contas')+'</small></span>'+
         '<span class="ma-seta">&#9662;</span></div>'+
-        '<div class="ma-c">'+num(r)+'</div><div class="ma-c ma-dim">'+num(p)+'</div><div class="ma-c">'+maSaldo(p, r, rec)+'</div></div>'+
+        '<div class="ma-c ma-dim">'+num(p)+'</div><div class="ma-c">'+num(r)+'</div><div class="ma-c">'+maSaldo(p, r, rec)+'</div></div>'+
       '<div class="ma-sub">'+it.map(function(d){ return linhaArv(d, nat); }).join('')+'</div></div>';
   });
   if(q && !vis.length) h+='<div class="vazio" style="padding:14px 4px">Nenhuma '+(rec?'entrada':'despesa')+' com essa busca.</div>';
