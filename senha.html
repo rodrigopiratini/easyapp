@@ -34,6 +34,12 @@ var CHAVE = 'sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN';
 var cx = document.getElementById('cx');
 var h = new URLSearchParams(location.hash.replace(/^#/, ''));
 var q = new URLSearchParams(location.search);
+/* Volta do "Continuar com o Google" que caiu aqui (o Supabase manda para cá
+   quando o endereço de volta pedido não está na lista dele, ex.: app aberto
+   como /app/index.html). Não é link de e-mail: segue para o app, que guarda o
+   segredo do login e termina de entrar. */
+if (q.get('code') || (q.get('error') && !q.get('type'))) { location.replace('app/' + location.search); }
+else {
 var tipo = h.get('type') || q.get('type'), token = h.get('access_token');
 var erro = h.get('error_description') || q.get('error_description');
 history.replaceState(null, '', location.pathname);   // o token não fica no endereço
@@ -66,6 +72,7 @@ if (erro || !token) {
   };
 } else {
   cx.innerHTML = '<div class="ok-grande">✓</div>' + titulo('E-mail confirmado', 'Tudo certo. Volte ao app e entre com o seu e-mail e senha.');
+}
 }
 </script>
 </body>

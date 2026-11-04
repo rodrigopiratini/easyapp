@@ -6636,7 +6636,8 @@ window.pedirTexto = function (o, feito) {
     try { localStorage.setItem('easyapp:pkce', v); } catch (e) {}
     msg('abrindo o Google...', true);
     crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)).then(function (h) {
-      var volta = NATIVO ? VOLTA_APP : location.origin + location.pathname;
+      // /app/index.html volta como /app/ (é o endereço liberado no Supabase; fora da lista ele mandava para senha.html)
+      var volta = NATIVO ? VOLTA_APP : location.origin + location.pathname.replace(/index\.html$/, '');
       var url = CFG.url + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(volta) +
         '&code_challenge=' + b64url(h) + '&code_challenge_method=s256';
       if (NATIVO) window.Capacitor.nativePromise('Browser', 'open', { url: url }).catch(function () { location.href = url; });

@@ -217,7 +217,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.26.0 · 04/11/2026';
+var VERSAO_PAINEL = '1.27.0 · 04/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -1212,13 +1212,16 @@ function iconeApp(pasta) {
   var c = CORES_APP[pasta] || ['#3b82f6', '#22c55e', '#1b2436'];
   return '<span class="ic" style="background:' + c[2] + '"><i style="height:5px;background:' + c[0] + '"></i><i style="height:8px;background:' + c[0] + '"></i><i style="height:11px;background:' + c[1] + '"></i></span>';
 }
-var NOMES_FIN = { geral: 'Visão geral', pessoas: 'Pessoas e vouchers', avisos: 'Avisos dos bancos', testes: 'Testar primeiro acesso' };
+var NOMES_FIN = { geral: 'Visão geral', pessoas: 'Pessoas e vouchers', avisos: 'Avisos dos bancos', testes: 'Testar primeiro acesso', links: 'Links para instalar' };
 // ---------- Links para instalar os apps (copiar ou mandar pelo WhatsApp) ----------
 var USUARIO_APP = { frota: 'motorista', milterras: 'parceiro' };   // apps com acesso de usuário por código + PIN
 function linksApps(so) {
   var l = [];
   if (!so || so === 'financial') l.push({ pasta: 'financial', nome: 'EasyAPP Financial', itens: [
-    ['App (celular e computador)', 'https://easyappfinancial.com.br/app/'], ['Android: instalar pelo APK', 'https://easyappfinancial.com.br/EasyAPP-Financial.apk']] });
+    ['Página de download (Android e iPhone)', 'https://easyappfinancial.com.br/#testar'],
+    ['App (celular e computador)', 'https://easyappfinancial.com.br/app/'],
+    // ?v= novo a cada dia: o celular não reaproveita um APK velho guardado
+    ['Android: instalar pelo APK', 'https://easyappfinancial.com.br/EasyAPP-Financial.apk?v=' + new Date().toISOString().slice(0, 10).replace(/-/g, '')]] });
   appsFabrica().forEach(function (a) {
     if (so && so !== a.pasta) return;
     var u = String(a.url || '').split('?')[0].split('#')[0]; if (!u) return;
@@ -1258,7 +1261,7 @@ function ladoHtml(d) {
   var h = '<div class="marca"><span class="lg3" aria-hidden="true"><i></i><i></i><i></i></span>EasyAPP <em>Gestão</em></div>' +
     '<div class="g">Grupo</div>' + it('grupo', 'Visão do grupo', '<span class="ic s">◎</span>') + it('ia', 'Assistente (IA)', '<span class="ic s">✦</span>', abertas(d.denuncias) || '') + it('links', 'Links para instalar', '<span class="ic s">🔗</span>') +
     '<div class="g">Escaláveis</div>' + it('financial', 'Financial', iconeApp('financial'), p.vencido || '');
-  if (SECAO === 'financial') h += ['geral', 'pessoas', 'avisos', 'testes'].map(function (x) { return '<a class="sub' + (ABA === x ? ' on' : '') + '" onclick="trocarAba(\'' + x + '\')">' + NOMES_FIN[x] + '</a>'; }).join('');
+  if (SECAO === 'financial') h += ['geral', 'pessoas', 'avisos', 'testes', 'links'].map(function (x) { return '<a class="sub' + (ABA === x ? ' on' : '') + '" onclick="trocarAba(\'' + x + '\')">' + NOMES_FIN[x] + '</a>'; }).join('');
   h += fab.filter(function (a) { return familia(a.pasta) !== 'exclusivo'; }).map(app).join('');
   var exc = fab.filter(function (a) { return familia(a.pasta) === 'exclusivo'; });
   if (exc.length) h += '<div class="g">Exclusivos</div>' + exc.map(app).join('');
@@ -1321,6 +1324,8 @@ function desenhar() {
     h += Fabrica.avisoPush();
   } else if (SECAO.indexOf('app:') === 0) {
     h += Fabrica.html(SECAO.slice(4)) + '<h2>Links para instalar</h2>' + linksApps(SECAO.slice(4));
+  } else if (ABA === 'links') {
+    h += linksApps('financial');
   } else if (ABA === 'testes') {
     h += TestePrimeiroAcesso.html();
   } else if (ABA === 'avisos') {
