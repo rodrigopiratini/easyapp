@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.75.0 \u00b7 05/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.75.1 \u00b7 05/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -641,11 +641,31 @@ window.pedirTexto = function (o, feito) {
   function caixaDoMes(mes) {
     var hoje = hojeRef();
     var de = mes < hoje ? mes : hoje, ate = mes > hoje ? mes : hoje;
+    /* Mês que já passou: o saldo com que ele TERMINOU = o de hoje menos o que
+       entrou e saiu nas contas depois do último dia dele (a mesma regra do
+       saldos_contas). Antes o mês passado mostrava o saldo de hoje como "Fim do
+       mês" (outubro com -18 mil, que é o saldo depois da fatura de novembro). */
+    var fimMes = mes + '-' + ('0' + diasNoMes(mes)).slice(-2);
+    var depois = mes < hoje
+      ? lerTudo('/rest/v1/lancamentos?select=valor,natureza,data,contas!inner(tipo,titular,saldo_desde,ativa)'
+          + '&data=gt.' + fimMes + '&status=neq.IGNORADO&origem=neq.HISTORICO&meio=neq.CARTAO_CREDITO'
+          + '&contas.tipo=eq.CORRENTE&contas.ativa=is.true').catch(function () { return null; })
+      : Promise.resolve(null);
     return Promise.all([
       carregarFluxo(de, ate),
-      rest('/rest/v1/saldos_contas?select=tipo,titular,saldo')
+      rest('/rest/v1/saldos_contas?select=tipo,titular,saldo'),
+      depois
     ]).then(function (R) {
       var fluxo = R[0], saldoHoje = 0;
+      var movDepois = null;
+      if (R[2]) {
+        movDepois = 0;
+        R[2].forEach(function (l) {
+          var c = l.contas || {};
+          if (c.titular === 'INV' || (c.saldo_desde && String(l.data) < String(c.saldo_desde))) return;
+          movDepois += (l.natureza === 'RECEITA' ? 1 : -1) * (Number(l.valor) || 0);
+        });
+      }
       R[1].forEach(function (s) {
         if (s.tipo === 'CORRENTE' && s.titular !== 'INV') saldoHoje += Number(s.saldo) || 0;
       });
@@ -663,7 +683,8 @@ window.pedirTexto = function (o, feito) {
         fatura: n(f.fatura), faturaFechada: f.fechada,
         faturaLancada: n(Math.min(f.fatura, f.faturaLancada)),
         faturaVerba: n(Math.max(0, f.fatura - Math.min(f.fatura, f.faturaLancada))),
-        saldoProjetado: n(antes + f.aReceber - f.aPagar),
+        saldoProjetado: n(movDepois !== null ? saldoHoje - movDepois : antes + f.aReceber - f.aPagar),
+        passado: movDepois !== null, movDepois: n(movDepois || 0), fimDoMes: fimMes,
         // o que JÁ passou pela conta neste mês (compra no cartão só conta
         // quando a fatura é paga) e com quanto o mês começou: começou +
         // entrou - saiu = saldo de hoje, centavo a centavo
@@ -13185,6 +13206,7 @@ function htmlSaldos(s){
   return h+'</div>';
 }
 
+function dm(iso){ var p=String(iso||'').split('-'); return p.length===3?p[2]+'/'+p[1]:''; }
 function renderMes(){
   garantirContasInfo();
   var r=ST.resumo, c=el('tela-mes');
@@ -13219,11 +13241,19 @@ function renderMes(){
         ? '<div class="kv"><span>'+icoCx('inicio')+'Começa com'+dica('O que sobra dos meses até lá.')+'</span>'+
           '<span class="n '+((cx.saldoAntes||0)>=0?'pos':'neg')+'">'+moeda(cx.saldoAntes)+'</span></div>'
         : '')+
-      '<div class="kv"><span>'+icoCx('entra','var(--ok)')+'Ainda entra</span><span class="n pos">'+moeda(cx.aReceber)+'</span></div>'+
-      '<div class="kv"><span>'+icoCx('sai','var(--bad)')+'Ainda sai'+(dicaFatura?dica(dicaFatura):'')+'</span>'+
-        '<span class="n neg">'+moeda(cx.aPagar)+'</span></div>'+
-      '<div class="kv fim"><span>'+icoCx('fim')+'Fim do mês'+dica('Saldo projetado: o de hoje + o que ainda entra - o que ainda sai.')+'</span>'+
-        '<span class="big '+(cx.saldoProjetado>=0?'pos':'neg')+'">'+moeda(cx.saldoProjetado)+'</span></div>';
+      (cx.passado
+        /* mês que já passou: nada "ainda entra/sai"; o fim dele é o saldo de
+           hoje voltando o que mexeu nas contas depois do último dia */
+        ? '<div class="kv"><span>'+icoCx(cx.movDepois>=0?'entra':'sai',cx.movDepois>=0?'var(--ok)':'var(--bad)')+'Depois de '+dm(cx.fimDoMes)+
+            dica('O que entrou e saiu das contas de '+dm(cx.fimDoMes)+' até hoje. O saldo de hoje menos isso dá o saldo com que o mês terminou.')+'</span>'+
+            '<span class="n '+(cx.movDepois>=0?'pos':'neg')+'">'+moeda(cx.movDepois)+'</span></div>'+
+          '<div class="kv fim"><span>'+icoCx('fim')+'Terminou com'+dica('O que ficou nas contas em '+dm(cx.fimDoMes)+'.')+'</span>'+
+            '<span class="big '+(cx.saldoProjetado>=0?'pos':'neg')+'">'+moeda(cx.saldoProjetado)+'</span></div>'
+        : '<div class="kv"><span>'+icoCx('entra','var(--ok)')+'Ainda entra</span><span class="n pos">'+moeda(cx.aReceber)+'</span></div>'+
+          '<div class="kv"><span>'+icoCx('sai','var(--bad)')+'Ainda sai'+(dicaFatura?dica(dicaFatura):'')+'</span>'+
+            '<span class="n neg">'+moeda(cx.aPagar)+'</span></div>'+
+          '<div class="kv fim"><span>'+icoCx('fim')+'Fim do mês'+dica('Saldo projetado: o de hoje + o que ainda entra - o que ainda sai.')+'</span>'+
+            '<span class="big '+(cx.saldoProjetado>=0?'pos':'neg')+'">'+moeda(cx.saldoProjetado)+'</span></div>');
     if(cx.itens && cx.itens.length){
       h+='<div style="margin-top:2px">'+
          '<div class="kv" style="cursor:pointer;color:var(--dim)" onclick="ST.abreCaixa=!ST.abreCaixa;renderMes()">'+
