@@ -218,7 +218,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.29.4 · 05/11/2026';
+var VERSAO_PAINEL = '1.29.5 · 05/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -579,8 +579,8 @@ var Fabrica = (function () {
   }
   function carregarApps() {
     if (carregando) return; carregando = true; erro = null;
-    chamar({ op: 'listar' }).then(function (d) { carregando = false; if (d.erro) erro = d.erro; else dados = d.empresas || []; if (SECAO !== 'financial') desenhar(); })
-      .catch(function (e) { carregando = false; erro = e.message; if (SECAO !== 'financial') desenhar(); });
+    chamar({ op: 'listar' }).then(function (d) { carregando = false; if (d.erro) erro = d.erro; else dados = d.empresas || []; if (SECAO !== 'financial') desenhar(); else redesenharLado(); })
+      .catch(function (e) { carregando = false; erro = e.message; if (SECAO !== 'financial') desenhar(); else redesenharLado(); });
   }
   var bola = function (on) { return '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:0;background:' + (on ? 'var(--verde)' : '#52525b') + (on ? ';box-shadow:0 0 0 3px rgba(34,197,94,.18)' : '') + '"></span>'; };
   var PAPEL_P = { dono: 'administrador', gestor: 'gestor', usuario: 'usuário' };
@@ -1321,6 +1321,16 @@ function k(rot, val, nota, cls) {
   return '<div class="k ' + (cls || '') + '"><span>' + rot + '</span><b>' + val + '</b>' + (nota ? '<small>' + nota + '</small>' : '') + '</div>';
 }
 
+function ligarLado() {
+  document.getElementById('at').onclick = carregar;
+  document.getElementById('sair').onclick = function () { TestePrimeiroAcesso.pause(); sessao(null); DADOS = null; telaLogin(); };
+}
+// os apps da fábrica chegam depois: no Financial só o menu lateral é refeito (sem mexer na página aberta)
+function redesenharLado() {
+  var l = document.querySelector('aside.lado');
+  if (!l || !DADOS) return;
+  l.innerHTML = ladoHtml(DADOS); ligarLado();
+}
 function desenhar() {
   var d = DADOS, r = d.resumo, p = r.planos;
   var h = '<div class="topo-m"><button class="lk" style="font-size:22px;color:var(--tx)" onclick="document.body.classList.add(\'menu\')" aria-label="Menu">☰</button><b style="flex:1">' + tituloSecao() + '</b>' + acaoSecao() + '</div>' +
@@ -1394,8 +1404,7 @@ function desenhar() {
   if (SECAO === 'financial' && ABA === 'testes') TestePrimeiroAcesso.mount();
   tirarAbertura();
 
-  document.getElementById('at').onclick = carregar;
-  document.getElementById('sair').onclick = function () { TestePrimeiroAcesso.pause(); sessao(null); DADOS = null; telaLogin(); };
+  ligarLado();
   Array.prototype.forEach.call(cx.querySelectorAll('[data-f]'), function (b) { b.onclick = function () { FILTRO = b.dataset.f; desenhar(); }; });
   var bu = document.getElementById('busca');
   if (bu) bu.oninput = function (ev) { BUSCA = ev.target.value; document.getElementById('tab').innerHTML = tabela(); };
