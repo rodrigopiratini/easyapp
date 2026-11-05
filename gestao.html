@@ -218,7 +218,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.29.3 · 04/11/2026';
+var VERSAO_PAINEL = '1.29.4 · 05/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -245,7 +245,8 @@ var SECAO = (function () { try { return localStorage.getItem('gestao:secao') || 
 if (ABA === 'apps' || ABA === 'ia') ABA = 'geral';
 var FAMILIA = { milterras: 'exclusivo', golden: 'exclusivo' };   // apps de um cliente só (marca dele); o resto é escalável
 function familia(pasta) { return FAMILIA[pasta] || 'escalável'; }
-function trocarSecao(x) { document.body.classList.remove('menu'); TestePrimeiroAcesso.pause(); SECAO = x; try { localStorage.setItem('gestao:secao', x); } catch (e) {} desenhar(); window.scrollTo(0, 0); }
+// quem tem submenu (hoje só o Financial) deixa a gaveta aberta para escolher a segunda opção
+function trocarSecao(x) { if (x !== 'financial') document.body.classList.remove('menu'); TestePrimeiroAcesso.pause(); SECAO = x; try { localStorage.setItem('gestao:secao', x); } catch (e) {} desenhar(); window.scrollTo(0, 0); }
 function trocarAba(a) { if (a === 'ia') return trocarSecao('ia'); document.body.classList.remove('menu'); TestePrimeiroAcesso.pause(); ABA = a; SECAO = 'financial'; try { localStorage.setItem('gestao:aba', a); localStorage.setItem('gestao:secao', 'financial'); } catch (e) {} desenhar(); window.scrollTo(0, 0); }
 function rodape() { return '<div class="rodape">Painel de gestão · versão ' + VERSAO_PAINEL + '</div>'; }
 var VERSAO = '';   // a do APK publicado no site (versao.json, copiado pelo publicar-site --apk)
