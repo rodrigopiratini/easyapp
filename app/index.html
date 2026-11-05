@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.74.0 \u00b7 05/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.75.0 \u00b7 05/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -15582,14 +15582,118 @@ function abrirDestino(id, linha){
     /* Só esta compra é o padrão: o café na conveniência do posto vira
        refeição sem levar junto o combustível. "Todas" muda as do fornecedor
        e ensina o app para as próximas. */
-    '<div class="lbl" style="margin-top:11px">Mudar</div>'+
+    '<div id="dsMudar"><div class="lbl" style="margin-top:11px">Mudar</div>'+
     segEscolha('dsTodos', 'SO', ['SO','TODAS'], { SO:'só esta compra', TODAS:'todas deste fornecedor' })+
-    '<div class="m" id="dsTodosNota" style="font-size:11px;margin-top:5px">as outras compras e as próximas deste fornecedor continuam como estão</div>'+
+    '<div class="m" id="dsTodosNota" style="font-size:11px;margin-top:5px">as outras compras e as próximas deste fornecedor continuam como estão</div></div>'+
+    // repartir o que entrou sozinho (o boleto que é aluguel + condomínio + IPTU)
+    '<button class="bt-mais" id="dsRatBt" style="margin-top:10px" onclick="dsAbrirRateio()">&#10135; Distribuir em subcategorias</button>'+
+    '<div id="dsRat"></div>'+
     '<div class="row" style="margin-top:12px;gap:8px">'+
       '<button class="bt-no" style="flex:1" onclick="fecharEditar()">Cancelar</button>'+
-      '<button class="bt-ok" style="flex:2" onclick="salvarDestino()">Salvar</button></div>';
+      '<button class="bt-ok" style="flex:2" id="dsSalvar" onclick="salvarDestino()">Salvar</button></div>';
+  ST.dsPartes=null; ST.dsValor=Math.abs(Number(valor)||0); ST.dsNat=receita?'RECEITA':'DESPESA';
   el('edForm').classList.remove('hide');
   el('edFundo').classList.remove('hide');
+}
+
+/* Distribuir na folha "Corrigir de onde saiu" (05/11): o lançamento que veio
+   sozinho (Open Finance, aviso) vira partes, cada uma na sua subcategoria - a
+   mesma regra do Distribuir do Classificar (apiDistribuir): as partes nascem
+   confirmadas e o original fica IGNORADO, para o banco não trazê-lo de volta. */
+function dsAbrirRateio(){
+  var cat=el('dsCat')?el('dsCat').value:'';
+  ST.dsPartes=[{cat:cat,valor:ST.dsValor},{cat:'',valor:0}];
+  var m=el('dsMudar'); if(m) m.style.display='none';
+  var b=el('dsRatBt'); if(b) b.style.display='none';
+  var s=el('dsSalvar'); if(s){ s.textContent='Distribuir'; s.setAttribute('onclick','salvarDestinoRateio()'); }
+  dsDesenharRateio();
+}
+function dsFecharRateio(){
+  ST.dsPartes=null; el('dsRat').innerHTML='';
+  var m=el('dsMudar'); if(m) m.style.display='';
+  var b=el('dsRatBt'); if(b) b.style.display='';
+  var s=el('dsSalvar'); if(s){ s.textContent='Salvar'; s.setAttribute('onclick','salvarDestino()'); }
+}
+function dsLerPartes(){
+  (ST.dsPartes||[]).forEach(function(pt,k){
+    var c=el('drc'+k), v=el('drv'+k);
+    if(c) pt.cat=c.value;
+    if(v) pt.valor=parseFloat(String(v.value).replace(/\./g,'').replace(',','.'))||0;
+  });
+}
+function dsFalta(){
+  var soma=(ST.dsPartes||[]).reduce(function(t,x){ return t+(Number(x.valor)||0); },0);
+  return Math.round((ST.dsValor-soma)*100)/100;
+}
+function dsDesenharRateio(){
+  var op=(ST.categorias||[]).filter(function(x){ return x.natureza===ST.dsNat; }).map(function(x){ return x.nome; });
+  var h='<div style="margin-top:11px;border-top:1px solid var(--line);padding-top:10px">'+
+    '<div class="row" style="margin-bottom:6px"><div class="lbl" style="margin:0">Distribuir '+moeda(ST.dsValor)+'</div>'+
+      '<button class="lk" style="font-size:12px" onclick="dsFecharRateio()">não distribuir</button></div>';
+  ST.dsPartes.forEach(function(pt,k){
+    h+='<div class="row" style="gap:6px;margin-bottom:6px">'+
+       '<div style="flex:2;min-width:0">'+
+         botaoEscolha('drc'+k, pt.cat||'', 'subcategoria…', 'subcategoria',
+                      op.map(function(n){ return { valor:n, rotulo:n, grupo:familiaDe(n) }; }),
+                      'dsLerPartes();dsDesenharRateio()')+'</div>'+
+       '<label style="flex:1;display:flex;align-items:center;gap:4px;min-width:0">'+
+         '<span style="color:var(--dim);font-size:13px">R$</span>'+
+         '<input id="drv'+k+'" style="flex:1;min-width:0;text-align:right" inputmode="decimal" value="'+
+         (pt.valor?num(pt.valor):'')+'" placeholder="0,00" oninput="mascaraMoeda(this);dsLerPartes();dsMostrarFalta()"></label>'+
+       (ST.dsPartes.length>2?'<button class="bt-x" onclick="dsLerPartes();ST.dsPartes.splice('+k+',1);dsDesenharRateio()">&times;</button>':'')+
+       '</div>';
+  });
+  h+='<div class="row" style="margin:6px 0;font-size:12px">'+
+     '<button class="bt-mais" onclick="dsLerPartes();ST.dsPartes.push({cat:\'\',valor:Math.max(0,dsFalta())});dsDesenharRateio()">+ outra subcategoria</button>'+
+     '<span id="dsFaltaTx"></span></div>'+
+     '<button class="bt-no" style="width:100%;padding:8px;font-size:13px" onclick="dsRatearPrevisto()">Ratear pelo previsto do mês</button></div>';
+  el('dsRat').innerHTML=h;
+  dsMostrarFalta();
+}
+function dsMostrarFalta(){
+  var t=el('dsFaltaTx'); if(!t) return;
+  var f=dsFalta();
+  t.className='num '+(Math.abs(f)<0.01?'pos':'wr');
+  t.textContent=Math.abs(f)<0.01?'fecha certo':(f>0?'falta ':'passou ')+moeda(Math.abs(f));
+}
+function dsRatearPrevisto(){
+  dsLerPartes();
+  var cats=ST.dsPartes.map(function(x){ return x.cat; }).filter(Boolean);
+  if(cats.length<2){ toast('Escolha ao menos duas subcategorias'); return; }
+  google.script.run.withSuccessHandler(function(r){
+    ST.dsPartes=r.partes.map(function(x){ return { cat:x.categoria, valor:x.valor }; });
+    toast(r.temPrevisto?'Rateado pelo previsto do mês':'Sem previsto: dividi por igual');
+    dsDesenharRateio();
+  }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); }).apiSugerirRateio(ST.mes, cats, ST.dsValor);
+}
+function salvarDestinoRateio(){
+  var e=ST.editando; if(!e||!ST.dsPartes) return;
+  dsLerPartes();
+  var partes=ST.dsPartes.filter(function(x){ return x.cat && x.valor; })
+    .map(function(x){ return { categoria:x.cat, valor:x.valor, aprender:false }; });
+  if(partes.length<2){ toast('Preencha ao menos duas subcategorias com valor'); return; }
+  if(Math.abs(dsFalta())>=0.01){ toast('As partes têm que somar '+moeda(ST.dsValor)); return; }
+  // trocou também de onde saiu: corrige a conta antes, e as partes nascem nela
+  var onde=String(el('dsOnde').value||''), x=acharNoExtrato(e.id, e.linha)||{};
+  var antes=(x.cartao?'C|'+x.cartao:(x.conta?((String(x.meio||'')==='CARTAO_CREDITO'?'C|':'D|')+x.conta):''));
+  var trocaConta = onde && onde!==antes;
+  fecharEditar();
+  toast('Distribuindo…');
+  var depois=function(){
+    google.script.run.withSuccessHandler(function(r){
+      if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui distribuir'); return; }
+      toast('Dividido em '+r.partes+' subcategorias');
+      ST.dsPartes=null; ST.extrato=null; ST.extras=null; ST.cacheMes={}; ST.ano=null;
+      try{ renderExtrato(); }catch(er){}
+      atualizarPorTras();
+    }).withFailureHandler(function(er){ toast('Falhou: '+((er&&er.message)||er)); }).apiDistribuir(e.linha, partes, e.uuid||e.id);
+  };
+  if(!trocaConta) return depois();
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok){ toast((r&&r.erro)||'Não consegui trocar a conta'); return; }
+    depois();
+  }).withFailureHandler(function(er){ toast('Falhou: '+((er&&er.message)||er)); })
+    .apiCorrigirDestino(e.linha, e.id, { conta:onde.slice(2), meio:onde.charAt(0)==='C'?'CARTAO_CREDITO':'PIX', categoria:'', todos:false });
 }
 
 /* Pinta a mudanca na propria lista e confirma por tras. Recarregar a tela
