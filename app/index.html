@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.75.2 \u00b7 05/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.76.0 \u00b7 05/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -10926,6 +10926,27 @@ window.pedirTexto = function (o, feito) {
   .hr-chip small{display:block;font-size:11.5px;color:var(--dim)}
   .hr-chip b{font-size:15.5px;font-weight:700;white-space:nowrap}
   .hr-chip i{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--dim);font-size:18px}
+  /* topo do Mês (05/11): dois cartões, Resultado e Contas, com a composição de cada um */
+  .dc{display:flex;gap:9px;text-align:left}
+  .dc-k{flex:1;min-width:0;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:11px 11px 9px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .dc-k:active{background:rgba(255,255,255,.09)}
+  .dc-top{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+  .dc-top svg{width:15px;height:15px}
+  .dc-top .dc-ab{margin-left:auto;font-size:12px;letter-spacing:0;transition:transform .2s}
+  .dc-top .dc-ab.on{transform:rotate(90deg)}
+  .dc-big{font-size:21px;font-weight:800;letter-spacing:-.4px;margin:6px 0 0;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .dc-big small{font-size:12.5px;font-weight:700}
+  .dc-qd{font-size:10.5px;color:var(--dim);opacity:.8;margin:0 0 7px}
+  .dc-ln{display:flex;align-items:center;gap:6px;padding:4px 0;white-space:nowrap}
+  .dc-ln.toca{border-radius:8px}
+  .dc-ln.toca:active{background:rgba(255,255,255,.07)}
+  .dc-ic{width:21px;height:21px;border-radius:7px;background:rgba(255,255,255,.07);display:inline-flex;align-items:center;justify-content:center;flex:none}
+  .dc-ic svg{width:13px;height:13px}
+  .dc-t{font-size:11.5px;color:var(--dim)}
+  .dc-v{margin-left:auto;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums}
+  .dc-sep{border-top:1px solid rgba(255,255,255,.08);margin-top:3px;padding-top:6px}
+  .dc-bar{height:4px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;margin:0 0 3px 27px}
+  .dc-bar i{display:block;height:100%;border-radius:3px}
   /* filtro de categoria dentro da lista */
   .ln-toque{cursor:pointer}
   /* grade de escolha no lugar do <select>: o menu do sistema (cinza, letra
@@ -11765,6 +11786,76 @@ function entradaSaida(r){
   return { ent: cxOk?cx.jaEntrou:((r&&r.totalRealizadoReceita)||0),
            sai: cxOk?cx.jaSaiu:((r&&r.totalRealizadoDespesa)||0), comp: comp };
 }
+/* Topo do Mês (05/11): dois cartões lado a lado.
+   RESULTADO - o grande é como o mês fecha (tudo que entra - tudo que sai);
+     embaixo, Entradas e Saídas do mês inteiro, com a barra do quanto já
+     aconteceu, e o resultado até hoje.
+   CONTAS - o grande é o que está nas contas hoje; embaixo, a conta que leva a
+     ele: Início + Entrou - Saiu, e o Fim do mês.
+   Tocar no Resultado abre o "De onde vêm"; no Contas, o saldo de cada conta;
+   em Entrou/Saiu, os lançamentos. Em competência fica o cabeçalho antigo. */
+var DC_IC={
+  res:'<path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/>',
+  cont:'<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M16 12.5h2M3 9.5h18"/>',
+  ent:'<path d="M7 17 17 7M9 7h8v8"/>', sai:'<path d="M7 7l10 10M17 9v8H9"/>',
+  ini:'<path d="M4 12h12M12 8l4 4-4 4M20 5v14"/>', fim:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  hoje:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'
+};
+function dcIc(k, cor){ return '<svg viewBox="0 0 24 24" fill="none" style="stroke:'+(cor||'currentColor')+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+DC_IC[k]+'</svg>'; }
+function dcValor(v){
+  var t=moeda(v), i=t.lastIndexOf(',');
+  return i>0 ? t.slice(0,i)+'<small>'+t.slice(i)+'</small>' : t;
+}
+function dcLinha(ic, cor, rot, v, cls, extra){
+  return '<div class="dc-ln'+(extra&&extra.toca?' toca':'')+(extra&&extra.sep?' dc-sep':'')+'"'+(extra&&extra.toca?' onclick="event.stopPropagation();'+extra.toca+'"':'')+'>'+
+    '<span class="dc-ic">'+dcIc(ic,cor)+'</span><span class="dc-t">'+rot+'</span>'+
+    '<span class="dc-v '+(cls||'')+'">'+moeda(v).replace(/^R\$\s?/,'').replace(/^-R\$\s?/,'−')+'</span></div>';
+}
+function doisCartoes(r){
+  var cx=r&&r.caixa;
+  if(!cx || r.regime==='COMPETENCIA' || cx.jaEntrou===undefined) return null;
+  var hoje=hojeRefTela(), mes=r.mes||ST.mes;
+  var passado=!!cx.passado || mes<hoje, futuro=mes>hoje;
+  var ent=Number(cx.jaEntrou)||0, sai=Number(cx.jaSaiu)||0;
+  var aRec=passado?0:(Number(cx.aReceber)||0), aPag=passado?0:(Number(cx.aPagar)||0);
+  var totE=ent+aRec, totS=sai+aPag, res=totE-totS, ateHoje=ent-sai;
+  var fim=Number(cx.saldoProjetado)||0;
+  var ini = futuro ? (Number(cx.saldoAntes)||0) : (passado ? fim-ateHoje : (cx.comecou!=null ? Number(cx.comecou) : (Number(cx.saldoHoje)||0)-ateHoje));
+  var pct=function(a,b){ return b>0.005 ? Math.max(0,Math.min(100,a/b*100)) : 0; };
+  var VERDE='var(--ok)', VERM='var(--bad)', DIM='var(--dim)';
+  var nm=NOMES_MES[Number(String(mes).slice(5,7))]||'';
+  var ult=diasNoMesTela(mes)+'/'+String(mes).slice(5,7);
+  var cl=function(v){ return v>=0?'pos':'neg'; };
+  // Resultado
+  var hR='<div class="dc-k" onclick="ST.abreCaixa=!ST.abreCaixa;renderMes()">'+
+    '<div class="dc-top">'+dcIc('res')+'Resultado<span class="dc-ab'+(ST.abreCaixa?' on':'')+'">&#9656;</span></div>'+
+    '<div class="dc-big '+cl(res)+'">'+dcValor(res)+'</div>'+
+    '<div class="dc-qd">'+(passado?'fechou':(futuro?'previsto':'no fim do mês'))+'</div>'+
+    dcLinha('ent',VERDE,'Entradas',totE,'pos')+
+    (passado||futuro?'':'<div class="dc-bar"><i style="width:'+pct(ent,totE).toFixed(1)+'%;background:'+VERDE+'"></i></div>')+
+    dcLinha('sai',VERM,'Saídas',totS,'neg')+
+    (passado||futuro?'':'<div class="dc-bar"><i style="width:'+pct(sai,totS).toFixed(1)+'%;background:'+VERM+'"></i></div>')+
+    (passado||futuro?'':dcLinha('hoje',DIM,'Até hoje',ateHoje,cl(ateHoje),{sep:1}))+
+  '</div>';
+  // Contas
+  var grande = passado||futuro ? fim : (Number(cx.saldoHoje)||0);
+  var hC='<div class="dc-k" onclick="ST.abreSaldos=!ST.abreSaldos;renderMes()">'+
+    '<div class="dc-top">'+dcIc('cont')+'Contas<span class="dc-ab'+(ST.abreSaldos?' on':'')+'">&#9656;</span></div>'+
+    '<div class="dc-big '+cl(grande)+'">'+dcValor(grande)+'</div>'+
+    '<div class="dc-qd">'+(passado?'em '+ult:(futuro?'no fim de '+nm.toLowerCase():'hoje'))+'</div>'+
+    dcLinha('ini',DIM,'Início',ini,'')+
+    (futuro
+      ? dcLinha('ent',VERDE,'Entra',aRec,'pos')+dcLinha('sai',VERM,'Sai',aPag,'neg')
+      : dcLinha('ent',VERDE,'Entrou',ent,'pos',{toca:"abrirMovimento('E')"})+dcLinha('sai',VERM,'Saiu',sai,'neg',{toca:"abrirMovimento('S')"}))+
+    (passado||futuro?'':dcLinha('fim',VERDE,'Fim',fim,cl(fim),{sep:1}))+
+  '</div>';
+  return { html:'<div class="dc">'+hR+hC+'</div>', miniRot: passado||futuro?'resultado':'contas hoje', miniV: passado||futuro?res:grande };
+}
+function hojeRefTela(){
+  try{ var p=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'}); if(/^\d{4}-\d{2}/.test(p)) return p.slice(0,7); }catch(e){}
+  var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2);
+}
+function diasNoMesTela(ref){ var p=String(ref).split('-'); return new Date(+p[0], +p[1], 0).getDate(); }
 function renderMesNav(){
   ST.mov=null;   // os lançamentos do Entrada/Saída são relidos a cada toque
   var n=el('mnNome'), z=el('mnResumo'); if(!n || !ST.mes) return;
@@ -11775,6 +11866,8 @@ function renderMesNav(){
   var r=ST.resumo;
   if(!r || r.mes!==ST.mes){ z.innerHTML=''; if(ms) ms.innerHTML=''; return; }
   var x=entradaSaida(r), sd=x.ent-x.sai, cs=sd>=0?'pos':'neg';
+  var dc=doisCartoes(r);
+  if(dc){ z.innerHTML=dc.html; if(ms) ms.innerHTML='<small>'+dc.miniRot+'</small><b class="'+(dc.miniV>=0?'pos':'neg')+'">'+moeda(dc.miniV)+'</b>'; return; }
   // o saldo em destaque; entrada e saída embaixo, tocáveis (abrem os lançamentos)
   z.innerHTML=
     '<div class="hr-l">'+(x.comp?'sobra do mês':'saldo do mês')+'</div>'+
@@ -13243,37 +13336,26 @@ function renderMes(){
         ((cx.faturaVerba||0)>0.005 ? '. '+moeda(cx.faturaLancada||0)+' já comprados nela + '+moeda(cx.faturaVerba)+
           ' da verba das subcategorias do cartão ainda não gasta.' : '.')
       : '';
-    h+='<div class="card cx" style="border-left:3px solid '+
-       (cx.saldoProjetado>=0?'var(--ok)':'var(--bad)')+'">'+
-      '<div class="kv"'+(temContas?' style="cursor:pointer" onclick="ST.abreSaldos=!ST.abreSaldos;renderMes()"':'')+'>'+
-        '<span>'+icoCx('saldo')+'Saldo em conta hoje'+(temContas?setaAbre(ST.abreSaldos):'')+
-        dica('O que está nas contas agora. Lançamento com data anterior à do saldo informado muda a abertura do mês, não o saldo de hoje.')+'</span>'+
-        '<span class="n">'+moeda(cx.saldoHoje)+'</span></div>'+
-      (temContas && ST.abreSaldos ? htmlSaldos(ST.saldos) : '')+
-      /* Mês futuro não começa com o saldo de hoje: começa com o que sobrar
-         depois dos meses que vêm antes dele. */
-      (Math.abs((cx.saldoAntes||0)-cx.saldoHoje)>0.005
-        ? '<div class="kv"><span>'+icoCx('inicio')+'Começa com'+dica('O que sobra dos meses até lá.')+'</span>'+
-          '<span class="n '+((cx.saldoAntes||0)>=0?'pos':'neg')+'">'+moeda(cx.saldoAntes)+'</span></div>'
-        : '')+
-      (cx.passado
-        /* mês que já passou: nada "ainda entra/sai"; o fim dele é o saldo de
-           hoje voltando o que mexeu nas contas depois do último dia */
-        ? '<div class="kv"><span>'+icoCx(cx.movDepois>=0?'entra':'sai',cx.movDepois>=0?'var(--ok)':'var(--bad)')+'Depois de '+dm(cx.fimDoMes)+
-            dica('O que entrou e saiu das contas de '+dm(cx.fimDoMes)+' até hoje. O saldo de hoje menos isso dá o saldo com que o mês terminou.')+'</span>'+
-            '<span class="n '+(cx.movDepois>=0?'pos':'neg')+'">'+moeda(cx.movDepois)+'</span></div>'+
-          '<div class="kv fim"><span>'+icoCx('fim')+'Terminou com'+dica('O que ficou nas contas em '+dm(cx.fimDoMes)+'.')+'</span>'+
-            '<span class="big '+(cx.saldoProjetado>=0?'pos':'neg')+'">'+moeda(cx.saldoProjetado)+'</span></div>'
-        : '<div class="kv"><span>'+icoCx('entra','var(--ok)')+'Ainda entra</span><span class="n pos">'+moeda(cx.aReceber)+'</span></div>'+
-          '<div class="kv"><span>'+icoCx('sai','var(--bad)')+'Ainda sai'+(dicaFatura?dica(dicaFatura):'')+'</span>'+
-            '<span class="n neg">'+moeda(cx.aPagar)+'</span></div>'+
-          '<div class="kv fim"><span>'+icoCx('fim')+'Fim do mês'+dica('Saldo projetado: o de hoje + o que ainda entra - o que ainda sai.')+'</span>'+
-            '<span class="big '+(cx.saldoProjetado>=0?'pos':'neg')+'">'+moeda(cx.saldoProjetado)+'</span></div>');
+    /* (05/11) Os números foram para os dois cartões do topo; aqui ficam os
+       detalhes: o saldo de cada conta e de onde vêm o que ainda entra e sai. */
+    var dcOn = !!doisCartoes(r);
+    h+='<div class="card cx">';
+    if(!dcOn){
+      h+='<div class="kv"><span>'+icoCx('saldo')+'Saldo em conta hoje</span><span class="n">'+moeda(cx.saldoHoje)+'</span></div>'+
+        '<div class="kv"><span>'+icoCx('entra','var(--ok)')+'Ainda entra</span><span class="n pos">'+moeda(cx.aReceber)+'</span></div>'+
+        '<div class="kv"><span>'+icoCx('sai','var(--bad)')+'Ainda sai'+(dicaFatura?dica(dicaFatura):'')+'</span><span class="n neg">'+moeda(cx.aPagar)+'</span></div>'+
+        '<div class="kv fim"><span>'+icoCx('fim')+'Fim do mês</span><span class="big '+(cx.saldoProjetado>=0?'pos':'neg')+'">'+moeda(cx.saldoProjetado)+'</span></div>';
+    }
+    if(temContas){
+      h+='<div class="kv" style="cursor:pointer;color:var(--dim)" onclick="ST.abreSaldos=!ST.abreSaldos;renderMes()">'+
+         '<span>'+icoCx('saldo')+'Saldo das contas ('+ST.saldos.contas.length+')'+setaAbre(ST.abreSaldos)+'</span></div>'+
+         (ST.abreSaldos ? htmlSaldos(ST.saldos) : '');
+    }
     if(cx.itens && cx.itens.length){
       h+='<div style="margin-top:2px">'+
          '<div class="kv" style="cursor:pointer;color:var(--dim)" onclick="ST.abreCaixa=!ST.abreCaixa;renderMes()">'+
          '<span>'+icoCx('lista')+'De onde vêm ('+cx.itens.length+(cx.itens.length===1?' conta)':' contas)')+setaAbre(ST.abreCaixa)+
-         '</span></div>';
+         '</span>'+(dcOn&&dicaFatura?'<span onclick="event.stopPropagation()">'+dica(dicaFatura)+'</span>':'')+'</div>';
       if(ST.abreCaixa){
         ST.cxSel=ST.cxSel||{};
         // marcar só seleciona; o botão embaixo retira da previsão, com confirmação (25/10)
