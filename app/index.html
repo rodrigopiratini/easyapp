@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.73.5 \u00b7 05/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.74.0 \u00b7 05/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -302,12 +302,23 @@ window.pedirTexto = function (o, feito) {
     var p = ref.split('-');
     return new Date(Number(p[0]), Number(p[1]), 0).getDate();
   }
+  /* Hoje no horário de Brasília (05/11): o dia do ciclo do cartão ("Onde
+     deveria estar") e o mês de hoje viram à meia-noite de São Paulo, mesmo com o
+     celular em outro fuso. Devolve a data à meia-noite local, como antes. */
+  function hojeSP() {
+    try {
+      var p = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }).split('-');
+      if (p.length === 3 && +p[0] > 2000) return new Date(+p[0], +p[1] - 1, +p[2]);
+    } catch (e) { /* aparelho sem fusos: fica o do celular */ }
+    var h = new Date();
+    return new Date(h.getFullYear(), h.getMonth(), h.getDate());
+  }
   function hojeRef() {
-    var d = new Date();
+    var d = hojeSP();
     return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
   }
   function diaDeHoje(ref) {
-    return ref === hojeRef() ? new Date().getDate() : diasNoMes(ref);
+    return ref === hojeRef() ? hojeSP().getDate() : diasNoMes(ref);
   }
   function mesSeguinte(ref) {
     var a = Number(String(ref).slice(0, 4)), m = Number(String(ref).slice(5, 7)) + 1;
@@ -373,8 +384,7 @@ window.pedirTexto = function (o, feito) {
        o dia 4 (com as horas arredondadas o app dizia "dia 5" à tarde). E a
        fatura só fecha quando o dia do fechamento ACABA - compra no próprio
        dia 28 ainda é deste ciclo. */
-    var agoraHora = new Date();
-    var agora = new Date(agoraHora.getFullYear(), agoraHora.getMonth(), agoraHora.getDate());
+    var agora = hojeSP();
     var hoje = agora > fim ? dias : (agora < ini ? 0 : Math.round((agora - ini) / DIA) + 1);
     var dd = function (d) {
       return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2);
@@ -420,7 +430,7 @@ window.pedirTexto = function (o, feito) {
     }
     var ini = melhor.ini, fim = melhor.fim;
     var dias = Math.round((fim - ini) / DIA) + 1;
-    var h = new Date(), agora = new Date(h.getFullYear(), h.getMonth(), h.getDate());
+    var agora = hojeSP();
     var hoje = agora > fim ? dias : (agora < ini ? 0 : Math.round((agora - ini) / DIA) + 1);
     var dd = function (d) { return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2); };
     return { ini: ini, fim: fim, dias: dias, hoje: Math.max(0, Math.min(dias, hoje)),
@@ -680,7 +690,7 @@ window.pedirTexto = function (o, feito) {
   function cicloDoMes(ref) {
     var a = Number(ref.slice(0, 4)), m = Number(ref.slice(5, 7));
     var ini = new Date(a, m - 1, 1), fim = new Date(a, m, 0), dias = fim.getDate();
-    var h = new Date(), agora = new Date(h.getFullYear(), h.getMonth(), h.getDate());
+    var agora = hojeSP();
     var hoje = agora > fim ? dias : (agora < ini ? 0 : agora.getDate());
     return { ini: ini, fim: fim, dias: dias, hoje: hoje, fechada: agora > fim,
              rotulo: '01/' + ('0' + m).slice(-2) + ' a ' + dias + '/' + ('0' + m).slice(-2) };
@@ -2179,7 +2189,7 @@ window.pedirTexto = function (o, feito) {
         var semConta = cats.length
           ? '&or=(categoria_id.is.null,categoria_id.in.(' + cats.map(function (c) { return c.id; }).join(',') + '))'
           : '&categoria_id=is.null';
-        return lerTudo('/rest/v1/lancamentos?select=data,mes_ref,valor,natureza,fornecedor,descricao'
+        return lerTudo('/rest/v1/lancamentos?select=data,mes_ref,valor,natureza,fornecedor,descricao,meio,contas(nome)'
                     + semConta + '&status=eq.CONFIRMADO&origem=neq.MANUAL'
                     + '&mes_ref=gte.' + (mes || hojeRef()) + '&order=id');
       })
@@ -2191,9 +2201,12 @@ window.pedirTexto = function (o, feito) {
           if (!por[chave]) {
             por[chave] = { chave: chave, exemplo: l.descricao || chave, vezes: 0,
                            valor: 0, ultima: '', natureza: l.natureza, origem: 'SEM CATEGORIA',
-                           meses: {} };
+                           meses: {}, cartao: true, conta: '' };
           }
           var f = por[chave];
+          /* de onde veio: o boleto da conta corrente sem subcategoria aparecia
+             em "Das faturas do cartão" (R$ 465,78 do Santander PF, 05/11) */
+          if (l.meio !== 'CARTAO_CREDITO') { f.cartao = false; if (!f.conta) f.conta = (l.contas || {}).nome || ''; }
           f.vezes++; f.valor = n(f.valor + Number(l.valor));
           f.meses[l.mes_ref] = true;
           total += Number(l.valor);
@@ -12487,13 +12500,28 @@ function filaSemCategoria(){
   var s=ST.semCategoria;
   if(!s || !s.fornecedores || !s.fornecedores.length) return '';
   // seção dentro do Classificar, no mesmo cartão dos outros lançamentos
-  var h='<div class="pd-sec"><span>Das faturas do cartão</span>'+
-    dica('Compras que vieram das faturas sem subcategoria. Classifique o fornecedor uma vez e todas as compras dele entram na subcategoria certa.')+'</div>';
-  s.fornecedores.forEach(function(f,i){
+  /* Duas seções: o que veio da fatura do cartão e o que veio da conta corrente
+     (boleto, Pix, tarifa do Open Finance sem subcategoria). Antes tudo caía em
+     "Das faturas do cartão", com o ícone do cartão. */
+  var h='', secao=null;
+  var ordem=s.fornecedores.map(function(f,i){ return i; })
+    .sort(function(a,b){ return (s.fornecedores[a].cartao===false)-(s.fornecedores[b].cartao===false) || a-b; });
+  ordem.forEach(function(i){
+    var f=s.fornecedores[i], doCartao=f.cartao!==false;
+    if(secao!==doCartao){
+      secao=doCartao;
+      h+=doCartao
+        ? '<div class="pd-sec"><span>Das faturas do cartão</span>'+
+            dica('Compras que vieram das faturas sem subcategoria. Classifique o fornecedor uma vez e todas as compras dele entram na subcategoria certa.')+'</div>'
+        : '<div class="pd-sec"><span>Da conta corrente</span>'+
+            dica('Lançamentos da conta corrente que o banco mandou sem subcategoria (boleto, Pix, tarifa). Classifique uma vez e os próximos do mesmo nome já entram nela.')+'</div>';
+    }
+    var rec=f.natureza==='RECEITA';
     h+='<div class="card pd">'+
-       '<div class="pd-cab"><span class="pd-ic des">'+IC_CARTAO_PD+'</span>'+
+       '<div class="pd-cab"><span class="pd-ic '+(rec?'rec':'des')+'">'+(doCartao?IC_CARTAO_PD:(rec?'&#8595;':'&#8593;'))+'</span>'+
          '<div class="pd-tx"><b>'+tx(f.exemplo)+'</b>'+
-         '<small>'+(f.vezes>1?f.vezes+' compras · ':'')+(f.qtdMeses>1?f.qtdMeses+' meses · ':'')+(f.ultima?'última '+f.ultima:'')+
+         '<small>'+(!doCartao&&f.conta?icConta(f.conta):'')+(f.vezes>1?f.vezes+(doCartao?' compras · ':' lançamentos · '):'')+(f.qtdMeses>1?f.qtdMeses+' meses · ':'')+(f.ultima?'última '+f.ultima:'')+
+           (!doCartao&&f.conta?' · '+tx(f.conta):'')+
            (f.chave&&f.chave!==f.exemplo?' · regra '+tx(f.chave):'')+'</small></div>'+
          '<div class="pd-v">'+moeda(f.valor)+'</div></div>'+
        '<div class="pd-acoes">'+
@@ -15766,6 +15794,17 @@ function vigiarPush(){
   }).catch(function(){}).then(function(){ _pushTimer=setTimeout(vigiarPush, 5000); });
 }
 document.addEventListener('visibilitychange', function(){ if(!document.hidden){ _ofVolta=0; vigiarPush(); } });
+/* Virou o dia (meia-noite de Brasília) com o app aberto ou em segundo plano:
+   recarrega, para o "Onde deveria estar" e o "posso gastar por dia" andarem. */
+var _diaVisto=diaSP();
+function diaSP(){ try{ return new Date().toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'}); }catch(e){ return new Date().toDateString(); } }
+function viuOutroDia(){
+  var d=diaSP(); if(d===_diaVisto) return;
+  _diaVisto=d; ST.cacheMes={}; ST.extrato=null;
+  try{ carregar(ST.mes); }catch(e){}
+}
+setInterval(function(){ if(!document.hidden) viuOutroDia(); },60000);
+document.addEventListener('visibilitychange', function(){ if(!document.hidden) viuOutroDia(); });
 setTimeout(vigiarPush, 4000);
 
 /* Cada cartãozinho ganha um ícone pela etiqueta: entrar é seta verde para
