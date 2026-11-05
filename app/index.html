@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.75.1 \u00b7 05/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.75.2 \u00b7 05/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1117,7 +1117,7 @@ window.pedirTexto = function (o, feito) {
          Os dois ficam na lista - são movimentos de cada conta -, mas não somam
          no Entrou/Saiu. Com só um lado à vista (filtro PF, e o outro lado no
          PJ), o dinheiro de fato entrou ou saiu daquele conjunto e soma. */
-      var transf = itens.filter(function (x) { return x.categoria === CAT_TRANSF && x.status !== 'IGNORADO'; });
+      var transf = itens.filter(function (x) { return ehCatTransf(x.categoria) && x.status !== 'IGNORADO'; });
       var anula = {};
       transf.forEach(function (a) {
         if (anula[a.id] || !a.credito) return;
@@ -1297,6 +1297,7 @@ window.pedirTexto = function (o, feito) {
     return rest('/rest/v1/categorias?select=id&nome=eq.' + encodeURIComponent(nome) + '&limit=1')
       .then(function (r) { return r.length ? r[0].id : null; });
   }
+  function ehCatTransf(nome) { return /(^|- )TRANSFERENCIA ENTRE CONTAS$/.test(String(nome || '')); }
   function idDaConta(nome) {
     if (!nome) return Promise.resolve(null);
     return rest('/rest/v1/contas?select=id&nome=eq.' + encodeURIComponent(nome) + '&limit=1')
@@ -1358,7 +1359,7 @@ window.pedirTexto = function (o, feito) {
      com movimento (Farmácia em 1 de 3 meses dá um terço). Conta que já teve
      previsto e hoje não tem (parcela que acabou, "já resolvi") fica de fora.
      Só sugere; grava quando a pessoa toca em Usar. */
-  var FORA_DA_SUGESTAO = /^(CARTAO - A CLASSIFICAR|PAGAMENTO DA FATURA DO CARTAO|TRANSFERENCIA ENTRE CONTAS|OUTROS REEMBOLSOS)$/;
+  var FORA_DA_SUGESTAO = /^(CARTAO - A CLASSIFICAR|PAGAMENTO DA FATURA DO CARTAO|OUTROS REEMBOLSOS)$|(^|- )TRANSFERENCIA ENTRE CONTAS$/;
   function sugestoesPrevisto(mes) {
     mes = mes || hojeRef();
     var ants = [mesAnterior(mes)];
@@ -1962,7 +1963,7 @@ window.pedirTexto = function (o, feito) {
       return rest('/rest/v1/lancamentos?select=categorias(nome)&id=eq.' + r[0]).then(function (x) {
         var campos = { conta_id: r[1] };
         // PIX entre contas suas: com as duas pontas conhecidas, ele se resolve
-        if (((x[0] || {}).categorias || {}).nome === 'TRANSFERENCIA ENTRE CONTAS') {
+        if (ehCatTransf(((x[0] || {}).categorias || {}).nome)) {
           campos.status = 'CONFIRMADO';
         }
         return mudar('lancamentos', 'id=eq.' + r[0], campos)
@@ -1979,9 +1980,15 @@ window.pedirTexto = function (o, feito) {
      chegaram), só pareia. Sem este porte a tela chamava uma função que não
      existia aqui e nada era gravado. */
   var CAT_TRANSF = 'TRANSFERENCIA ENTRE CONTAS';
+  /* A subcategoria de transferência pode ter o nome da categoria na frente
+     ("PESSOAL - TRANSFERENCIA ENTRE CONTAS", 05/11): procurar pelo nome exato
+     fazia o Classificar parar de perguntar de qual conta saiu. */
   function categoriaTransferencia() {
-    return idDaCategoria(CAT_TRANSF).then(function (id) {
-      if (id) return id;
+    return rest('/rest/v1/categorias?select=id,nome&natureza=eq.TRANSFERENCIA&nome=ilike.*TRANSFERENCIA%20ENTRE%20CONTAS')
+      .catch(function () { return []; }).then(function (l) {
+      var x = (l || []).filter(function (c) { return ehCatTransf(c.nome); })
+        .sort(function (a, b) { return (a.nome === CAT_TRANSF ? 0 : 1) - (b.nome === CAT_TRANSF ? 0 : 1); })[0];
+      if (x) return x.id;
       return gravar('categorias', [{ nome: CAT_TRANSF, grupo: 'TRANSFERENCIA', natureza: 'TRANSFERENCIA',
                                      sai_por: 'CAIXA' }], 'user_id,nome')
         .then(function (r) { return r[0].id; });
@@ -4505,7 +4512,7 @@ window.pedirTexto = function (o, feito) {
       var erro = '';
       var mud = delas.map(function (c) {
         var campos = { grupo: novo };
-        if (NOMES_FIXOS.indexOf(c.nome) < 0 && pre.test(c.nome)) {
+        if (NOMES_FIXOS.indexOf(c.nome) < 0 && !ehCatTransf(c.nome) && pre.test(c.nome)) {
           var nn = novo + ' - ' + c.nome.replace(pre, '');
           if (nomes[nn]) erro = erro || 'já existe a subcategoria ' + nn;
           campos.nome = nn;
@@ -12674,12 +12681,20 @@ function salvarRateio(i){
 }
 
 var CAT_TRANSFER='TRANSFERENCIA ENTRE CONTAS';
+/* A de transferência entre contas suas, com ou sem a categoria na frente
+   ("PESSOAL - TRANSFERENCIA ENTRE CONTAS"): é ela que pede a outra conta. */
+function ehTransfer(nome){ return /(^|- )TRANSFERENCIA ENTRE CONTAS$/.test(String(nome||'')); }
+function catTransfer(){
+  var x=(ST.categorias||[]).filter(function(c){ return ehTransfer(c.nome); })
+    .sort(function(a,b){ return (a.nome===CAT_TRANSFER?0:1)-(b.nome===CAT_TRANSFER?0:1); })[0];
+  return x ? x.nome : CAT_TRANSFER;
+}
 
 function confirmar(i){
   var p=ST.pendentes[i], cat=el('c'+i).value;
   // transferencia entre contas suas: o banco manda so um dos dois avisos, entao
   // o outro lado quem cria e o app - senao o saldo de uma das contas nunca mexe
-  if(cat===CAT_TRANSFER){
+  if(ehTransfer(cat)){
     var destino = el('tr'+i) ? el('tr'+i).value : '';
     var esta = el('tra'+i) ? el('tra'+i).value : '';
     if(!destino){ toast('Escolha a outra conta'); return; }
@@ -13047,7 +13062,7 @@ function destravar(i){
   var p=ST.pendentes[i]||{};
   // guarda a escolha: o ⋯ e o crédito/débito redesenham o cartão
   if(p.uuid){ ST.catEscolhida=ST.catEscolhida||{}; ST.catEscolhida[p.uuid]=cat; }
-  el('nc'+i).innerHTML = (cat===CAT_TRANSFER)
+  el('nc'+i).innerHTML = ehTransfer(cat)
     ? seletorOutraConta(i, p.natureza, p.conta) : '';
   var b=el('b'+i); if(b) b.disabled = !cat;
 }
@@ -16231,7 +16246,7 @@ function importarFatura(){
 }
 
 function mudouCatNovo(){
-  var ehTransf = (el('nTipo') && el('nTipo').value==='TRANSFERENCIA') || (el('nc') && el('nc').value===CAT_TRANSFER);
+  var ehTransf = (el('nTipo') && el('nTipo').value==='TRANSFERENCIA') || (el('nc') && ehTransfer(el('nc').value));
   var box=el('nparaBox'), rot=el('rotOnde');
   if(box) box.classList.toggle('hide', !ehTransf);
   var ehRec = !ehTransf && el('nTipo') && el('nTipo').value==='RECEITA';
@@ -16253,10 +16268,10 @@ window.lancarPreenchido=function(tipo, valor, descr, data){
    transferência a conta é a de transferência e pede os dois bancos. */
 function novoTipoMudou(t){
   var c=el('nc'), b=el('btn_nc'), box=el('ncBox');
-  if(t==='TRANSFERENCIA'){ c.value=CAT_TRANSFER; if(box) box.classList.add('hide'); }
+  if(t==='TRANSFERENCIA'){ c.value=catTransfer(); if(box) box.classList.add('hide'); }
   else {
     if(box) box.classList.remove('hide');
-    if(c.value && (c.value===CAT_TRANSFER || !serveParaNatureza({ natureza: catNatureza(c.value) }, t))){
+    if(c.value && (ehTransfer(c.value) || !serveParaNatureza({ natureza: catNatureza(c.value) }, t))){
       c.value='';
       if(b) b.innerHTML='<span style="color:var(--dim)">escolher subcategoria…</span><span style="margin-left:auto;color:var(--dim)">&#9662;</span>';
     }
@@ -16304,7 +16319,7 @@ function salvarNovo(){
   var ehCartao = onde.charAt(0)==='C';
   var alvo = onde.slice(2);
 
-  var ehTransf = cat===CAT_TRANSFER;
+  var ehTransf = ehTransfer(cat);
   var para = (el('npara')&&el('npara').value)||'';
   if(ehTransf){
     if(ehCartao){ toast('Transferência sai de uma conta, não do cartão'); return; }
