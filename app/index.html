@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.78.0 \u00b7 06/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.79.0 \u00b7 06/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -13794,7 +13794,8 @@ function dialogoPrevisto(categoria, atual, rotulo){
     '<div class="anos" id="pvAnos"></div><div class="mg" id="pvMeses"><div class="nt">Carregando…</div></div>'+
     '<div class="pr"><input id="pvV" inputmode="decimal" autocomplete="off" placeholder="valor" value="'+(atual>0.005?num(atual):'')+'"></div>'+
     '<div class="bts"><button id="pvSel" disabled>nos marcados</button><button id="pvDaqui">de '+NOMES_MES[Number(ST.mes.slice(5,7))].substring(0,3).toLowerCase()+'/'+ST.mes.slice(2,4)+' até o fim</button>'+
-      '<button id="pvTodos">em todos de <span id="pvAnoTx">'+anoHoje+'</span></button><button id="pvCom">nos com valor</button></div>'+
+      '<button id="pvTodos">em todos de <span id="pvAnoTx">'+anoHoje+'</span></button><button id="pvCom">nos com valor</button>'+
+      '<button id="pvRep" style="grid-column:1/3">&#8635; Repetir <span id="pvRepTx"></span></button></div>'+
     '<div class="nt" id="pvNt">Toque no nome do mês para marcar. Mês vazio fica sem previsto.</div>'+
     '<div class="pb"><button class="no" id="pvNo">Cancelar</button><button class="ok" id="pvOk">Salvar</button></div></div>';
   document.body.appendChild(d);
@@ -13815,6 +13816,9 @@ function dialogoPrevisto(categoria, atual, rotulo){
       i.oninput=function(){ S.vals[i.dataset.r]=vNum(i.value); i.parentNode.classList.toggle('mud', Math.abs(S.vals[i.dataset.r]-(S.orig[i.dataset.r]||0))>0.005); nota(); };
     });
     el('pvAnoTx').textContent=S.ano;
+    var dep=S.anos.filter(function(a){ return a>S.ano; });
+    el('pvRep').style.display=dep.length?'':'none';
+    el('pvRepTx').textContent=dep.length ? S.ano+' em '+(dep.length===1?dep[0]:dep[0]+' a '+dep[dep.length-1]) : '';
     var nSel=Object.keys(S.sel).length;
     el('pvSel').disabled=!nSel; el('pvSel').textContent=nSel?'nos '+nSel+' marcados':'nos marcados';
     nota();
@@ -13834,6 +13838,13 @@ function dialogoPrevisto(categoria, atual, rotulo){
   el('pvSel').onclick=function(){ preencher(function(r){ return S.sel[r]; }); S.sel={}; desenhar(); };
   el('pvTodos').onclick=function(){ preencher(function(r){ return r.slice(0,4)===String(S.ano); }); };
   el('pvCom').onclick=function(){ preencher(function(r){ return r.slice(0,4)===String(S.ano) && (S.vals[r]||0)>0.005; }); };
+  // os 12 meses do ano aberto vão iguais para os anos seguintes (só na tela; grava no Salvar)
+  el('pvRep').onclick=function(){
+    var dep=S.anos.filter(function(a){ return a>S.ano; }); if(!dep.length) return;
+    dep.forEach(function(a){ for(var m=1;m<=12;m++) S.vals[ref(a,m)]=S.vals[ref(S.ano,m)]||0; });
+    toast(S.ano+' copiado para '+dep.length+(dep.length===1?' ano':' anos')+' · toque em Salvar');
+    desenhar();
+  };
   el('pvDaqui').onclick=function(){ preencher(function(r){ return r>=ST.mes && r<=S.fim; }); };
   var fim=function(){ d.remove(); };
   el('pvNo').onclick=fim;
@@ -18320,6 +18331,13 @@ function cfgFormMeses(x){
       '<input id="cfVal" inputmode="decimal" placeholder="valor" style="flex:1;margin:0" value="'+(base?num(base):'')+'">'+
       '<button class="bt-no" style="flex:none;padding:6px 10px;font-size:12px" onclick="cfgPreencher(\'todos\')">em todos</button>'+
       '<button class="bt-no" style="flex:none;padding:6px 10px;font-size:12px" onclick="cfgPreencher(\'com\')">nos com valor</button></div>'+
+    (function(){
+      // repetir os 12 meses deste ano nos anos seguintes (06/11)
+      var dep=(ST.config.anos||[]).filter(function(a){ return a.ano>ano && a.aberto; }).map(function(a){ return a.ano; });
+      if(!dep.length) return '';
+      return '<button class="bt-no" style="width:100%;margin-top:6px;padding:9px;font-size:12.5px" onclick="cfgRepetirAnos('+
+        JSON.stringify(x.nome).replace(/"/g,'&quot;')+')">&#8635; Repetir '+ano+' em '+(dep.length===1?dep[0]:dep[0]+' a '+dep[dep.length-1])+'</button>';
+    })()+
     '<div class="row" style="margin-top:10px;gap:8px">'+
       '<button class="bt-no" style="flex:1" onclick="ST.cfgReplicando=null;renderConfig()">Cancelar</button>'+
       '<button class="bt-ok" style="flex:2" onclick="cfgAplicarMeses('+
@@ -18345,6 +18363,30 @@ function cfgPreencher(onde){
   Array.prototype.forEach.call(document.querySelectorAll('.cfMesV'), function(i){
     if(onde==='todos' || String(i.value).trim()) i.value=v;
   });
+}
+/* Repete os 12 meses do ano aberto (como estão nos campos, mesmo sem salvar)
+   em todos os anos seguintes do plano - a programação sazonal (fev, abr, jun...)
+   vai igual. Mês vazio também vai vazio. */
+function cfgRepetirAnos(nome){
+  var ano=ST.cfgAno||ST.config.ano, vals=[];
+  Array.prototype.forEach.call(document.querySelectorAll('.cfMesV'), function(i){
+    vals.push({ m:Number(i.dataset.m), v:parseFloat(String(i.value||'0').replace(/\./g,'').replace(',','.'))||0 });
+  });
+  var dep=(ST.config.anos||[]).filter(function(a){ return a.ano>ano && a.aberto; }).map(function(a){ return a.ano; });
+  if(!dep.length){ toast('Não há anos seguintes abertos'); return; }
+  var comValor=vals.filter(function(x){ return x.v; }).length;
+  if(!confirm('Repetir os meses de '+ano+' em '+(dep.length===1?dep[0]:dep[0]+' a '+dep[dep.length-1])+'?\n\n'+
+    comValor+(comValor===1?' mês com valor':' meses com valor')+' por ano. O que estiver nesses anos é trocado (mês vazio fica sem previsto).')) return;
+  var linhas=[];
+  [ano].concat(dep).forEach(function(a){
+    vals.forEach(function(x){ linhas.push({ mes:a+'-'+('0'+x.m).slice(-2), categoria:nome, valor:x.v }); });
+  });
+  toast('Repetindo em '+dep.length+(dep.length===1?' ano...':' anos...'));
+  google.script.run.withSuccessHandler(function(r){
+    toast(r&&r.ok ? ano+' repetido em '+dep.length+(dep.length===1?' ano':' anos') : ((r&&r.erro)||'Não consegui'));
+    ST.cfgReplicando=null; ST.cacheMes={}; ST.ano=null; recarregarConfig();
+  }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
+    .apiSalvarPrevistoEmVarios(linhas);
 }
 function cfgAplicarMeses(nome){
   var ano=ST.cfgAno||ST.config.ano, todos=[], comValor=0;
