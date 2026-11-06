@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.77.1 \u00b7 05/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.78.0 \u00b7 06/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -13752,93 +13752,112 @@ function escolherGrade(b, id, v){
   b.parentNode.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on', x===b); });
   if(i.onchange) i.onchange();
 }
+/* Editar o previsto pelo Mês (06/11): a MESMA tela de Config › Categorias ›
+   Meses - um ano por aba, os 12 meses com o seu valor editável, e o
+   "preencher" para digitar uma vez: nos meses marcados (toque no nome do
+   mês para marcar), em todos, nos com valor, ou deste mês até o fim.
+   Mês vazio fica sem previsto. Salva só os meses que mudaram, de todos os
+   anos. O reajuste anual da conta fica em Config › Categorias. */
 function dialogoPrevisto(categoria, atual, rotulo){
-  var mesNome=function(ref){ return NOMES_MES[Number(ref.slice(5,7))].substring(0,3)+'/'+ref.slice(2,4); };
   var velho=el('pvDlg'); if(velho) velho.remove();
-  if(!el('pvDlgCss')){
-    var st=document.createElement('style'); st.id='pvDlgCss';
-    st.textContent='#pvDlg{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:9vh 14px 0;overflow-y:auto}'+
-      '#pvDlg .px{width:min(440px,100%);background:#161d2c;border:1px solid #2a3548;border-radius:16px;padding:18px;color:#e8edf7;box-shadow:0 16px 40px #000a;margin-bottom:20px}'+
-      '#pvDlg h3{margin:0 0 4px;font-size:17px}#pvDlg .dc{margin:0 0 12px;color:#8b99b5;font-size:13px}'+
-      '#pvDlg input,#pvDlg select{box-sizing:border-box;background:#0f1420;color:#e8edf7;border:1px solid #2a3548;border-radius:10px;padding:11px;font-size:16px;outline:none}'+
-      '#pvDlg input:focus,#pvDlg select:focus{border-color:#3b82f6}#pvDlg #pvV{width:100%}'+
-      '#pvDlg label.t{display:block;margin:14px 0 6px;font-size:13px;color:#8b99b5}'+
-      '#pvDlg .ck{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px}#pvDlg .ck input{width:18px;height:18px;padding:0}'+
-      '#pvDlg .rj{margin-top:8px}#pvDlg .rj input{width:100%;margin-bottom:8px}#pvDlg .rj small{display:block;font-size:12px;color:#8b99b5;margin:0 0 6px}'+
-      '#pvDlg .pv{margin-top:12px;font-size:12.5px;color:#8b99b5;line-height:1.5;max-height:120px;overflow-y:auto}'+
-      '#pvDlg .pb{display:flex;gap:8px;margin-top:14px}#pvDlg button{flex:1;padding:12px;border-radius:10px;border:0;font-size:15px;font-weight:600;cursor:pointer}'+
-      '#pvDlg .no{background:#0f1420;color:#e8edf7;border:1px solid #2a3548}#pvDlg .ok{flex:2;background:#3b82f6;color:#fff}';
+  if(!el('pvDlgCss2')){
+    var st=document.createElement('style'); st.id='pvDlgCss2';
+    st.textContent='#pvDlg{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:7vh 12px 0;overflow-y:auto}'+
+      '#pvDlg .px{width:min(440px,100%);background:#161d2c;border:1px solid #2a3548;border-radius:16px;padding:16px;color:#e8edf7;box-shadow:0 16px 40px #000a;margin-bottom:20px}'+
+      '#pvDlg h3{margin:0 0 2px;font-size:17px}#pvDlg .dc{margin:0 0 12px;color:#8b99b5;font-size:13px}'+
+      '#pvDlg .anos{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-bottom:10px}#pvDlg .anos::-webkit-scrollbar{display:none}'+
+      '#pvDlg .anos button{flex:none;min-width:62px;padding:7px 10px;border-radius:999px;border:1px solid #2a3548;background:#0f1420;color:#8b99b5;font-size:13px;font-weight:600}'+
+      '#pvDlg .anos button.on{background:#3b82f6;border-color:#3b82f6;color:#fff}'+
+      '#pvDlg .mg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}'+
+      '#pvDlg .mb{border:1px solid #2a3548;border-radius:10px;background:#0d1320;padding:5px 4px 4px;text-align:center}'+
+      '#pvDlg .mb.sel{border-color:#3b82f6;background:rgba(59,130,246,.14)}#pvDlg .mb.mud input{color:#fbbf24}'+
+      '#pvDlg .mb b{display:block;font-size:11.5px;font-weight:600;color:#c9d2e3;padding:2px 0 3px;cursor:pointer;-webkit-tap-highlight-color:transparent}'+
+      '#pvDlg .mb b i{font-style:normal;color:#3b82f6;margin-left:2px}'+
+      '#pvDlg .mb input{width:100%;box-sizing:border-box;background:#0f1420;color:#e8edf7;border:1px solid #232d40;border-radius:7px;padding:7px 2px;font-size:12.5px;text-align:center;outline:none}'+
+      '#pvDlg .mb input:focus{border-color:#3b82f6}'+
+      '#pvDlg .pr{display:flex;gap:6px;margin-top:12px}#pvDlg .pr input{flex:1;min-width:0;box-sizing:border-box;background:#0f1420;color:#e8edf7;border:1px solid #2a3548;border-radius:10px;padding:10px;font-size:15px;outline:none}'+
+      '#pvDlg .bts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}'+
+      '#pvDlg .bts button{padding:9px 6px;border-radius:10px;border:1px solid #2a3548;background:#0f1420;color:#e8edf7;font-size:12.5px;font-weight:600;cursor:pointer}'+
+      '#pvDlg .bts button:disabled{opacity:.4}'+
+      '#pvDlg .nt{font-size:11.5px;color:#8b99b5;margin-top:9px;line-height:1.45}'+
+      '#pvDlg .pb{display:flex;gap:8px;margin-top:14px}#pvDlg .pb button{flex:1;padding:12px;border-radius:10px;border:0;font-size:15px;font-weight:600;cursor:pointer}'+
+      '#pvDlg .no{background:#0f1420;color:#e8edf7;border:1px solid #2a3548!important}#pvDlg .ok{flex:2!important;background:#3b82f6;color:#fff}';
     document.head.appendChild(st);
   }
+  var anoHoje=Number(ST.mes.slice(0,4));
+  var S={ vals:{}, orig:{}, sel:{}, ano:anoHoje, anos:[anoHoje], fim:ST.mes };
+  var vNum=function(t){ var v=parseFloat(String(t||'').replace(/\./g,'').replace(',','.')); return isNaN(v)?0:Math.round(v*100)/100; };
+  var ref=function(a,m){ return a+'-'+('0'+m).slice(-2); };
+  var mudou=function(){ return Object.keys(S.vals).filter(function(k){ return Math.abs((S.vals[k]||0)-(S.orig[k]||0))>0.005; }); };
   var d=document.createElement('div'); d.id='pvDlg';
-  d.innerHTML='<div class="px"><h3>Previsto a partir de '+NOMES_MES[Number(ST.mes.split('-')[1])]+'</h3><div class="dc">'+tx(rotulo||categoria)+'</div>'+
-    '<input id="pvV" inputmode="decimal" autocomplete="off" value="'+(atual>0.005?num(atual):'')+'">'+
-    '<label class="t">Aplicar até</label><div id="pvAteBox">'+grade('pvAte', '', [['', 'Só '+mesNome(ST.mes).toLowerCase()]])+'</div>'+
-    '<label class="ck" id="pvPulaL" style="display:none"><input type="checkbox" id="pvPula"> Pular os meses que hoje estão sem previsto</label>'+
-    '<label class="ck"><input type="checkbox" id="pvRj"> Reajuste anual</label>'+
-    '<div class="rj" id="pvRjBox" style="display:none"><input id="pvRjP" inputmode="decimal" data-mask="pct" placeholder="% ao ano"><small>Reajusta em</small><div id="pvRjMBox">'+
-      grade('pvRjM', '1', [1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){ return [m, NOMES_MES[m].substring(0,3)]; }), 'g6')+'</div></div>'+
-    '<div class="pv" id="pvPrev"></div>'+
+  d.innerHTML='<div class="px"><h3>Previsto</h3><div class="dc">'+tx(rotulo||categoria)+'</div>'+
+    '<div class="anos" id="pvAnos"></div><div class="mg" id="pvMeses"><div class="nt">Carregando…</div></div>'+
+    '<div class="pr"><input id="pvV" inputmode="decimal" autocomplete="off" placeholder="valor" value="'+(atual>0.005?num(atual):'')+'"></div>'+
+    '<div class="bts"><button id="pvSel" disabled>nos marcados</button><button id="pvDaqui">de '+NOMES_MES[Number(ST.mes.slice(5,7))].substring(0,3).toLowerCase()+'/'+ST.mes.slice(2,4)+' até o fim</button>'+
+      '<button id="pvTodos">em todos de <span id="pvAnoTx">'+anoHoje+'</span></button><button id="pvCom">nos com valor</button></div>'+
+    '<div class="nt" id="pvNt">Toque no nome do mês para marcar. Mês vazio fica sem previsto.</div>'+
     '<div class="pb"><button class="no" id="pvNo">Cancelar</button><button class="ok" id="pvOk">Salvar</button></div></div>';
   document.body.appendChild(d);
-  var info={ meses:[{ref:ST.mes, valor:atual||0}] };
-  var val=function(){ var v=parseFloat(String(el('pvV').value).replace(/\./g,'').replace(',','.')); return isNaN(v)?null:v; };
-  var pctRj=function(){ var p=parseFloat(String(el('pvRjP').value).replace(',','.')); return el('pvRj').checked && p>0 ? p/100 : 0; };
-  /* os meses que vão ser gravados, com o valor de cada um - a mesma conta do servidor */
-  var plano=function(){
-    var v=val(), ate=el('pvAte').value||ST.mes, rj=pctRj(), mr=Number(el('pvRjM').value), pula=el('pvPula').checked, l=[];
-    if(v===null) return l;
-    info.meses.forEach(function(x){
-      if(x.ref>ate) return;
-      if(x.ref!==ST.mes && rj && Number(x.ref.slice(5,7))===mr) v=Math.round(v*(1+rj)*100)/100;
-      if(x.ref!==ST.mes && pula && !(x.valor>0.005)) return;
-      l.push({ref:x.ref, valor:v});
+  var desenhar=function(){
+    el('pvAnos').innerHTML=S.anos.map(function(a){ return '<button class="'+(a===S.ano?'on':'')+'" data-a="'+a+'">'+a+'</button>'; }).join('');
+    Array.prototype.forEach.call(el('pvAnos').querySelectorAll('button'), function(b){ b.onclick=function(){ S.ano=Number(b.dataset.a); desenhar(); }; });
+    var h='';
+    for(var m=1;m<=12;m++){
+      var r=ref(S.ano,m), v=S.vals[r]||0, md=Math.abs(v-(S.orig[r]||0))>0.005;
+      h+='<div class="mb'+(S.sel[r]?' sel':'')+(md?' mud':'')+'"><b data-r="'+r+'">'+NOMES_MES[m].substring(0,3)+(r===ST.mes?'<i>•</i>':'')+'</b>'+
+         '<input data-r="'+r+'" inputmode="decimal" placeholder="0,00" value="'+(v?num(v):'')+'"></div>';
+    }
+    el('pvMeses').innerHTML=h;
+    Array.prototype.forEach.call(el('pvMeses').querySelectorAll('b'), function(x){
+      x.onclick=function(){ var r=x.dataset.r; if(S.sel[r]) delete S.sel[r]; else S.sel[r]=true; desenhar(); };
     });
-    return l;
+    Array.prototype.forEach.call(el('pvMeses').querySelectorAll('input'), function(i){
+      i.oninput=function(){ S.vals[i.dataset.r]=vNum(i.value); i.parentNode.classList.toggle('mud', Math.abs(S.vals[i.dataset.r]-(S.orig[i.dataset.r]||0))>0.005); nota(); };
+    });
+    el('pvAnoTx').textContent=S.ano;
+    var nSel=Object.keys(S.sel).length;
+    el('pvSel').disabled=!nSel; el('pvSel').textContent=nSel?'nos '+nSel+' marcados':'nos marcados';
+    nota();
   };
-  var prever=function(){
-    var l=plano(), ate=el('pvAte').value;
-    el('pvRjBox').style.display=el('pvRj').checked?'':'none';
-    if(!ate){ el('pvPrev').innerHTML=''; return; }
-    var dentro=info.meses.filter(function(x){ return x.ref>ST.mes && x.ref<=ate; });
-    el('pvPulaL').style.display=dentro.some(function(x){ return !(x.valor>0.005); })?'':'none';
-    el('pvPrev').innerHTML=l.length+' '+(l.length>1?'meses':'mês')+': '+
-      l.map(function(x){ return mesNome(x.ref)+' '+num(x.valor); }).join(' · ');
+  var nota=function(){
+    var n=mudou().length;
+    el('pvNt').textContent = n ? n+(n===1?' mês alterado':' meses alterados')+' (em amarelo). Toque no nome do mês para marcar.'
+                               : 'Toque no nome do mês para marcar. Mês vazio fica sem previsto.';
   };
+  var preencher=function(filtro){
+    var v=vNum(el('pvV').value), n=0;
+    var refs=[]; S.anos.forEach(function(a){ for(var m=1;m<=12;m++) refs.push(ref(a,m)); });
+    refs.forEach(function(r){ if(filtro(r)){ S.vals[r]=v; n++; } });
+    if(!n){ toast('Nenhum mês para preencher'); return; }
+    desenhar();
+  };
+  el('pvSel').onclick=function(){ preencher(function(r){ return S.sel[r]; }); S.sel={}; desenhar(); };
+  el('pvTodos').onclick=function(){ preencher(function(r){ return r.slice(0,4)===String(S.ano); }); };
+  el('pvCom').onclick=function(){ preencher(function(r){ return r.slice(0,4)===String(S.ano) && (S.vals[r]||0)>0.005; }); };
+  el('pvDaqui').onclick=function(){ preencher(function(r){ return r>=ST.mes && r<=S.fim; }); };
   var fim=function(){ d.remove(); };
   el('pvNo').onclick=fim;
   d.onclick=function(e){ if(e.target===d) fim(); };
-  ['pvV','pvRjP'].forEach(function(id){ el(id).oninput=prever; });
-  ['pvAte','pvPula','pvRj','pvRjM'].forEach(function(id){ el(id).onchange=prever; });
   el('pvOk').onclick=function(){
-    var v=val(); if(v===null){ toast('Valor inválido'); return; }
-    var ate=el('pvAte').value, rj=pctRj();
-    var mr=Number(el('pvRjM').value), pula=el('pvPula').checked && el('pvPulaL').style.display!=='none';
-    var mudouRj=el('pvRj').checked ? (Math.abs(rj-(info.reajuste||0))>0.00001 || mr!==info.mesReajuste) : (info.reajuste>0);
-    fim();
-    if(!ate && !mudouRj){ salvarPrevistoTexto(categoria, String(v).replace('.',',')); return; }
-    toast('Salvando...');
+    var refs=mudou();
+    if(!refs.length){ fim(); return; }
+    var linhas=refs.sort().map(function(r){ return { mes:r, categoria:categoria, valor:S.vals[r]||0 }; });
+    fim(); toast('Salvando '+linhas.length+(linhas.length===1?' mês...':' meses...'));
     google.script.run.withSuccessHandler(function(r){
-      toast(r && r.ok ? (r.quantos>1?'Previsto gravado em '+r.quantos+' meses':'Previsto atualizado')+(mudouRj?' · reajuste da conta salvo':'') : ((r&&r.erro)||'Não consegui salvar'));
+      toast(r && r.ok ? 'Previsto gravado em '+linhas.length+(linhas.length===1?' mês':' meses') : ((r&&r.erro)||'Não consegui salvar'));
       ST.cacheMes={}; ST.extras=null; ST.ano=null; carregar(ST.mes);
     }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); })
-      .apiAplicarPrevisto(ST.mes, categoria, v, { ate:ate, pular:pula, reajuste:rj, mesReajuste:mr, gravarReajuste:mudouRj });
+      .apiSalvarPrevistoEmVarios(linhas);
   };
-  setTimeout(function(){ var i=el('pvV'); i.focus(); try{ i.select(); }catch(e){} }, 60);
+  desenhar();
+  // tudo o que está gravado, do começo deste ano até o fim do plano
   google.script.run.withSuccessHandler(function(r){
-    if(!r || !r.ok || !el('pvDlg')) return;
-    info=r;
-    el('pvAteBox').innerHTML=grade('pvAte', '', [['', 'Só '+mesNome(ST.mes).toLowerCase()]].concat(
-      r.meses.slice(1).map(function(x){ return [x.ref, mesNome(x.ref).toLowerCase()]; })));
-    el('pvAte').onchange=prever;
-    // a conta que não cai todo mês (tem mês zerado no caminho) já vem com "pular" marcado
-    el('pvPula').checked=r.meses.some(function(x){ return !(x.valor>0.005); }) && r.meses.some(function(x,i){ return i>0 && x.valor>0.005; });
-    if(r.reajuste>0){ el('pvRj').checked=true; el('pvRjP').value=String(Math.round(r.reajuste*10000)/100).replace('.',','); }
-    else el('pvRjP').value='4,5';
-    el('pvRjMBox').innerHTML=grade('pvRjM', String(r.mesReajuste||1), [1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){ return [m, NOMES_MES[m].substring(0,3)]; }), 'g6');
-    el('pvRjM').onchange=prever;
-    prever();
-  }).apiInfoPrevisto(ST.mes, categoria);
+    if(!r || !r.ok || !el('pvDlg')){ if(r && r.erro) toast(r.erro); return; }
+    (r.meses||[]).forEach(function(x){ S.vals[x.ref]=n2(x.valor); S.orig[x.ref]=n2(x.valor); if(x.ref>S.fim) S.fim=x.ref; });
+    var a1=Number(S.fim.slice(0,4)); S.anos=[]; for(var a=anoHoje;a<=a1;a++) S.anos.push(a);
+    desenhar();
+  }).withFailureHandler(function(){ toast('Não consegui ler o previsto'); }).apiInfoPrevisto(anoHoje+'-01', categoria);
+  function n2(v){ return Math.round((Number(v)||0)*100)/100; }
 }
 /* Conta sem previsto nenhum e sem valor cadastrado: tirar do mes nao faz
    nada (ja esta zerada), entao o X oferece o que realmente resolve. */
