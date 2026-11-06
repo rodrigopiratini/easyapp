@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.79.0 \u00b7 06/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.80.0 \u00b7 06/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1427,14 +1427,53 @@ window.pedirTexto = function (o, feito) {
      zerava o previsto: mesada prevista 200 e paga 170 virava previsto 0 e
      "-170" na linha, como se a conta não tivesse previsão. Sem nada pago
      (não vai acontecer), aí sim fica zero. */
+  /* Retirar da previsão (06/11): o previsto de antes fica guardado na config
+     (RETIRADOS:AAAA-MM), para o "voltar" do De onde vêm devolver o valor -
+     antes ele se perdia (a receita do EDM de novembro, 1.154,58 → 111,89). */
+  function lerRetirados(mes) {
+    return rest('/rest/v1/config?select=valor&chave=eq.' + encodeURIComponent('RETIRADOS:' + mes) + '&limit=1')
+      .then(function (r) { try { return JSON.parse((r && r[0] && r[0].valor) || '{}') || {}; } catch (e) { return {}; } })
+      .catch(function () { return {}; });
+  }
+  function gravarRetirados(mes, mapa) {
+    _cfgCache = null;
+    return gravar('config', [{ chave: 'RETIRADOS:' + mes, valor: JSON.stringify(mapa) }], 'user_id,chave');
+  }
   function baixarPrevisto(mes, categoria) {
     return rest('/rest/v1/resumo_mes?select=natureza,previsto,realizado&mes_ref=eq.' + mes
                 + '&categoria=eq.' + encodeURIComponent(categoria)).then(function (r) {
       var l = r && r[0];
       var pago = l ? Math.max(0, Number(l.realizado) || 0) : 0;
       var prev = l ? Number(l.previsto) || 0 : 0;
-      return salvarPrevisto(mes, categoria, Math.min(prev, pago))
-        .then(function (x) { return x.ok ? { ok: true, categoria: categoria, previsto: n(Math.min(prev, pago)) } : x; });
+      return lerRetirados(mes).then(function (mapa) {
+        if (!(mapa[categoria] > 0)) mapa[categoria] = n(prev);   // retirou de novo: fica o valor do começo
+        return gravarRetirados(mes, mapa);
+      }).catch(function () { return null; }).then(function () {
+        return salvarPrevisto(mes, categoria, Math.min(prev, pago));
+      }).then(function (x) { return x.ok ? { ok: true, categoria: categoria, previsto: n(Math.min(prev, pago)) } : x; });
+    });
+  }
+  function listarRetirados(mes) {
+    return lerRetirados(mes).then(function (mapa) {
+      var l = Object.keys(mapa).map(function (k) { return { categoria: k, previsto: n(mapa[k]) }; });
+      if (!l.length) return { ok: true, itens: [] };
+      return rest('/rest/v1/categorias?select=nome,natureza&nome=in.(' + l.map(function (x) { return '"' + x.categoria.replace(/"/g, '') + '"'; }).join(',') + ')')
+        .then(function (cs) {
+          var nat = {}; (cs || []).forEach(function (c) { nat[c.nome] = c.natureza; });
+          l.forEach(function (x) { x.natureza = nat[x.categoria] || 'DESPESA'; });
+          return { ok: true, itens: l.sort(function (a, b) { return b.previsto - a.previsto; }) };
+        });
+    });
+  }
+  function voltarRetirado(mes, categoria) {
+    return lerRetirados(mes).then(function (mapa) {
+      if (!(categoria in mapa)) return { ok: false, erro: 'não achei o que foi retirado de ' + categoria };
+      var v = n(mapa[categoria]);
+      return salvarPrevisto(mes, categoria, v).then(function (x) {
+        if (!x.ok) return x;
+        delete mapa[categoria];
+        return gravarRetirados(mes, mapa).then(function () { _projCache = {}; return { ok: true, previsto: v }; });
+      });
     });
   }
 
@@ -5289,7 +5328,9 @@ window.pedirTexto = function (o, feito) {
     apiAuditoria: auditoria,
     apiBaixarPrevisto: baixarPrevisto,
     apiReprogramarPrevisto: reprogramarPrevisto,
-    apiRestaurarPrevisto: function (mes, cat) { return salvarPrevisto(mes, cat, 0); },
+    apiRestaurarPrevisto: voltarRetirado,
+    apiVoltarRetirado: voltarRetirado,
+    apiListarRetirados: listarRetirados,
     apiExtras: extras,
     apiPagarFatura: pagarFatura,
     apiMoverParaFatura: moverParaFatura,
@@ -13333,7 +13374,7 @@ function htmlDeOndeVem(cx){
   ST.cxSel=ST.cxSel||{};
   h+='<div class="cx-info">&#10003; Marque o que <b>não vai acontecer</b> neste mês e toque em <b>Retirar</b>: sai do “Ainda entra / Ainda sai” (o previsto fica igual ao que já foi pago). A fatura marcada é registrada como paga.</div>';
   (cx.itens||[]).forEach(function(x){
-    var podeReprog = !x.fatura && x.natureza!=='RECEITA';
+    var podeReprog = !x.fatura;   // receita também (06/11): a que não entra agora entra depois
     h+='<div class="cx-it"><label>'+
        '<input type="checkbox"'+(!x.fatura&&ST.cxSel[x.categoria]?' checked':'')+' onchange="'+(x.fatura ? 'pagarFaturaPerguntando(this)'
          : 'cxMarcar('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+',this.checked)')+'">'+
@@ -13345,6 +13386,22 @@ function htmlDeOndeVem(cx){
          'onclick="abrirReprog('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+',\'caixa\')">&#8618;</button>':'<span class="cx-rp"></span>')+'</div>';
     if(podeReprog && ST.reprog===x.categoria && ST.reprogOnde==='caixa') h+=painelReprog(x);
   });
+  // o que foi retirado deste mês, com o valor de antes e o voltar (06/11)
+  if(ST.retirados===undefined || ST.retiradosMes!==ST.mes){
+    ST.retirados=null; ST.retiradosMes=ST.mes;
+    google.script.run.withSuccessHandler(function(r){ ST.retirados=(r&&r.itens)||[]; if(ST.folhaMes) desenharFolhaMes(); else renderMes(); })
+      .withFailureHandler(function(){ ST.retirados=[]; }).apiListarRetirados(ST.mes);
+  }
+  var ret=ST.retirados||[];
+  if(ret.length){
+    h+='<div class="lbl" style="margin:14px 2px 4px">Retiradas deste mês</div>';
+    ret.forEach(function(x){
+      h+='<div class="cx-it"><label style="opacity:.75"><span style="width:18px;text-align:center;color:var(--dim)">&#8856;</span>'+
+         '<span class="t">'+tx(x.categoria)+'<small class="cx-sub">era '+moeda(x.previsto)+'</small></span>'+
+         '<span class="n '+(x.natureza==='RECEITA'?'pos':'neg')+'">'+(x.natureza==='RECEITA'?'+':'-')+moeda(x.previsto)+'</span></label>'+
+         '<button class="cx-rp" title="voltar para a previsão" onclick="voltarRetirado('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+')">&#8617;</button></div>';
+    });
+  }
   var sel=(cx.itens||[]).filter(function(x){ return !x.fatura && ST.cxSel[x.categoria]; });
   if(sel.length){
     h+='<div class="cx-acao"><button class="bt-no" onclick="ST.cxSel={};renderMes()">Limpar</button>'+
@@ -13977,7 +14034,7 @@ function painelReprog(x){
   }
   var vz=[]; for(var v=2;v<=12;v++) vz.push([v, v+'x']);
   return '<div class="card" style="margin:4px 0 8px;padding:10px 11px;border:1px solid #2b3a57">'+
-    '<div class="m" style="font-size:11.5px;margin-bottom:7px">Levar o que não vai ser gasto de <b>'+tx(x.categoria)+'</b> para os próximos meses. '+
+    '<div class="m" style="font-size:11.5px;margin-bottom:7px">Levar o que não vai '+(x.natureza==='RECEITA'?'entrar':'ser gasto')+' de <b>'+tx(x.categoria)+'</b> para os próximos meses. '+
       'Se o mês já tem previsto dessa subcategoria, soma.</div>'+
     '<div class="lbl" style="font-size:10px">Valor</div>'+
     '<input id="rpVal" inputmode="decimal" value="'+num(x.falta)+'" oninput="mascaraMoeda(this)" style="margin:0 0 8px">'+
@@ -13989,7 +14046,9 @@ function painelReprog(x){
       : grade('rpVezes', '2', vz))+
     '<div class="row" style="gap:8px;margin-top:9px">'+
       '<button class="bt-no" style="flex:1" onclick="ST.reprog=null;renderMes()">Cancelar</button>'+
-      '<button class="bt-ok" style="flex:2" onclick="reprogramar('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+')">Reprogramar</button></div></div>';
+      '<button class="bt-ok" style="flex:2" onclick="reprogramar('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+')">Reprogramar</button></div>'+
+    '<button class="lk" style="display:block;margin:9px auto 0;font-size:12px" onclick="ST.reprog=null;dialogoPrevisto('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+',0,'+
+      JSON.stringify(nomeBonito(x.categoria)).replace(/"/g,'&quot;')+')">ou ajustar mês a mês &#8250;</button></div>';
 }
 function reprogramar(cat){
   var v=parseFloat(String(el('rpVal').value||'0').replace(/\./g,'').replace(',','.'))||0;
@@ -14017,7 +14076,7 @@ function cxRetirar(){
               '\n\nElas saem do "Ainda entra / Ainda sai" deste mês. O previsto fica igual ao que já foi pago.')) return;
   toast('Retirando '+cats.length+'...');
   var vai=function(k){
-    if(k>=cats.length){ ST.cxSel={}; toast(cats.length+(cats.length===1?' conta retirada':' contas retiradas')+' da previsão'); ST.ano=null; carregar(ST.mes); return; }
+    if(k>=cats.length){ ST.cxSel={}; ST.retirados=undefined; toast(cats.length+(cats.length===1?' conta retirada':' contas retiradas')+' da previsão'); ST.ano=null; carregar(ST.mes); return; }
     google.script.run.withSuccessHandler(function(){ vai(k+1); }).withFailureHandler(function(){ vai(k+1); }).apiBaixarPrevisto(ST.mes, cats[k]);
   };
   vai(0);
@@ -14037,6 +14096,13 @@ function baixarPrevisto(cat, box){
   }).apiBaixarPrevisto(ST.mes, cat);
 }
 
+function voltarRetirado(cat){
+  toast('Voltando '+cat.split(' - ').pop()+'...');
+  google.script.run.withSuccessHandler(function(r){
+    toast(r&&r.ok ? 'Voltou para a previsão: '+moeda(r.previsto) : ((r&&r.erro)||'Não consegui'));
+    ST.retirados=undefined; ST.ano=null; ST.cacheMes={}; carregar(ST.mes);
+  }).withFailureHandler(function(e){ toast('Falhou: '+((e&&e.message)||e)); }).apiVoltarRetirado(ST.mes, cat);
+}
 function restaurarPrevisto(cat){
   google.script.run.withSuccessHandler(function(r){
     toast(r.ok ? 'Previsto devolvido: '+moeda(r.previstoAgora) : 'Não consegui');
