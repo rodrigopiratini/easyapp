@@ -218,7 +218,7 @@ var DADOS = null, FILTRO = 'todos', BUSCA = '';
 var EDITANDO = null;   // voucher aberto no formulário para editar (null = criar novo)
 var LOG = null, LOG_FILTRO = 'todos';   // log da pessoa aberta na janela
 // versão deste painel: suba a cada publicação (aparece no rodapé e no login)
-var VERSAO_PAINEL = '1.29.5 · 05/11/2026';
+var VERSAO_PAINEL = '1.30.0 · 09/11/2026';
 var ABERTO_EM = Date.now();
 /* O navegador guarda a página (o GitHub Pages manda guardar 10 min, e o painel
    instalado na tela de início segura mais). Ao abrir, confere a versão da
@@ -665,17 +665,68 @@ var Fabrica = (function () {
     var m = Math.round((Date.now() - new Date(s)) / 60000);
     return m < 1 ? 'agora' : m < 60 ? 'há ' + m + ' min' : m < 1440 ? 'há ' + Math.round(m / 60) + ' h' : 'há ' + Math.round(m / 1440) + ' d';
   }
-  function resumo(x) {
-    var d = Object.assign({}, x.atual || {}, x.dados || {}), p = [];
-    if (d.origem || d.destino) p.push(esc((d.numero ? '#' + d.numero + ' ' : '') + (d.origem || '') + ' → ' + (d.destino || '')));
-    if (x.colecao === 'empresa' && d.nome) p.push('nome agora: <b>' + esc(d.nome) + '</b>'); else if (d.placa) p.push(esc(d.placa)); else if (d.nome && x.colecao !== 'viagens') p.push(esc(d.nome));
-    if (d.categoria) p.push(esc(d.categoria)); if (d.forma) p.push(esc(d.forma));
-    if (d.valor != null && d.valor !== '') p.push(brl(d.valor)); else if (d.valorFrete) p.push('frete ' + brl(d.valorFrete));
-    var mud = x.acao === 'update' && x.dados ? Object.keys(x.dados).filter(function (k) { return k !== 'id'; }) : [];
-    if (mud.length) p.push('<span style="color:var(--tx2)">mudou: ' + esc(mud.slice(0, 6).join(', ')) + (mud.length > 6 ? '…' : '') + '</span>');
-    if (x.acao === 'acesso' && x.dados && x.dados.modo) p.push('<span style="color:var(--amb)">modo ' + esc(x.dados.modo) + '</span>');
-    return p.join(' · ');
+  // Registro legível: o que foi lançado (tipo, valor, viagem…) e, nas alterações, "campo: antes → depois"
+  var CAMPO = { valor: 'valor', valorFrete: 'frete', adiantamento: 'adiantamento', data: 'data', dataSaida: 'saída', dataChegada: 'chegada', origem: 'origem', destino: 'destino',
+    carga: 'carga', kmInicio: 'km na saída', kmFim: 'km na chegada', km: 'km', litros: 'litros', posto: 'posto', categoria: 'tipo', descricao: 'descrição', obs: 'obs.', obsFechamento: 'obs. do fechamento',
+    forma: 'forma', com: 'ficou com', meio: 'pago com', pagoPeloMotorista: 'pago pelo motorista', conferido: 'conferido', fechadoEm: 'fechada em', recebido: 'recebido', recebidoEm: 'recebido em',
+    status: 'situação', comissaoPct: 'comissão %', nome: 'nome', placa: 'placa', modelo: 'modelo', ativo: 'ativo', codigo: 'código', papel: 'papel', tanqueCheio: 'tanque cheio',
+    motoristaId: 'motorista', veiculoId: 'caminhão', clienteId: 'cliente', viagemId: 'viagem' };
+  var OCULTO = ['id', 'criadoEm', 'atualizadoEm', 'criado_em', 'empresa_id', 'user_id', 'ref', 'visto_em', 'numero'];
+  var TXT = { pedagio: 'Pedágio', manutencao: 'Manutenção', outros: 'Outros', combustivel: 'Combustível', alimentacao: 'Alimentação', hospedagem: 'Hospedagem', diesel: 'Diesel', arla: 'Arla',
+    adiantamento_cliente: 'adiantamento do cliente', vale_pedagio: 'vale-pedágio', pix: 'PIX', deposito: 'depósito', boleto: 'boleto', carta_frete: 'carta-frete', especie: 'espécie', cheque: 'cheque',
+    dono: 'empresa', empresa: 'empresa', motorista: 'motorista', tag: 'tag do pedágio', concluida: 'concluída', andamento: 'em andamento', em_andamento: 'em andamento', planejada: 'planejada', usuario: 'app de campo', gestor: 'gestor' };
+  function nomeRef(k, d) {
+    if (!d) return '';
+    if (k === 'viagemId') return '#' + (d.numero || '') + ' ' + (d.origem || '') + ' → ' + (d.destino || '');
+    return d.placa || d.nome || '';
   }
+  function val(k, v, refs) {
+    if (v == null || v === '') return '—';
+    if (/Id$/.test(k)) return esc(nomeRef(k, refs && refs[k]) || '—');
+    if (typeof v === 'boolean') return v ? 'sim' : 'não';
+    if (['valor', 'valorFrete', 'adiantamento'].indexOf(k) >= 0) return brl(v);
+    if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(8, 10) + '/' + v.slice(5, 7) + '/' + v.slice(2, 4);
+    if (typeof v === 'number') return v.toLocaleString('pt-BR');
+    if (typeof v === 'object') return '…';
+    return esc(TXT[v] || String(v).replace(/_/g, ' '));
+  }
+  function titulo(c, d, refs) {
+    var p = [];
+    if (c === 'viagens') { p.push('<b>' + esc('#' + (d.numero || '') + ' ' + (d.origem || '') + ' → ' + (d.destino || '')) + '</b>'); if (d.carga) p.push(esc(d.carga)); if (d.valorFrete) p.push('frete ' + brl(d.valorFrete)); }
+    else if (c === 'despesas') { p.push('<b>' + esc(TXT[d.categoria] || d.categoria || 'Despesa') + '</b>' + (d.descricao ? ' (' + esc(d.descricao) + ')' : '')); if (d.valor != null) p.push('<b>' + brl(d.valor) + '</b>'); if (d.meio === 'tag') p.push('pago com a tag'); else if (d.pagoPeloMotorista) p.push('pago pelo motorista'); }
+    else if (c === 'abastecimentos') { p.push('<b>Abastecimento</b>' + (d.litros ? ' ' + Number(d.litros).toLocaleString('pt-BR') + ' L' : '') + (d.posto ? ' · ' + esc(d.posto) : '')); if (d.valor != null) p.push('<b>' + brl(d.valor) + '</b>'); if (d.pagoPeloMotorista) p.push('pago pelo motorista'); }
+    else if (c === 'recebimentos') { p.push('<b>Recebimento</b> ' + esc(TXT[d.forma] || d.forma || '')); if (d.valor != null) p.push('<b>' + brl(d.valor) + '</b>'); if (d.com) p.push('ficou com ' + esc(TXT[d.com] || d.com)); }
+    else if (c === 'manutencoes') { p.push('<b>Manutenção</b>' + (d.descricao ? ' (' + esc(d.descricao) + ')' : '')); if (d.valor != null) p.push('<b>' + brl(d.valor) + '</b>'); }
+    else if (c === 'acessos') { p.push('<b>' + esc(d.nome || '') + '</b>' + (d.codigo ? ' · código ' + esc(d.codigo) : '')); if (d.pinTrocado) p.push('trocou o PIN'); }
+    else if (c === 'perfis') { if (d.papel) p.push(esc(TXT[d.papel] || d.papel)); }
+    else if (c === 'empresa') { if (d.nome) p.push('nome agora: <b>' + esc(d.nome) + '</b>'); }
+    else { var n = d.placa || d.nome || d.descricao; if (n) p.push('<b>' + esc(n) + '</b>' + (d.modelo ? ' ' + esc(d.modelo) : '')); if (d.valor != null && d.valor !== '') p.push(brl(d.valor)); }
+    if (d.data && c !== 'viagens') p.push(val('data', d.data));
+    if (c === 'viagens' && (d.dataSaida || d.dataChegada)) p.push(val('d', d.dataSaida) + ' a ' + val('d', d.dataChegada));
+    var ctx = [];
+    if (c !== 'viagens' && refs && refs.viagemId) ctx.push('viagem ' + esc(nomeRef('viagemId', refs.viagemId)));
+    if (refs && refs.veiculoId && c !== 'veiculos') ctx.push('caminhão ' + esc(nomeRef('veiculoId', refs.veiculoId)));
+    if (refs && refs.motoristaId && c !== 'motoristas') ctx.push('motorista ' + esc(nomeRef('motoristaId', refs.motoristaId)));
+    return p.join(' · ') + (ctx.length ? '<br><small style="color:var(--tx2)">' + ctx.join(' · ') + '</small>' : '');
+  }
+  function resumo(x) {
+    if (x.acao === 'acesso') return x.dados && x.dados.modo ? '<span style="color:var(--amb)">modo ' + esc(x.dados.modo) + '</span>' : '';
+    var refs = x.refs || {}, dados = x.dados || {};
+    // alteração: o item (como está agora) + cada campo que mudou
+    if (x.acao === 'update') {
+      var base = Object.assign({}, x.atual || {}, dados);
+      var ks = Object.keys(dados).filter(function (k) { return OCULTO.indexOf(k) < 0; });
+      var mud = ks.slice(0, 8).map(function (k) {
+        var a = x.antes && k in x.antes ? val(k, x.antes[k], refs) : null;
+        if (k === 'pinTrocado') return 'trocou o PIN';
+        return (CAMPO[k] || esc(k)) + ': ' + (a != null ? '<s style="color:var(--tx2)">' + a + '</s> → ' : '') + '<b>' + val(k, dados[k], refs) + '</b>';
+      });
+      return titulo(x.colecao, base, refs) + (mud.length ? '<div style="margin-top:3px">' + mud.join('<br>') + (ks.length > 8 ? '<br>…' : '') + '</div>' : '');
+    }
+    return titulo(x.colecao, Object.assign({}, x.atual || {}, dados), refs);
+  }
+  // o sinal de "app aberto" (visto_em) não é ação de ninguém
+  function soPresenca(x) { return x.colecao === 'perfis' && x.acao === 'update' && x.dados && Object.keys(x.dados).every(function (k) { return k === 'visto_em'; }); }
   function pessoas(i) {
     var e = dados[i], st = { quem: null, dias: 30, d: null };
     var f = document.createElement('div'); f.className = 'fundo'; f.id = 'fundoPessoas';
@@ -690,7 +741,7 @@ var Fabrica = (function () {
     }
     function desenha() {
       var d = st.d, ps = d.pessoas || [];
-      var itens = (d.itens || []).filter(function (x) { return !st.quem || x.userId === st.quem; });
+      var itens = (d.itens || []).filter(function (x) { return !soPresenca(x) && (!st.quem || x.userId === st.quem); });
       var papel = { dono: 'dono', gestor: 'gestor', usuario: 'app de campo' };
       var h = '<div class="tab" style="margin-bottom:12px"><table style="table-layout:fixed;min-width:640px"><colgroup><col style="width:34%"><col style="width:16%"><col style="width:20%"><col style="width:14%"><col style="width:16%"></colgroup>' +
         '<thead><tr><th>Pessoa</th><th>Papel</th><th>Visto</th><th class="n">Ações (' + st.dias + ' d)</th><th></th></tr></thead><tbody>' +
@@ -708,7 +759,7 @@ var Fabrica = (function () {
           return '<tr><td>' + w.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + w.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
             '<td style="overflow:hidden;text-overflow:ellipsis" title="' + esc(x.quem || '') + '">' + esc(x.quem || '—') + '</td>' +
             '<td><span style="color:' + (x.acao === 'delete' ? 'var(--verm)' : x.acao === 'insert' ? 'var(--verde)' : x.acao === 'acesso' ? 'var(--tx2)' : 'var(--tx)') + '">' + (ACAO[x.acao] || esc(x.acao)) + '</span>' + (x.colecao ? ' ' + esc(NOMES[x.colecao] || x.colecao) : '') + '</td>' +
-            '<td style="white-space:normal">' + resumo(x) + '</td></tr>';
+            '<td style="white-space:normal;line-height:1.45">' + resumo(x) + '</td></tr>';
         }).join('') || '<tr><td colspan="4" style="color:var(--tx2)">Nada no período.</td></tr>') + '</tbody></table></div>';
       f.querySelector('#pCorpo').innerHTML = h;
       f.querySelectorAll('[data-u]').forEach(function (b) { b.onclick = function () { st.quem = b.getAttribute('data-u') || null; desenha(); }; });
