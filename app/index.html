@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.80.0 \u00b7 06/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.80.1 \u00b7 09/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -13680,7 +13680,7 @@ function linhaArv(d, nat){
       '<div class="ma-nm"><b>'+tx(nome)+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</div>'+
       '<div class="ma-c ma-dim">'+num(prev)+'</div><div class="ma-c">'+num(real)+'</div>'+
       '<div class="ma-c">'+maSaldo(prev, real, rec)+'</div>'+maBarra(prev, real, rec)+'</div>'+
-    (ST.reprog===d.categoria && ST.reprogOnde==='linha' ? painelReprog({categoria:d.categoria, falta:d.saldo}) : '');
+    (ST.reprog===d.categoria && ST.reprogOnde==='linha' ? painelReprog({categoria:d.categoria, natureza:(rec?'RECEITA':'DESPESA'), falta:Math.max(0,(d.previsto||0)-(d.realizado||0))}) : '');
 }
 function maCab(rot){
   return '<div class="ma-G ma-th"><span>'+rot+'</span><span>Previsto</span><span>'+(rot==='Entrada'?'Entrou':'Gasto')+'</span><span>Saldo</span></div>';
@@ -13751,7 +13751,10 @@ var IC_ACAO={
 function modoExcluir(d){
   if(d.daVerba>0.005) return '';
   if(d.previsto>0.005) return 'mes';
-  return Math.abs(d.realizado)>0.005 ? '' : 'apagar';
+  /* previsto zerado e nada no mês (09/11): a linha só aparece porque o zero
+     está gravado - tira do mês. Apagar a subcategoria de vez fica em Config
+     (ela pode ter lançamentos em outros meses: a Festa 15 anos tinha 2). */
+  return Math.abs(d.realizado)>0.005 ? '' : 'mes';
 }
 function linhaDoMes(cat){ return (ST.linhasMes||[]).filter(function(d){ return d.categoria===cat; })[0]; }
 function acoesDaConta(d, nat){
@@ -13760,17 +13763,18 @@ function acoesDaConta(d, nat){
   var sit=Math.abs(dif)<0.005 ? '<b class="ma-dim">certinho</b>'
     : rec ? (dif>0?'entrou <b class="pos">'+num(dif)+'</b> a mais':'falta entrar <b>'+num(-dif)+'</b>')
           : (dif<0?'passou <b class="neg">'+num(-dif)+'</b>':(real<0.005?'falta pagar <b>':'sobram <b class="pos">')+num(dif)+'</b>');
-  var podeRp=!rec && d.saldo>0.005 && !d.daVerba && d.categoria!=='CARTAO - A CLASSIFICAR';
+  // receita também (09/11): o que falta entrar pode ir para outro mês
+  var podeRp=!d.daVerba && d.categoria!=='CARTAO - A CLASSIFICAR' && (rec ? prev-real>0.005 : d.saldo>0.005);
   var ex=modoExcluir(d), por=[];
   if(d.daVerba>0.005) por.push('O previsto veio da verba do cartão: não há o que reprogramar nem excluir.');
   else {
-    if(!rec && !podeRp) por.push('Reprogramar acende quando sobra previsto no mês.');
+    if(!podeRp) por.push(rec?'Reprogramar acende quando falta entrar algo do previsto.':'Reprogramar acende quando sobra previsto no mês.');
     if(!ex) por.push('Teve '+(rec?'entrada':'gasto')+' sem previsto: não há o que tirar do mês.');
   }
   return '<div class="mv-res"><span>previsto <b>'+num(prev)+'</b>'+(d.daVerba>0.005?' (verba do cartão)':'')+'</span><span>'+sit+'</span></div>'+
-    '<div class="mv-ac" style="--n:'+(rec?2:3)+'">'+
+    '<div class="mv-ac" style="--n:3">'+
       '<button onclick="contaPrevisto('+cj+')">'+IC_ACAO.pv+'Mudar previsto</button>'+
-      (rec?'':'<button'+(podeRp?' onclick="contaReprog('+cj+')"':' disabled')+'>'+IC_ACAO.rp+'Reprogramar sobra</button>')+
+      '<button'+(podeRp?' onclick="contaReprog('+cj+')"':' disabled')+'>'+IC_ACAO.rp+(rec?'Reprogramar o que falta':'Reprogramar sobra')+'</button>'+
       '<button class="x"'+(ex?' onclick="contaExcluir('+cj+',\''+ex+'\')"':' disabled')+'>'+IC_ACAO.x+'Excluir do mês</button>'+
       (por.length?'<div class="mv-por">'+por.join(' ')+'</div>':'')+
     '</div><div id="movCf"></div>';
@@ -13791,7 +13795,7 @@ function contaExcluir(cat, modo){
   var d=linhaDoMes(cat), b=el('movCf'); if(!d || !b) return;
   var cj=JSON.stringify(cat).replace(/"/g,'&quot;'), nm=tx(nomeBonito(semGrupo(cat, d.grupo)));
   b.innerHTML='<div class="mv-cf">'+(modo==='mes'
-      ? 'Tirar <b>'+nm+'</b> de '+NOMES_MES[Number(ST.mes.split('-')[1])].toLowerCase()+'? O previsto de '+moeda(d.previsto)+' sai deste mês; a subcategoria continua existindo.'
+      ? 'Tirar <b>'+nm+'</b> de '+NOMES_MES[Number(ST.mes.split('-')[1])].toLowerCase()+'? '+(d.previsto>0.005?'O previsto de '+moeda(d.previsto)+' sai deste mês':'Ela some deste mês')+'; a subcategoria continua existindo.'
       : '<b>'+nm+'</b> não tem previsto neste mês nem valor cadastrado. Apagar esta subcategoria de vez?')+
     '<div><button class="bt-no" onclick="el(\'movCf\').innerHTML=\'\'">Cancelar</button>'+
     '<button class="bt-ok mv-cf-x" onclick="fecharMovimento();'+(modo==='mes'?'removerDoMes':'apagarDoMes')+'('+cj+',true)">'+(modo==='mes'?'Tirar do mês':'Apagar')+'</button></div></div>';
