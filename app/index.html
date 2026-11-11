@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.80.2 \u00b7 11/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.80.3 \u00b7 11/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1457,11 +1457,24 @@ window.pedirTexto = function (o, feito) {
     return lerRetirados(mes).then(function (mapa) {
       var l = Object.keys(mapa).map(function (k) { return { categoria: k, previsto: n(mapa[k]) }; });
       if (!l.length) return { ok: true, itens: [] };
-      return rest('/rest/v1/categorias?select=nome,natureza&nome=in.(' + l.map(function (x) { return '"' + x.categoria.replace(/"/g, '') + '"'; }).join(',') + ')')
-        .then(function (cs) {
-          var nat = {}; (cs || []).forEach(function (c) { nat[c.nome] = c.natureza; });
-          l.forEach(function (x) { x.natureza = nat[x.categoria] || 'DESPESA'; });
-          return { ok: true, itens: l.sort(function (a, b) { return b.previsto - a.previsto; }) };
+      var nomes = l.map(function (x) { return '"' + x.categoria.replace(/"/g, '') + '"'; }).join(',');
+      /* o que foi retirado é o que SOBRAVA (11/11): previsto de antes menos o que
+         ficou (o já pago). A lista mostrava o previsto inteiro - mesadas 200 com
+         170 pagos apareciam como 200 retirados, e eram 30. */
+      return Promise.all([
+        rest('/rest/v1/categorias?select=nome,natureza&nome=in.(' + nomes + ')'),
+        rest('/rest/v1/resumo_mes?select=categoria,previsto,realizado&mes_ref=eq.' + mes + '&categoria=in.(' + nomes + ')').catch(function () { return []; })
+      ]).then(function (R) {
+          var nat = {}, agora = {};
+          (R[0] || []).forEach(function (c) { nat[c.nome] = c.natureza; });
+          (R[1] || []).forEach(function (x) { agora[x.categoria] = { previsto: Number(x.previsto) || 0, pago: Number(x.realizado) || 0 }; });
+          l.forEach(function (x) {
+            x.natureza = nat[x.categoria] || 'DESPESA';
+            var a = agora[x.categoria] || { previsto: 0, pago: 0 };
+            x.ficou = n(a.previsto); x.pago = n(a.pago);
+            x.retirado = n(Math.max(0, x.previsto - a.previsto));
+          });
+          return { ok: true, itens: l.sort(function (a, b) { return b.retirado - a.retirado; }) };
         });
     });
   }
@@ -13415,8 +13428,9 @@ function htmlDeOndeVem(cx){
     h+='<div class="lbl" style="margin:14px 2px 4px">Retiradas deste mês</div>';
     ret.forEach(function(x){
       h+='<div class="cx-it"><label style="opacity:.75"><span style="width:18px;text-align:center;color:var(--dim)">&#8856;</span>'+
-         '<span class="t">'+tx(x.categoria)+'<small class="cx-sub">era '+moeda(x.previsto)+'</small></span>'+
-         '<span class="n '+(x.natureza==='RECEITA'?'pos':'neg')+'">'+(x.natureza==='RECEITA'?'+':'-')+moeda(x.previsto)+'</span></label>'+
+         '<span class="t">'+tx(x.categoria)+'<small class="cx-sub">previsto '+moeda(x.previsto)+
+           (x.ficou>0.005?' · '+(x.natureza==='RECEITA'?'entrou ':'pago ')+moeda(x.ficou):'')+'</small></span>'+
+         '<span class="n '+(x.natureza==='RECEITA'?'pos':'neg')+'">'+(x.natureza==='RECEITA'?'+':'-')+moeda(x.retirado!=null?x.retirado:x.previsto)+'</span></label>'+
          '<button class="cx-rp" title="voltar para a previsão" onclick="voltarRetirado('+JSON.stringify(x.categoria).replace(/"/g,'&quot;')+')">&#8617;</button></div>';
     });
   }
