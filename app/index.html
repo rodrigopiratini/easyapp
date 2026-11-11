@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.80.1 \u00b7 09/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.80.2 \u00b7 11/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -2704,7 +2704,7 @@ window.pedirTexto = function (o, feito) {
          limpava este cache: o Mês já via o lançamento novo e o Plano ainda
          partia do saldo velho - os dois "fim do mês" diferiam por centavos. */
       var guardado = _projCache[anos];
-      if (guardado && Date.now() - guardado.t < 120000) return guardado.p;
+      if (guardado && Date.now() - guardado.t < 30000) return guardado.p;
       var p = montarProjecao(anos, c);
       _projCache[anos] = { p: p, t: Date.now() };
       return p;
@@ -11477,7 +11477,8 @@ function irParaTela(t){
     ST.modoAnalise = ST.modoAnalise || 'PAINEL';
     // o painel e redesenhado junto com o resto do app (render), as vezes com
     // outra aba da Analise ativa - e ficava com a aba errada acesa
-    if(ST.modoAnalise==='PAINEL') renderPainel();
+    // abrir a aba confere a idade do painel e refaz por trás se passou de 1 minuto (11/11)
+    if(ST.modoAnalise==='PAINEL'){ if(ST.ano) carregarAno(ST.ano.ano); else renderPainel(); }
     if(ST.modoAnalise==='PLANO') carregarPlano();
     if(ST.modoAnalise==='METAS') carregarMetas();
     if(ST.modoAnalise==='PATRIMONIO'){ ST.modoAnalise='PAINEL'; renderPainel(); }
@@ -12521,11 +12522,28 @@ function ajustarFiltros(){
 
 /* O painel do ano e pesado: busca depois que a tela ja apareceu, e so
    quando o ano muda. Assim abrir o app nao espera por ele. */
+/* A Análise em tempo real (11/11): o que está guardado aparece na hora, mas
+   com mais de 1 minuto é refeito por trás e a tela redesenha - lançamento que
+   chegou do banco, previsto mudado no Mês, conta classificada. Antes o painel
+   do ano e o Caixa projetado ficavam com o número da primeira vez que a
+   Análise abriu (o Mês dizia fim de novembro -734,95 e a Análise -1.323,70). */
+var IDADE_ANALISE=60000;
 function carregarAno(ano){
-  if(ST.ano && ST.ano.ano === ano){ renderCabecalho(); renderPainel(); return; }
+  if(ST.ano && ST.ano.ano === ano){
+    renderCabecalho(); renderPainel();
+    if(Date.now()-(ST.anoEm||0) > IDADE_ANALISE && !ST.buscandoAno){
+      ST.buscandoAno=true;
+      google.script.run.withSuccessHandler(function(a){
+        ST.buscandoAno=false; if(!a || a.ano!==ano) return;
+        ST.ano=a; ST.anoEm=Date.now();
+        if(ST.telaAtual==='analise' && ST.modoAnalise==='PAINEL'){ try{ renderCabecalho(); renderPainel(); }catch(e){} }
+      }).withFailureHandler(function(){ ST.buscandoAno=false; }).apiAno(ano);
+    }
+    return;
+  }
   el('tela-painel').innerHTML=abasAnalise()+'<div class="load">Montando o painel do ano...</div>';
   google.script.run.withSuccessHandler(function(a){
-    try{ ST.ano=a; renderCabecalho(); renderPainel(); }
+    try{ ST.ano=a; ST.anoEm=Date.now(); renderCabecalho(); renderPainel(); }
     catch(err){ el('tela-painel').innerHTML='<div class="vazio">Erro no painel:<br>'+
       ((err&&err.message)||err)+'</div>'; }
   }).withFailureHandler(function(e){
@@ -15056,12 +15074,13 @@ function usarAlvo(){
    vem sozinha quando o Painel abre, e o que estava na tela continua valendo
    enquanto ela nao chega. */
 function garantirProjecaoLonga(){
-  if(ST.projLonga || ST.buscandoProj) return;
+  if(ST.buscandoProj) return;
+  if(ST.projLonga && Date.now()-(ST.projLongaEm||0) <= IDADE_ANALISE) return;   // velha: refaz por trás, a tela segue com a anterior
   ST.buscandoProj=true;
   google.script.run.withSuccessHandler(function(p){
     ST.buscandoProj=false;
     if(!p || !p.meses) return;
-    ST.projLonga=p;
+    ST.projLonga=p; ST.projLongaEm=Date.now();
     if(ST.telaAtual==='analise' && ST.modoAnalise==='PAINEL') renderPainel();
   }).withFailureHandler(function(){ ST.buscandoProj=false; })
     .apiProjecaoFutura(0);
