@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.81.0 \u00b7 17/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.81.1 \u00b7 19/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -2247,6 +2247,7 @@ window.pedirTexto = function (o, feito) {
           x.moeda = dd.moeda && dd.moeda !== 'BRL' ? dd.moeda : '';
           // sem valor_original (a moeda chegou e a cotação ainda não): o valor gravado é o da moeda
           x.valorOriginal = Number(dd.valor_original) || (x.moeda ? Number(l.valor) || 0 : 0);
+          x.valorReais = Math.abs(Number(l.valor) || 0);
           x.cotacao = Number(dd.cotacao) || 0;
           x.spread = Number(dd.spread) || 0; x.iof = Number(dd.iof) || 0;
           x.estimado = !!dd.estimado;
@@ -12616,10 +12617,15 @@ function renderPendentes(){
        '<div class="m" style="font-size:11.5px;margin-top:1px">'+
          /* moeda estrangeira (17/11): AED 40,00 × 1,5432 + spread + IOF = estimativa;
             sem cotação ainda, diz que está buscando (antes: "AED 0,00 × 0,00") */
+         /* 19/11: o que o banco já cobrou (sem cotação gravada, ou adotado) mostra a taxa
+            que ele usou - "buscando a cotação" aparecia na compra que já vinha em reais */
          (p.moeda?' · <b style="color:var(--warn)">'+p.moeda+' '+num(p.valorOriginal)+'</b>'+
-           (p.cotacao>0 ? ' × '+String(p.cotacao.toFixed(4)).replace('.',',')+(p.cotacaoAprox?' (aprox.)':'')+
-              ((p.spread||p.iof)?' + '+num(((1+p.spread)*(1+p.iof)-1)*100).replace(/,00$/,'')+'% spread/IOF':'')+(p.estimado?' · estimado':'')
-            : ' · buscando a cotação'):'')+
+           (p.estimado && p.cotacao>0
+              ? ' × '+String(p.cotacao.toFixed(4)).replace('.',',')+(p.cotacaoAprox?' (aprox.)':'')+
+                ((p.spread||p.iof)?' + '+num(((1+p.spread)*(1+p.iof)-1)*100).replace(/,00$/,'')+'% spread e IOF':'')+' · estimado'
+            : (p.valorOriginal>0 && Math.abs((p.valorReais||0)-p.valorOriginal)>0.005
+              ? ' · cobrado pelo banco (× '+String(((p.valorReais||0)/p.valorOriginal).toFixed(4)).replace('.',',')+')'
+              : ' · buscando a cotação')):'')+
          (p.parcelasAviso>1?' · aviso diz <b>'+p.parcelasAviso+'x</b>':'')+'</div>'+
        (p.perguntarTitular
          ? '<div style="margin-top:7px;padding:8px 10px;border:1px solid var(--warn);border-radius:10px;font-size:12.5px">'+
