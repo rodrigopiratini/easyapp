@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.81.1 \u00b7 19/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.81.2 \u00b7 23/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -13353,13 +13353,18 @@ function responderTitular(i, meu){
     .apiDefinirTitular(p.uuid, meu);
 }
 function confirmarTodos(){
-  var itens=[];
+  var itens=[], transf=0;
   ST.pendentes.forEach(function(p,i){
     var cat=el('c'+i).value;
     if(p.perguntarTitular) return;      // dinheiro talvez de outra pessoa: só um a um, depois de responder
+    /* transferência entre contas suas: só uma a uma (23/11) - em lote ela era
+       confirmada sem a outra conta e o outro lado nunca nascia (Pix de 1.550 e
+       750 da PF para a ROR e a AZR) */
+    if(cat && ehTransfer(cat)){ transf++; return; }
     if(cat) itens.push({ linha:p.linha, id:p.id, categoria:cat, valor:p.valor });
   });
-  if(!itens.length){ toast('Classifique os novos primeiro'); return; }
+  if(!itens.length){ toast(transf?'Transferência entre contas: confirme uma a uma, escolhendo a outra conta':'Classifique os novos primeiro'); return; }
+  if(transf) toast(transf+(transf===1?' transferência ficou':' transferências ficaram')+' para confirmar uma a uma (escolha a outra conta)');
   el('tela-pendentes').innerHTML='<div class="load">Confirmando...</div>';
   google.script.run.withSuccessHandler(function(){ toast('Tudo confirmado'); carregar(); })
     .apiConfirmarTodos(itens);
