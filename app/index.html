@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.81.2 \u00b7 23/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.81.3 \u00b7 24/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -13479,9 +13479,19 @@ function desenharFolhaMes(){
       (ST.saldos && ST.saldos.contas.length ? htmlSaldos(ST.saldos) : '<div class="vazio">Nenhuma conta cadastrada.</div>');
   } else {
     var dc=doisCartoes(r)||{}, res=dc.res;
-    h='<div class="mf-cab"><b>De onde vêm'+(ST.dicaFaturaMes?' '+dica(ST.dicaFaturaMes):'')+'</b>'+
-      (res!==undefined?'<span class="'+(res>=0?'pos':'neg')+'">'+moeda(res)+'</span>':'')+'</div>'+
-      (cx.itens && cx.itens.length ? htmlDeOndeVem(cx) : '<div class="vazio">Nada mais previsto para entrar ou sair neste mês.</div>');
+    /* 24/11: o topo mostrava o RESULTADO do mês (-2.919,35) em cima de uma lista que
+       soma só o que ainda falta (-2.830,00) - parecia conta que não fecha. Agora o topo é
+       a soma da lista, e embaixo a ponte: já aconteceu + ainda falta = resultado do mês. */
+    var falta=n2((Number(cx.aReceber)||0)-(Number(cx.aPagar)||0));
+    var jaFoi=res!==undefined ? n2(res-falta) : null;
+    h='<div class="mf-cab"><b>De onde vêm'+(ST.dicaFaturaMes?' '+dica(ST.dicaFaturaMes):'')+
+        '<small style="display:block;font-size:11px;font-weight:400;color:var(--dim)">o que ainda falta entrar e sair</small></b>'+
+      '<span class="'+(falta>=0?'pos':'neg')+'">'+moeda(falta)+'</span></div>'+
+      (cx.itens && cx.itens.length ? htmlDeOndeVem(cx) : '<div class="vazio">Nada mais previsto para entrar ou sair neste mês.</div>')+
+      (jaFoi!==null ? '<div class="m" style="font-size:12px;line-height:1.6;margin:12px 2px 4px;border-top:1px solid var(--line);padding-top:10px">'+
+        'Já aconteceu no mês <b class="'+(jaFoi>=0?'pos':'neg')+'">'+moeda(jaFoi)+'</b><br>'+
+        '+ ainda falta <b class="'+(falta>=0?'pos':'neg')+'">'+moeda(falta)+'</b><br>'+
+        '= resultado do mês <b class="'+(res>=0?'pos':'neg')+'">'+moeda(res)+'</b></div>' : '');
   }
   var f=el('mesFolha'), caixa;
   if(!f){
