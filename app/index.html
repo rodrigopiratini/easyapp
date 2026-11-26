@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.82.0 \u00b7 26/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.82.1 \u00b7 27/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1636,7 +1636,8 @@ window.pedirTexto = function (o, feito) {
   }
 
   /* ---------------------------------------------------------- categorias */
-  function novaCategoria(nome, grupo, natureza, previsto) {
+  /* o previsto vai para o mês que está aberto na tela (27/11: ia sempre para o de hoje) */
+  function novaCategoria(nome, grupo, natureza, previsto, mes) {
     nome = String(nome || '').trim();
     if (!nome) return Promise.resolve({ ok: false, erro: 'dê um nome à subcategoria' });
     return gravar('categorias', [{
@@ -1645,7 +1646,7 @@ window.pedirTexto = function (o, feito) {
       sai_por: 'CAIXA'
     }], 'user_id,nome').then(function (r) {
       var cid = r[0].id;
-      var hoje = hojeRef();
+      var hoje = /^\d{4}-\d{2}$/.test(String(mes || '')) ? mes : hojeRef();
       if (!n(previsto)) return { ok: true, categoria: nome };
       return gravar('previstos', [{ categoria_id: cid, mes_ref: hoje, valor: n(previsto) }],
                     'user_id,categoria_id,mes_ref')
@@ -14228,8 +14229,9 @@ function linhaMais(natureza){
       '<div class="lbl" style="margin-top:10px">Categoria</div>'+
       botaoEscolha('ncFam', ehReceita?'RECEITA':'', 'escolher a categoria…', 'categoria',
                    (ehReceita?['RECEITA']:[]).concat(fams), '', '+ criar categoria nova')+
-      '<div class="lbl" style="margin-top:10px">Previsto por mês</div>'+
+      '<div class="lbl" style="margin-top:10px">Previsto em '+NOMES_MES[Number(String(ST.mes).slice(5,7))].toLowerCase()+'</div>'+
       '<input id="ncPrev" placeholder="0,00" inputmode="decimal" oninput="mascaraMoeda(this)">'+
+      '<div class="m" style="font-size:11px;margin-top:4px">Só a previsão: o que entrar de verdade aparece em "'+(ehReceita?'Entrou':'Gasto')+'". Outros meses: toque na linha › Mudar previsto.</div>'+
       '<div class="row" style="margin-top:10px;gap:8px">'+
         '<button class="bt-no" style="flex:1" onclick="ST.criando=null;renderMes()">Cancelar</button>'+
         '<button class="bt-ok" style="flex:2" onclick="criarConta(\''+natureza+'\')">Criar</button>'+
@@ -14317,7 +14319,7 @@ function criarConta(nat){
     ST.criando=null; ST.ano=null; carregar(ST.mes);
   }).withFailureHandler(function(e){
     toast('Falhou: '+((e&&e.message)||e));
-  }).apiNovaCategoria(nome, g, nat, p);
+  }).apiNovaCategoria(nome, g, nat, p, ST.mes);
 }
 
 function mudouFamilia(){
