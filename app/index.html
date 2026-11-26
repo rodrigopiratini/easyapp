@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.81.3 \u00b7 24/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.82.0 \u00b7 26/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -2338,10 +2338,17 @@ window.pedirTexto = function (o, feito) {
     for (var i = 0; i < ANEXO_III.length; i++) if (rbt12 <= ANEXO_III[i][0]) { f = ANEXO_III[i]; break; }
     return n(fat * (rbt12 > 0 ? (rbt12 * f[1] - f[2]) / rbt12 : f[1]));
   }
+  /* SIMPLES = 'IMPOSTO|FATURAMENTO[+FATURAMENTO2]|AAAA-MM|BASE; ...' (26/11): o faturamento
+     pode somar mais de uma subcategoria (a ROR: salário + 13 NF), e BASE é o faturamento
+     mensal dos meses sem dado nessas subcategorias (antes de out/26 o salário das duas
+     empresas era uma subcategoria só) - sem ela os 12 meses do RBT12 saíam vazios e a
+     alíquota, errada. */
   function lerSimples(c) {
     return String(c.SIMPLES || '').split(';').map(function (p) {
-      var x = p.split('|');
-      return { imposto: String(x[0] || '').trim(), fat: String(x[1] || '').trim(), desde: String(x[2] || '').trim() };
+      var x = p.split('|'), fat = String(x[1] || '').trim();
+      return { imposto: String(x[0] || '').trim(), fat: fat,
+               fats: fat.split('+').map(function (f) { return f.trim(); }).filter(Boolean),
+               desde: String(x[2] || '').trim(), base: Number(String(x[3] || '').replace(',', '.')) || 0 };
     }).filter(function (s) { return s.imposto && s.fat; });
   }
   function metasDoCartao(c) { return porMesDaCfg({ M: 'M|' + (c.META_CARTAO_MES || '') }, 'M').M || {}; }
@@ -2354,10 +2361,16 @@ window.pedirTexto = function (o, feito) {
       conta; cats = [{nome, natureza, sai_por}]. Só volta as contas da regra. */
   function previstosPorRegra(c, ref, val, cats) {
     var o = {};
+    var hojeR = hojeRef();
     lerSimples(c).forEach(function (s) {
       if (s.desde && ref < s.desde) return;
-      var m = mesAnterior(ref), fat = val(s.fat, m), rbt = 0;
-      for (var k = 0; k < 12; k++) { m = mesAnterior(m); rbt += val(s.fat, m); }
+      var fatDe = function (mm) {
+        var t = 0;
+        s.fats.forEach(function (f) { t += Number(val(f, mm)) || 0; });
+        return t <= 0.005 && s.base > 0 && mm < hojeR ? s.base : t;
+      };
+      var m = mesAnterior(ref), fat = fatDe(m), rbt = 0;
+      for (var k = 0; k < 12; k++) { m = mesAnterior(m); rbt += fatDe(m); }
       o[s.imposto] = dasSimples(fat, rbt);
     });
     var inicio = Object.keys(metasDoCartao(c)).sort()[0];
@@ -2382,9 +2395,11 @@ window.pedirTexto = function (o, feito) {
       var mudou = false;
       var novo = String(c.SIMPLES).split(';').map(function (p) {
         return p.split('|').map(function (x) {
-          var t = x.trim();
-          if (pares[t]) { mudou = true; return pares[t]; }
-          return t;
+          return x.split('+').map(function (y) {
+            var t = y.trim();
+            if (pares[t]) { mudou = true; return pares[t]; }
+            return t;
+          }).join('+');
         }).join('|');
       }).join('; ');
       if (!mudou) return 0;
@@ -2400,12 +2415,23 @@ window.pedirTexto = function (o, feito) {
       for (var i = 0; i < 13; i++) de = mesAnterior(de);
       return Promise.all([
         rest('/rest/v1/categorias?select=id,nome,natureza,sai_por&ativa=is.true'),
-        lerTudo('/rest/v1/previstos?select=mes_ref,valor,categoria_id&mes_ref=gte.' + de + '&order=mes_ref')
+        lerTudo('/rest/v1/previstos?select=mes_ref,valor,categoria_id&mes_ref=gte.' + de + '&order=mes_ref'),
+        lerTudo('/rest/v1/resumo_mes?select=mes_ref,categoria,realizado&mes_ref=gte.' + de + '&mes_ref=lte.' + hoje + '&natureza=eq.RECEITA')
       ]).then(function (R) {
-        var nomeDe = {}, idDe = {}, prev = {};
+        var nomeDe = {}, idDe = {}, prev = {}, real = {}, eFat = {};
         R[0].forEach(function (x) { nomeDe[x.id] = x.nome; idDe[x.nome] = x.id; });
         R[1].forEach(function (p) { (prev[p.mes_ref] = prev[p.mes_ref] || {})[nomeDe[p.categoria_id]] = Number(p.valor) || 0; });
-        var val = function (nome, ref) { return (prev[ref] && prev[ref][nome]) || 0; };
+        (R[2] || []).forEach(function (r) { (real[r.mes_ref] = real[r.mes_ref] || {})[r.categoria] = Number(r.realizado) || 0; });
+        lerSimples(c).forEach(function (s) { s.fats.forEach(function (f) { eFat[f] = true; }); });
+        /* o faturamento que conta (26/11): mês que passou = o que ENTROU (sem entrada, o
+           previsto); mês de hoje = o maior entre o que entrou e o previsto (faturamento
+           extra sobe o imposto do mês seguinte na hora); daqui em diante, o previsto */
+        var val = function (nome, ref) {
+          var p = (prev[ref] && prev[ref][nome]) || 0;
+          if (!eFat[nome] || ref > hoje) return p;
+          var r = (real[ref] && real[ref][nome]) || 0;
+          return ref < hoje ? (r > 0.005 ? r : p) : Math.max(r, p);
+        };
         var linhas = [];
         Object.keys(prev).sort().forEach(function (ref) {
           // o mês de hoje entra: a meta do cartão mudada hoje vale já (30/10)
