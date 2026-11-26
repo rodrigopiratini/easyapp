@@ -38,7 +38,7 @@
   <button id="tSim">Desbloquear</button>
   <button id="tNao" class="sec">Entrar com e-mail e senha</button>
 </div></div>
-<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.82.1 \u00b7 27/11/2026"};</script>
+<script>window.EASYAPP_CFG = {"url": "https://nhngqhgxmrnqbcnklrwc.supabase.co", "anon": "sb_publishable_SGsAAryHXSZjAuBFSZoYfQ_3D37nUeN", "versao": "1.83.0 \u00b7 27/11/2026"};</script>
 <script>/* Janela de texto no padrão do app, no lugar do prompt() do sistema
  * (caixa branca do Android, fora do tema). pedirTexto({ titulo, dica, valor,
  * placeholder, tipo: 'texto'|'valor'|'senha', ok: 'Criar' }, function (texto) {})
@@ -1637,6 +1637,19 @@ window.pedirTexto = function (o, feito) {
 
   /* ---------------------------------------------------------- categorias */
   /* o previsto vai para o mês que está aberto na tela (27/11: ia sempre para o de hoje) */
+  /* soma um valor ao previsto da subcategoria no mês (o "Previsto" do lançar à mão) */
+  function somarPrevisto(mes, categoria, valor) {
+    if (!/^\d{4}-\d{2}$/.test(String(mes || ''))) return Promise.resolve({ ok: false, erro: 'mês inválido' });
+    return idDaCategoria(categoria).then(function (cid) {
+      if (!cid) return { ok: false, erro: 'não achei a subcategoria ' + categoria };
+      return rest('/rest/v1/previstos?select=valor&categoria_id=eq.' + cid + '&mes_ref=eq.' + mes + '&limit=1').then(function (r) {
+        var antes = r && r[0] ? Number(r[0].valor) || 0 : 0, agora = n(antes + Math.abs(Number(valor) || 0));
+        return gravar('previstos', [{ categoria_id: cid, mes_ref: mes, valor: agora }], 'user_id,categoria_id,mes_ref')
+          .then(function () { _projCache = {}; return aplicarRegras(); })
+          .then(function () { return { ok: true, antes: n(antes), agora: agora }; });
+      });
+    });
+  }
   function novaCategoria(nome, grupo, natureza, previsto, mes) {
     nome = String(nome || '').trim();
     if (!nome) return Promise.resolve({ ok: false, erro: 'dê um nome à subcategoria' });
@@ -5319,6 +5332,7 @@ window.pedirTexto = function (o, feito) {
     apiInfoPrevisto: infoPrevisto,
     apiAplicarPrevisto: aplicarPrevisto,
     apiNovaCategoria: novaCategoria,
+    apiSomarPrevisto: somarPrevisto,
     apiApagarConta: apagarConta,
     apiConfirmar: confirmar,
     apiParcelar: parcelar,
@@ -16471,6 +16485,10 @@ function renderNovo(){
     '<div class="card">'+
     // a ordem de quem anota: o que é, o que foi, em que conta, quanto, de qual banco, quando
     segEscolha('nTipo', 'DESPESA', ['DESPESA','RECEITA','TRANSFERENCIA'], ROT_TIPO)+
+    /* 27/11: realizado (já aconteceu, o normal) ou previsto (vai acontecer) - antes
+       todo lançamento à mão era realizado (as Férias de dez entraram como recebidas) */
+    '<div id="nQuandoBox" style="margin-top:10px">'+segEscolha('nQuando', 'REAL', ['REAL','PREV'], { REAL:'Realizado', PREV:'Previsto' })+
+      '<div class="m" id="nQuandoNota" style="font-size:11px;margin-top:4px">já aconteceu: entra no saldo e no "'+'Gasto/Entrou"</div></div>'+
     '<div class="lbl" style="margin-top:12px">Descrição</div><input id="nd" placeholder="Ex: farmácia">'+
     '<div id="ncBox"><div class="lbl" style="margin-top:12px">Subcategoria</div>'+
     '<input type="hidden" id="nc" value="">'+
@@ -16480,8 +16498,8 @@ function renderNovo(){
     '<div class="lbl" style="margin-top:12px">Valor</div>'+
     '<input id="nv" type="text" inputmode="decimal" placeholder="0,00" '+
       'oninput="mascaraMoeda(this)">'+
-    '<div class="lbl" style="margin-top:12px" id="rotOnde">Saiu de</div>'+
-    botaoEscolha('nonde', '', 'escolher o banco ou cartão…', 'onde', ondeItens(), '')+
+    '<div id="nOndeBox"><div class="lbl" style="margin-top:12px" id="rotOnde">Saiu de</div>'+
+    botaoEscolha('nonde', '', 'escolher o banco ou cartão…', 'onde', ondeItens(), '')+'</div>'+
     '<div id="nparaBox" class="hide">'+
       '<div class="lbl" style="margin-top:12px">Entrou em</div>'+
       botaoEscolha('npara', '', 'escolher…', 'conta',
@@ -16638,6 +16656,19 @@ function salvarNovo(){
   if(!cat){ toast('Escolha a subcategoria'); return; }
   var tipoN=(el('nTipo')&&el('nTipo').value)||'';
   var nat=(tipoN==='RECEITA'||tipoN==='DESPESA') ? tipoN : (catNatureza(cat)||'DESPESA');
+  // previsto: soma na previsão da subcategoria no mês da data
+  if(el('nQuando') && el('nQuando').value==='PREV' && !ehTransfer(cat)){
+    var dia=el('nda').value || new Date().toISOString().slice(0,10), mesP=dia.slice(0,7);
+    var b2=event&&event.target; if(b2){ b2.disabled=true; b2.textContent='Gravando...'; }
+    google.script.run.withSuccessHandler(function(r){
+      if(b2){ b2.disabled=false; b2.textContent='Lançar'; }
+      if(!r || !r.ok){ toast((r&&r.erro)||'Não consegui'); return; }
+      toast('Previsto de '+NOMES_MES[Number(mesP.slice(5,7))].toLowerCase()+': '+moeda(r.antes)+' → '+moeda(r.agora));
+      el('nv').value=''; el('nd').value=''; ST.cacheMes={}; ST.ano=null; carregar();
+    }).withFailureHandler(function(e){ if(b2){ b2.disabled=false; b2.textContent='Lançar'; } toast('Falhou: '+((e&&e.message)||e)); })
+      .apiSomarPrevisto(mesP, cat, v);
+    return;
+  }
 
   var onde=(el('nonde')&&el('nonde').value)||'';
   if(!onde){ toast(nat==='RECEITA' ? 'Diga em qual banco entrou' : 'Diga de qual banco ou cartão saiu'); return; }
@@ -18383,6 +18414,13 @@ function escolherSeg(id, valor){
   });
   if(id==='edNat') edNatMudou(valor);
   if(id==='nTipo') novoTipoMudou(valor);
+  if(id==='nQuando') novoQuandoMudou(valor);
+}
+function novoQuandoMudou(v){
+  var prev=v==='PREV', ob=el('nOndeBox'), nt=el('nQuandoNota');
+  if(ob) ob.style.display=prev?'none':'';
+  if(nt) nt.textContent=prev ? 'vai acontecer: soma no previsto da subcategoria no mês da data (não mexe no saldo)'
+                             : 'já aconteceu: entra no saldo e no "Gasto/Entrou"';
 }
 var ROT_TIPO={ DESPESA:'Débito', RECEITA:'Crédito', TRANSFERENCIA:'Transferência' };
 /* Editar lançamento: virou receita, o rótulo é "Recebeu em" e a conta tem que
